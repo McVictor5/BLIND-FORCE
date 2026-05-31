@@ -3769,10 +3769,13 @@ function onStateReceived(prevSide, data) {
     renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
     showTurnNotification(prevSide);
   } else if(!isMe){
-    // Rival's turn — re-render board (our units visible via viewSide)
-    // but keep waiting overlay on top — do NOT call hideWaiting
+    // Rival's turn — render board showing ONLY our own units (no revealed enemies)
+    // Temporarily empty revealedCells so no rival units are visible
+    const savedRevealed = G.revealedCells;
+    G.revealedCells = new Set();
     renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
-    // Ensure waiting overlay is shown (may have been hidden by modal)
+    G.revealedCells = savedRevealed;
+    // Keep waiting overlay active
     const waitOverlay=document.getElementById('waiting-overlay');
     if(!waitOverlay.classList.contains('active')){
       const rl=ONLINE.myRole==='atk'?'DEFENSOR':'ATACANTE';
@@ -3928,6 +3931,9 @@ function buildUnitsAndStart_online(){
           setHelp(phaseHelp('movement'));
           pushState();
         } else {
+          // Waiting player: render board without any revealed enemy cells
+          G.revealedCells = new Set();
+          renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
           const rl=ONLINE.myRole==='atk'?'DEFENSOR':'ATACANTE';
           showWaiting('TURNO DEL '+rl, 'El '+rl.toLowerCase()+' está jugando su turno.');
         }
@@ -4119,7 +4125,11 @@ window.endTurn=function(){
   G.revealedCells=new Set(); G.selectedUnit=null; G.shootingUnit=null;
 
   pushState();
+  // Render our board without rival revealed cells, then show waiting
+  const savedRev = G.revealedCells;
+  G.revealedCells = new Set();
   renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
+  G.revealedCells = savedRev;
   const rivalLabel=G.currentSide==='atk'?'ATACANTE':'DEFENSOR';
   showWaiting('TURNO DEL '+rivalLabel, 'El '+rivalLabel.toLowerCase()+' está jugando su turno.');
 };
