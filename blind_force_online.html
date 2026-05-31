@@ -943,6 +943,10 @@ function initState() {
     shootingUnit: null,
     // pending elimination notifications
     pendingNotifs: [],
+    lastTurnUnmovedCount: 0,
+    lastTurnSide: null,
+    lastTurnAbilitiesUsed: 0,
+    lastTurnShots: [],
     // ── NEW UNIT STATE ──
     sarapovaState: { devicePlaced:false, swapsLeft:2 }, // sarapova multi-use
     sarapovaDevice: null,       // {row,col}
@@ -3084,6 +3088,8 @@ function triggerAbility(uid) {
 function executeAbility(uid) {
   const u=getUnit(uid);
   u.abilityUsed=true;
+  if(!G.lastTurnAbilitiesUsed) G.lastTurnAbilitiesUsed=0;
+  G.lastTurnAbilitiesUsed++;
   switch(uid) {
     case 'bertin':
       G.abilityMode={type:'bertin_recon',unitId:uid,data:{}};
@@ -3872,28 +3878,52 @@ function phaseHelp(phase){
 }
 
 function showTurnNotification(rivalSide){
-  const shots=G.shotsFired||[];
   const rivalLabel=(rivalSide||'atk')==='atk'?'ATACANTE':'DEFENSOR';
-  let msg='';
+  // Use saved turn data (captured before reset in endTurn)
+  const shots = G.lastTurnShots || G.shotsFired || [];
+  const unmovedCount = G.lastTurnUnmovedCount || 0;
+  const abilitiesUsed = G.lastTurnAbilitiesUsed || 0;
+
+  let msg = '<b style="color:var(--accent-green)">Turno del '+rivalLabel+' terminado.</b><br><br>';
+
+  // Shots
+  msg += '<b>DISPAROS ('+shots.length+'):</b><br>';
   if(shots.length>0){
-    msg+='<b>DISPAROS DEL '+rivalLabel+':</b><br>';
     shots.forEach(s=>{
-      if(s.blocked) msg+='🎯 Disparo desde ('+(s.fromCol+1)+','+(s.fromRow+1)+') — sin eliminación.<br>';
+      if(s.blocked) msg+='🎯 Desde ('+(s.fromCol+1)+','+(s.fromRow+1)+') — sin eliminación.<br>';
       else if(s.toUnit) msg+='🎯 Desde ('+(s.fromCol+1)+','+(s.fromRow+1)+') — <b>'+s.toUnit.name+'</b> eliminada.<br>';
+      else msg+='🎯 Disparo realizado.<br>';
     });
   } else {
-    msg+='Sin disparos este turno.<br>';
+    msg+='Sin disparos.<br>';
   }
-  // Use saved unmoved count from before movedUnits was reset
-  const unmovedCount = G.lastTurnUnmovedCount||0;
-  if(unmovedCount>0) msg+='<br>⚠ Fichas sin mover por el '+rivalLabel.toLowerCase()+': <b>'+unmovedCount+'</b>';
-  if(G.pendingNotifs&&G.pendingNotifs.length){ msg+='<br><br><b>AVISOS:</b><br>'+G.pendingNotifs.join('<br>'); G.pendingNotifs=[]; }
+
+  // Unmoved units
+  msg += '<br><b>FICHAS SIN MOVER:</b> '+unmovedCount;
+
+  // Abilities used
+  msg += '<br><b>HABILIDADES USADAS:</b> '+abilitiesUsed;
+
+  // Specific ability notifications (device traps, special effects)
+  if(G.pendingNotifs&&G.pendingNotifs.length>0){
+    msg+='<br><br><b>AVISOS:</b><br>';
+    G.pendingNotifs.forEach(n=>{ msg+='⚠ '+n+'<br>'; });
+    G.pendingNotifs=[];
+  }
+
+  // Ivan block warning for this round
   if(G.currentSide==='def'&&G.ivanBlockRound===G.round&&G.ivanBlockedUnit){
-    const bu=getUnit(G.ivanBlockedUnit); if(bu) msg+='<br><br>⚠ <b>BLOQUEO IVÁN:</b> '+bu.name+' no puede moverse esta ronda.';
+    const bu=getUnit(G.ivanBlockedUnit);
+    if(bu) msg+='<br>⚠ <b>BLOQUEO IVÁN:</b> '+bu.name+' no puede moverse esta ronda.';
   }
-  _origShowModal('RESUMEN — TURNO '+rivalLabel, msg||'El rival ha terminado.', [{label:'CERRAR Y COMENZAR TURNO', action:()=>{
-    renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar(); setHelp(phaseHelp(G.gamePhase));
-  }}]);
+
+  _origShowModal('RESUMEN RONDA '+G.round+' — '+rivalLabel, msg, [{
+    label:'CERRAR Y COMENZAR TURNO',
+    action:()=>{
+      renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
+      setHelp(phaseHelp(G.gamePhase));
+    }
+  }]);
 }
 // ── Game build ─────────────────────────────────────────────────────────────
 function buildUnitsAndStart_online(){
@@ -3993,7 +4023,7 @@ async function joinRoom(){
 function startOnlineGame(){
   initState(); setupFixedWalls(); ONLINE.currentStep=null; ONLINE.suppressStateUpdates=false;
   ONLINE.myLastRevealedCells = new Set();
-  startListening(); listenStep();
+  startListening(); listenStep(); listenWinner();
   startPick(ONLINE.myRole);
 }
 
@@ -4081,7 +4111,21 @@ function buildUnitsLocally(){
   });
 }
 
-const _origAdvancePhase=advancePhase;
+const _origEndGame = endGame;
+window.endGame = function(winner, reason) {
+  if(!ONLINE.enabled){ _origEndGame(winner, reason); return; }
+  // Push winner to Firebase so both players see it
+  window._fbSet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/winner'),{winner,reason});
+  _origEndGame(winner, reason);
+};
+
+// Listen for winner from Firebase (for the non-active player)
+function listenWinner(){
+  window._fbOnValue(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/winner'),snap=>{
+    const data=snap.val(); if(!data) return;
+    _origEndGame(data.winner, data.reason);
+  });
+}
 window.advancePhase=function(){
   if(ONLINE.enabled&&!isMyTurn()){toast('⚠ No es tu turno');return;}
   _origAdvancePhase();
@@ -4109,10 +4153,13 @@ window.endTurn=function(){
 
   G.pendingBulletMarkers=(G.shotsFired||[]).filter(s=>!s.blocked).map(s=>({row:s.fromRow,col:s.fromCol}));
 
-  // Save unmoved count BEFORE resetting movedUnits — for rival's notification
+  // Save full turn summary BEFORE resetting — rival will read these from state
   const myAliveUnits=G.units.filter(u=>u.side===prevSide&&u.alive);
   G.lastTurnUnmovedCount=myAliveUnits.filter(u=>!G.movedUnits.has(u.id)).length;
   G.lastTurnSide=prevSide;
+  G.lastTurnShots=[...(G.shotsFired||[])];
+  G.lastTurnAbilitiesUsed=G.lastTurnAbilitiesUsed||0;
+  const savedAbilities=G.lastTurnAbilitiesUsed;
 
   // Switch turn
   G.currentSide=G.currentSide==='atk'?'def':'atk';
@@ -4126,6 +4173,7 @@ window.endTurn=function(){
   G.curroExtendedShot=false; G.morientesSilentElim=false; G.hectorBlindCell=null;
   G.koldoActive=false; G.olayaKilledThisRound=false;
   G.revealedCells=new Set(); G.selectedUnit=null; G.shootingUnit=null;
+  G.lastTurnAbilitiesUsed=0; // reset for new turn
 
   pushState();
   // Save a snapshot of what the player saw at end of their turn
