@@ -4121,18 +4121,34 @@ function buildUnitsLocally(){
 
 const _origEndGame = endGame;
 window.endGame = function(winner, reason) {
-  if(!ONLINE.enabled){ _origEndGame(winner, reason); return; }
   ONLINE.gameOver = true;
-  window._fbSet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/winner'),{winner,reason});
-  _origEndGame(winner, reason);
+  if(ONLINE.enabled){
+    window._fbSet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/winner'),{winner,reason});
+  }
+  // Show winner screen directly
+  document.getElementById('modal').classList.remove('active');
+  const wo=document.getElementById('waiting-overlay'); if(wo) wo.classList.remove('active');
+  document.getElementById('winner-text').textContent = winner==='atk'?'⚔ ATACANTE GANA':'🛡 DEFENSOR GANA';
+  document.getElementById('winner-text').className = 'winner-text '+winner;
+  document.getElementById('winner-reason').textContent = reason;
+  showScreen('winner');
+  document.getElementById('screen-winner').style.cssText='z-index:2000;position:fixed;inset:0;display:flex;';
 };
 
 function listenWinner(){
-  window._fbOnValue(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/winner'),snap=>{
-    const data=snap.val(); if(!data) return;
-    if(ONLINE.gameOver) return; // already shown locally by active player
-    ONLINE.gameOver = true;
-    _origEndGame(data.winner, data.reason);
+  const ref=window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/winner');
+  window._fbOnValue(ref, snap=>{
+    const data=snap.val();
+    if(!data||ONLINE.gameOver) return;
+    ONLINE.gameOver=true;
+    // Show winner screen for the waiting player
+    document.getElementById('modal').classList.remove('active');
+    const wo=document.getElementById('waiting-overlay'); if(wo) wo.classList.remove('active');
+    document.getElementById('winner-text').textContent = data.winner==='atk'?'⚔ ATACANTE GANA':'🛡 DEFENSOR GANA';
+    document.getElementById('winner-text').className = 'winner-text '+data.winner;
+    document.getElementById('winner-reason').textContent = data.reason;
+    showScreen('winner');
+    document.getElementById('screen-winner').style.cssText='z-index:2000;position:fixed;inset:0;display:flex;';
   });
 }
 const _origAdvancePhase=advancePhase;
