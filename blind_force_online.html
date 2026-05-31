@@ -2441,10 +2441,18 @@ function checkWinConditions() {
 }
 
 function endGame(winner, reason) {
+  // Close all overlays — winner screen has absolute priority
+  document.getElementById('modal').classList.remove('active');
+  const wo = document.getElementById('waiting-overlay');
+  if(wo) wo.classList.remove('active');
   document.getElementById('winner-text').textContent = winner==='atk' ? '⚔ ATACANTE GANA' : '🛡 DEFENSOR GANA';
   document.getElementById('winner-text').className = 'winner-text '+winner;
   document.getElementById('winner-reason').textContent = reason;
   showScreen('winner');
+  // Force winner screen on top of everything
+  document.getElementById('screen-winner').style.zIndex = '2000';
+  document.getElementById('screen-winner').style.position = 'fixed';
+  document.getElementById('screen-winner').style.inset = '0';
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -4022,7 +4030,7 @@ async function joinRoom(){
 
 function startOnlineGame(){
   initState(); setupFixedWalls(); ONLINE.currentStep=null; ONLINE.suppressStateUpdates=false;
-  ONLINE.myLastRevealedCells = new Set();
+  ONLINE.myLastRevealedCells = new Set(); ONLINE.gameOver = false;
   startListening(); listenStep(); listenWinner();
   startPick(ONLINE.myRole);
 }
@@ -4114,15 +4122,16 @@ function buildUnitsLocally(){
 const _origEndGame = endGame;
 window.endGame = function(winner, reason) {
   if(!ONLINE.enabled){ _origEndGame(winner, reason); return; }
-  // Push winner to Firebase so both players see it
+  ONLINE.gameOver = true;
   window._fbSet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/winner'),{winner,reason});
   _origEndGame(winner, reason);
 };
 
-// Listen for winner from Firebase (for the non-active player)
 function listenWinner(){
   window._fbOnValue(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/winner'),snap=>{
     const data=snap.val(); if(!data) return;
+    if(ONLINE.gameOver) return; // already shown locally by active player
+    ONLINE.gameOver = true;
     _origEndGame(data.winner, data.reason);
   });
 }
