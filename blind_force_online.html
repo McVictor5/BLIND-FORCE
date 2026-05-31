@@ -3769,12 +3769,11 @@ function onStateReceived(prevSide, data) {
     renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
     showTurnNotification(prevSide);
   } else if(!isMe){
-    // Rival's turn — render board showing ONLY our own units (no revealed enemies)
-    // Temporarily empty revealedCells so no rival units are visible
-    const savedRevealed = G.revealedCells;
-    G.revealedCells = new Set();
+    // Rival's turn — render board as it was at end of our last turn
+    const savedRev = G.revealedCells;
+    G.revealedCells = ONLINE.myLastRevealedCells || new Set();
     renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
-    G.revealedCells = savedRevealed;
+    G.revealedCells = savedRev;
     // Keep waiting overlay active
     const waitOverlay=document.getElementById('waiting-overlay');
     if(!waitOverlay.classList.contains('active')){
@@ -3931,9 +3930,12 @@ function buildUnitsAndStart_online(){
           setHelp(phaseHelp('movement'));
           pushState();
         } else {
-          // Waiting player: render board without any revealed enemy cells
-          G.revealedCells = new Set();
+          // Save snapshot of empty board (no reveals yet at game start)
+          ONLINE.myLastRevealedCells = new Set();
+          const savedRev2 = G.revealedCells;
+          G.revealedCells = ONLINE.myLastRevealedCells;
           renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
+          G.revealedCells = savedRev2;
           const rl=ONLINE.myRole==='atk'?'DEFENSOR':'ATACANTE';
           showWaiting('TURNO DEL '+rl, 'El '+rl.toLowerCase()+' está jugando su turno.');
         }
@@ -3990,6 +3992,7 @@ async function joinRoom(){
 
 function startOnlineGame(){
   initState(); setupFixedWalls(); ONLINE.currentStep=null; ONLINE.suppressStateUpdates=false;
+  ONLINE.myLastRevealedCells = new Set();
   startListening(); listenStep();
   startPick(ONLINE.myRole);
 }
@@ -4125,9 +4128,11 @@ window.endTurn=function(){
   G.revealedCells=new Set(); G.selectedUnit=null; G.shootingUnit=null;
 
   pushState();
-  // Render our board without rival revealed cells, then show waiting
+  // Save a snapshot of what the player saw at end of their turn
+  ONLINE.myLastRevealedCells = new Set(G.revealedCells);
+  // Render board as it was at end of our turn (no new reveals)
   const savedRev = G.revealedCells;
-  G.revealedCells = new Set();
+  G.revealedCells = ONLINE.myLastRevealedCells;
   renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
   G.revealedCells = savedRev;
   const rivalLabel=G.currentSide==='atk'?'ATACANTE':'DEFENSOR';
