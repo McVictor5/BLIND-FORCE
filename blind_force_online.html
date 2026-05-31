@@ -4126,6 +4126,7 @@ function listenWinner(){
     _origEndGame(data.winner, data.reason);
   });
 }
+const _origAdvancePhase=advancePhase;
 window.advancePhase=function(){
   if(ONLINE.enabled&&!isMyTurn()){toast('⚠ No es tu turno');return;}
   _origAdvancePhase();
