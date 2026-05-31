@@ -3755,7 +3755,7 @@ function onStateReceived(prevSide, data) {
   if(!gameActive) return;
   if(sid!=='screen-game'){
     startGameLoop();
-    if(!isMe){
+    if(data.currentSide!==ONLINE.myRole){
       const rl=ONLINE.myRole==='atk'?'DEFENSOR':'ATACANTE';
       showWaiting('TURNO DEL '+rl,'El '+rl.toLowerCase()+' está jugando su turno.');
     }
@@ -3764,13 +3764,20 @@ function onStateReceived(prevSide, data) {
   const isMe=data.currentSide===ONLINE.myRole;
   const wasMe=prevSide===ONLINE.myRole;
   if(isMe&&!wasMe){
-    // Rival just ended their turn — hide waiting, show turn summary
+    // Rival just ended their turn — hide waiting, show summary
     hideWaiting();
     renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
     showTurnNotification(prevSide);
   } else if(!isMe){
-    // Rival is playing — keep board rendered under waiting overlay
+    // Rival's turn — re-render board (our units visible via viewSide)
+    // but keep waiting overlay on top — do NOT call hideWaiting
     renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
+    // Ensure waiting overlay is shown (may have been hidden by modal)
+    const waitOverlay=document.getElementById('waiting-overlay');
+    if(!waitOverlay.classList.contains('active')){
+      const rl=ONLINE.myRole==='atk'?'DEFENSOR':'ATACANTE';
+      showWaiting('TURNO DEL '+rl,'El '+rl.toLowerCase()+' está jugando su turno.');
+    }
   } else {
     renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
   }
@@ -3875,8 +3882,8 @@ function showTurnNotification(rivalSide){
   } else {
     msg+='Sin disparos este turno.<br>';
   }
-  const rivalUnits=G.units.filter(u=>u.side===(rivalSide||'atk')&&u.alive);
-  const unmovedCount=rivalUnits.filter(u=>!G.movedUnits.has(u.id)).length;
+  // Use saved unmoved count from before movedUnits was reset
+  const unmovedCount = G.lastTurnUnmovedCount||0;
   if(unmovedCount>0) msg+='<br>⚠ Fichas sin mover por el '+rivalLabel.toLowerCase()+': <b>'+unmovedCount+'</b>';
   if(G.pendingNotifs&&G.pendingNotifs.length){ msg+='<br><br><b>AVISOS:</b><br>'+G.pendingNotifs.join('<br>'); G.pendingNotifs=[]; }
   if(G.currentSide==='def'&&G.ivanBlockRound===G.round&&G.ivanBlockedUnit){
@@ -4076,6 +4083,7 @@ window.endTurn=function(){
   if(ONLINE.enabled&&!isMyTurn()) return;
   if(!ONLINE.enabled){ endTurn(); return; }
   const prevSide=G.currentSide;
+
   // Bomb counters & win check
   if(G.currentSide==='atk'){
     const dib=G.units.some(u=>u.side==='def'&&u.alive&&inBombZone(u.row,u.col));
@@ -4086,9 +4094,17 @@ window.endTurn=function(){
     });
     checkWinConditions();
   }
+
   // Olaya boost
   if(G.olayaKilledThisRound){ G.olayaBoostRound=G.round+1; G.olayaKilledThisRound=false; G.olayaAbilityActive=false; }
+
   G.pendingBulletMarkers=(G.shotsFired||[]).filter(s=>!s.blocked).map(s=>({row:s.fromRow,col:s.fromCol}));
+
+  // Save unmoved count BEFORE resetting movedUnits — for rival's notification
+  const myAliveUnits=G.units.filter(u=>u.side===prevSide&&u.alive);
+  G.lastTurnUnmovedCount=myAliveUnits.filter(u=>!G.movedUnits.has(u.id)).length;
+  G.lastTurnSide=prevSide;
+
   // Switch turn
   G.currentSide=G.currentSide==='atk'?'def':'atk';
   if(G.currentSide==='atk') G.round++;
@@ -4101,9 +4117,8 @@ window.endTurn=function(){
   G.curroExtendedShot=false; G.morientesSilentElim=false; G.hectorBlindCell=null;
   G.koldoActive=false; G.olayaKilledThisRound=false;
   G.revealedCells=new Set(); G.selectedUnit=null; G.shootingUnit=null;
-  // Push state — rival receives via onStateReceived with prevSide=the side that just played
+
   pushState();
-  // Show our board + waiting overlay
   renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
   const rivalLabel=G.currentSide==='atk'?'ATACANTE':'DEFENSOR';
   showWaiting('TURNO DEL '+rivalLabel, 'El '+rivalLabel.toLowerCase()+' está jugando su turno.');
