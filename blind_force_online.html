@@ -3663,6 +3663,13 @@ let ONLINE = {
 
 // ── Serialization ─────────────────────────────────────────────────────────
 function serializeG() {
+  // Ensure critical arrays exist before serializing
+  if(!Array.isArray(G.devices)) G.devices=[];
+  if(!Array.isArray(G.units)) G.units=[];
+  if(!Array.isArray(G.shotsFired)) G.shotsFired=[];
+  if(!Array.isArray(G.bulletMarkers)) G.bulletMarkers=[];
+  if(!Array.isArray(G.pendingNotifs)) G.pendingNotifs=[];
+  if(!G.bombCounters) G.bombCounters={};
   const s = JSON.parse(JSON.stringify(G, (k,v) => v instanceof Set ? [...v] : v));
   s._pushedBy = ONLINE.myRole;
   s._pushTs   = ONLINE.lastPushTs;
@@ -3673,6 +3680,21 @@ function deserializeG(data) {
   const d = Object.assign({}, data);
   ['walls','fixedWalls','movedUnits','shotUnits','revealedCells','seenByAtk','seenByDef']
     .forEach(k=>{ d[k]=new Set(Array.isArray(d[k])?d[k]:[]); });
+  // Ensure arrays are initialized
+  if(!Array.isArray(d.units)) d.units=[];
+  if(!Array.isArray(d.devices)) d.devices=[];
+  if(!Array.isArray(d.atkPick)) d.atkPick=[];
+  if(!Array.isArray(d.defPick)) d.defPick=[];
+  if(!Array.isArray(d.shotsFired)) d.shotsFired=[];
+  if(!Array.isArray(d.bulletMarkers)) d.bulletMarkers=[];
+  if(!Array.isArray(d.pendingBulletMarkers)) d.pendingBulletMarkers=[];
+  if(!Array.isArray(d.pendingNotifs)) d.pendingNotifs=[];
+  if(!d.bombCounters) d.bombCounters={};
+  if(!d.spawnPlacements) d.spawnPlacements={atk:{},def:{}};
+  if(!d.spawnPlacements.atk) d.spawnPlacements.atk={};
+  if(!d.spawnPlacements.def) d.spawnPlacements.def={};
+  if(!d.defLastMoveFrom) d.defLastMoveFrom={};
+  if(!d.defPosHistory) d.defPosHistory={};
   d.selectedUnit=null; d.shootingUnit=null;
   return d;
 }
@@ -3890,7 +3912,11 @@ function buildUnitsAndStart_online(){
         G.shotFired=null;
         G.revealedCells=new Set();
         G.selectedUnit=null;
-        startGameLoop(); // initializes canvas, renders game correctly
+        console.log('COMENZAR: units='+G.units.length+' myRole='+ONLINE.myRole+' currentSide='+G.currentSide);
+        console.log('atkPick='+JSON.stringify(G.atkPick)+' defPick='+JSON.stringify(G.defPick));
+        console.log('spawns='+JSON.stringify(G.spawnPlacements));
+        if(G.units.length>0) console.log('first unit='+JSON.stringify(G.units[0]));
+        startGameLoop();
         if(isMe){
           setHelp(phaseHelp('movement'));
           pushState();
