@@ -1,0 +1,4177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLIND-FORCE ONLINE</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+:root {
+  --bg: #0a0c0f;
+  --panel: #0f1218;
+  --border: #1e2530;
+  --accent-green: #00ff88;
+  --accent-red: #ff3355;
+  --accent-blue: #3399ff;
+  --accent-yellow: #ffcc00;
+  --text: #c8d8e8;
+  --text-dim: #4a5a6a;
+  --atk: #ff3355;
+  --def: #3399ff;
+  --bomb-zone: #1a1a0a;
+  --wall-color: #8a7a50;
+  --cell-size: 42px;
+  --cell-gap: 3px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Rajdhani', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── SCANLINE OVERLAY ── */
+body::before {
+  content:'';
+  position:fixed; inset:0; pointer-events:none; z-index:9999;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.07) 2px, rgba(0,0,0,.07) 4px);
+}
+
+/* ── SCREENS ── */
+.screen { display:none; min-height:100vh; }
+.screen.active { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; }
+
+/* ── TITLE SCREEN ── */
+#screen-title {
+  background: radial-gradient(ellipse at center, #0d1520 0%, #050810 100%);
+  position:relative; overflow:hidden;
+}
+#screen-title::after {
+  content:'';
+  position:absolute; inset:0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  pointer-events:none;
+}
+.title-glow {
+  font-family:'Orbitron',monospace;
+  font-size: clamp(2rem,6vw,5rem);
+  font-weight:900; letter-spacing:.3em;
+  color: var(--accent-green);
+  text-shadow: 0 0 20px rgba(0,255,136,.8), 0 0 60px rgba(0,255,136,.4);
+  text-align:center; position:relative; z-index:1;
+  animation: titlePulse 3s ease-in-out infinite;
+}
+@keyframes titlePulse {
+  0%,100%{text-shadow:0 0 20px rgba(0,255,136,.8),0 0 60px rgba(0,255,136,.4);}
+  50%{text-shadow:0 0 40px rgba(0,255,136,1),0 0 100px rgba(0,255,136,.6);}
+}
+.title-sub {
+  font-family:'Share Tech Mono',monospace;
+  color:var(--text-dim); letter-spacing:.5em; font-size:.9rem;
+  margin:10px 0 50px; position:relative; z-index:1;
+}
+.btn-primary {
+  background: transparent;
+  border: 2px solid var(--accent-green);
+  color: var(--accent-green);
+  font-family:'Orbitron',monospace;
+  font-size:1rem; font-weight:700; letter-spacing:.2em;
+  padding:14px 40px; cursor:pointer;
+  clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+  transition: all .2s;
+  position:relative; z-index:1;
+}
+.btn-primary:hover {
+  background: rgba(0,255,136,.15);
+  box-shadow: 0 0 30px rgba(0,255,136,.4);
+}
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family:'Rajdhani',sans-serif;
+  font-size:1rem; font-weight:600; letter-spacing:.1em;
+  padding:10px 28px; cursor:pointer;
+  transition: all .2s; margin:6px;
+}
+.btn-secondary:hover { border-color:var(--text); color:var(--text); }
+.btn-danger { border-color:var(--accent-red); color:var(--accent-red); }
+.btn-danger:hover { background:rgba(255,51,85,.15); }
+
+/* ── PHASE HEADER ── */
+.phase-header {
+  width:100%; max-width:900px;
+  display:flex; align-items:center; gap:16px;
+  margin-bottom:20px;
+}
+.phase-tag {
+  font-family:'Share Tech Mono',monospace;
+  font-size:.7rem; letter-spacing:.2em; color:var(--accent-yellow);
+  background:rgba(255,204,0,.1); border:1px solid rgba(255,204,0,.3);
+  padding:4px 12px;
+}
+.phase-title {
+  font-family:'Orbitron',monospace;
+  font-size:1.3rem; font-weight:700; color:var(--text);
+}
+
+/* ── ROLE BADGES ── */
+.role-badge {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 16px;
+  font-family:'Share Tech Mono',monospace; font-size:.85rem;
+  font-weight:700; letter-spacing:.1em;
+}
+.role-badge.atk { background:rgba(255,51,85,.15); border:1px solid rgba(255,51,85,.4); color:var(--atk); }
+.role-badge.def { background:rgba(51,153,255,.15); border:1px solid rgba(51,153,255,.4); color:var(--def); }
+
+/* ── CARD SELECTION ── */
+.card-grid {
+  display:grid; grid-template-columns:repeat(2,1fr); gap:16px;
+  width:100%; max-width:800px;
+}
+.unit-card {
+  background:var(--panel);
+  border:2px solid var(--border);
+  padding:20px; cursor:pointer;
+  transition: all .2s; position:relative;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+.unit-card:hover { border-color:var(--text-dim); }
+.unit-card.selected.atk { border-color:var(--atk); background:rgba(255,51,85,.08); }
+.unit-card.selected.def { border-color:var(--def); background:rgba(51,153,255,.08); }
+.unit-card.disabled { opacity:.4; cursor:not-allowed; }
+.unit-icon {
+  width:52px; height:52px; border-radius:4px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Orbitron',monospace; font-size:1.4rem; font-weight:900;
+  margin-bottom:12px;
+}
+.unit-icon.atk { background:rgba(255,51,85,.2); color:var(--atk); border:2px solid var(--atk); }
+.unit-icon.def { background:rgba(51,153,255,.2); color:var(--def); border:2px solid var(--def); }
+.unit-name {
+  font-family:'Orbitron',monospace; font-size:1rem; font-weight:700;
+  margin-bottom:6px;
+}
+.unit-ability {
+  font-size:.85rem; color:var(--text-dim); line-height:1.5;
+}
+.unit-ability b { color:var(--accent-yellow); }
+.sel-count {
+  font-family:'Share Tech Mono',monospace;
+  color:var(--text-dim); font-size:.85rem; margin-top:12px;
+}
+
+/* ── GAME LAYOUT ── */
+#screen-game { flex-direction:row; align-items:flex-start; justify-content:center; gap:20px; padding:16px; min-height:100vh; }
+
+/* ── BOARD AREA ── */
+.board-wrap {
+  position:relative;
+  flex-shrink:0;
+}
+#board-canvas {
+  display:block;
+  cursor:pointer;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width:220px; flex-shrink:0;
+  display:flex; flex-direction:column; gap:12px;
+}
+.sidebar-panel {
+  background:var(--panel);
+  border:1px solid var(--border);
+  padding:14px;
+}
+.sidebar-title {
+  font-family:'Share Tech Mono',monospace;
+  font-size:.7rem; letter-spacing:.15em; color:var(--accent-yellow);
+  margin-bottom:10px; text-transform:uppercase;
+}
+.bomb-counter {
+  margin-bottom:8px;
+}
+.bomb-counter-name {
+  font-size:.8rem; color:var(--text-dim);
+  font-family:'Share Tech Mono',monospace;
+}
+.bomb-counter-bar {
+  height:6px; background:rgba(255,255,255,.1); margin-top:4px; border-radius:2px; overflow:hidden;
+}
+.bomb-counter-fill {
+  height:100%; background:var(--accent-red);
+  transition:width .4s; border-radius:2px;
+}
+.unit-list-item {
+  display:flex; align-items:center; gap:10px;
+  padding:6px 0;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  font-size:.85rem;
+}
+.unit-list-item:last-child { border-bottom:none; }
+.unit-list-dot {
+  width:28px; height:28px; border-radius:3px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Orbitron',monospace; font-size:.8rem; font-weight:900;
+  flex-shrink:0;
+}
+.unit-list-dot.atk { background:rgba(255,51,85,.2); color:var(--atk); border:1px solid var(--atk); }
+.unit-list-dot.def { background:rgba(51,153,255,.2); color:var(--def); border:1px solid var(--def); }
+.unit-list-dot.dead { opacity:.3; }
+.unit-list-name { flex:1; }
+.unit-ability-btn {
+  padding:3px 8px; font-size:.7rem; font-family:'Share Tech Mono',monospace;
+  background:transparent; cursor:pointer; letter-spacing:.05em;
+  transition:all .2s;
+}
+.unit-ability-btn.atk { border:1px solid var(--atk); color:var(--atk); }
+.unit-ability-btn.def { border:1px solid var(--def); color:var(--def); }
+.unit-ability-btn:disabled { opacity:.2; cursor:not-allowed; }
+.unit-ability-btn.used { opacity:.2; cursor:not-allowed; text-decoration:line-through; }
+.unit-ability-btn.glow-atk { box-shadow:0 0 10px rgba(255,51,85,.7); animation:glowPulse .8s ease-in-out infinite alternate; }
+.unit-ability-btn.glow-def { box-shadow:0 0 10px rgba(51,153,255,.7); animation:glowPulseBlue .8s ease-in-out infinite alternate; }
+@keyframes glowPulse { from{box-shadow:0 0 6px rgba(255,51,85,.5);} to{box-shadow:0 0 16px rgba(255,51,85,1);} }
+@keyframes glowPulseBlue { from{box-shadow:0 0 6px rgba(51,153,255,.5);} to{box-shadow:0 0 16px rgba(51,153,255,1);} }
+
+/* ── INTEL PANEL ── */
+.intel-section {
+  background:var(--panel);
+  border:1px solid var(--border);
+  margin-top:8px;
+}
+.intel-toggle {
+  width:100%; background:none; border:none;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 14px; cursor:pointer; color:var(--text-dim);
+  font-family:'Share Tech Mono',monospace; font-size:.72rem; letter-spacing:.1em;
+  text-transform:uppercase; transition:color .2s;
+}
+.intel-toggle:hover { color:var(--text); }
+.intel-toggle .arrow { font-size:.6rem; transition:transform .2s; }
+.intel-toggle.open .arrow { transform:rotate(180deg); }
+.intel-body { display:none; padding:0 14px 12px; }
+.intel-body.open { display:block; }
+.intel-unit-row {
+  display:flex; align-items:flex-start; gap:8px;
+  padding:6px 0; border-bottom:1px solid rgba(255,255,255,.05);
+  font-size:.8rem;
+}
+.intel-unit-row:last-child { border-bottom:none; }
+.intel-dot {
+  width:24px; height:24px; border-radius:3px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Orbitron',monospace; font-size:.72rem; font-weight:900;
+}
+.intel-dot.atk { background:rgba(255,51,85,.2); color:var(--atk); border:1px solid var(--atk); }
+.intel-dot.def { background:rgba(51,153,255,.2); color:var(--def); border:1px solid var(--def); }
+.intel-dot.dead { opacity:.3; }
+.intel-info { flex:1; }
+.intel-name { font-weight:600; }
+.intel-name.dead { text-decoration:line-through; opacity:.5; }
+.intel-ability { color:var(--text-dim); font-size:.75rem; margin-top:2px; line-height:1.4; }
+.intel-ability b { color:var(--accent-yellow); }
+.phase-bar {
+  width:100%; max-width:900px;
+  display:flex; align-items:center; gap:0;
+  background:var(--panel);
+  border:1px solid var(--border);
+  overflow:hidden; margin-bottom:12px;
+}
+.phase-step {
+  flex:1; padding:10px 6px; text-align:center;
+  font-family:'Share Tech Mono',monospace; font-size:.65rem; letter-spacing:.08em;
+  color:var(--text-dim); border-right:1px solid var(--border);
+  transition:all .3s; text-transform:uppercase;
+}
+.phase-step:last-child { border-right:none; }
+.phase-step.active { background:rgba(0,255,136,.1); color:var(--accent-green); }
+.phase-step.done { color:rgba(0,255,136,.4); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display:none; position:fixed; inset:0;
+  background:#000; z-index:1000;
+  align-items:center; justify-content:center;
+}
+.modal-overlay.active { display:flex; }
+
+/* Light blur waiting overlay for online turn waiting */
+#waiting-overlay {
+  display:none; position:fixed; inset:0; z-index:900;
+  background:rgba(0,0,0,.55); backdrop-filter:blur(3px);
+  align-items:center; justify-content:center;
+}
+#waiting-overlay.active { display:flex; }
+.waiting-box {
+  background:var(--panel); border:1px solid var(--border);
+  padding:28px 36px; max-width:400px; width:90%; text-align:center;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  animation: modalIn .25s ease-out;
+}
+.waiting-title {
+  font-family:'Orbitron',monospace; font-size:.95rem; font-weight:700;
+  color:var(--accent-yellow); letter-spacing:.15em; margin-bottom:12px;
+}
+.waiting-msg { font-size:.85rem; color:var(--text-dim); line-height:1.6; }
+.waiting-dot-anim::after {
+  content:''; animation:dots 1.2s steps(4,end) infinite;
+}
+@keyframes dots {
+  0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%{content:'...'} 100%{content:''}
+}
+.modal-box {
+  background:var(--panel);
+  border:1px solid var(--border);
+  padding:32px 36px; max-width:520px; width:90%;
+  max-height:85vh; overflow-y:auto;
+  position:relative;
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  animation: modalIn .25s ease-out;
+}
+@keyframes modalIn { from{opacity:0;transform:scale(.95)translateY(-10px);} to{opacity:1;transform:scale(1)translateY(0);} }
+.modal-title {
+  font-family:'Orbitron',monospace; font-size:1.1rem; font-weight:700;
+  color:var(--accent-yellow); margin-bottom:16px; text-transform:uppercase;
+}
+.modal-body { font-size:.95rem; line-height:1.6; color:var(--text-dim); margin-bottom:20px; }
+.modal-body b { color:var(--text); }
+.modal-body .highlight { color:var(--accent-green); }
+.modal-btns { display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
+
+/* ── COIN FLIP ── */
+.coin-wrap {
+  display:flex; flex-direction:column; align-items:center; gap:20px;
+}
+.coin {
+  width:100px; height:100px; border-radius:50%;
+  border:3px solid var(--accent-yellow);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Orbitron',monospace; font-size:2rem; font-weight:900;
+  color:var(--accent-yellow);
+  animation:coinSpin 1.5s ease-in-out;
+  box-shadow:0 0 30px rgba(255,204,0,.4);
+}
+@keyframes coinSpin { 0%{transform:rotateY(0);} 100%{transform:rotateY(720deg);} }
+
+/* ── TOAST ── */
+.toast {
+  position:fixed; bottom:30px; right:30px; z-index:5000;
+  background:var(--panel); border:1px solid var(--accent-yellow);
+  padding:14px 20px; font-family:'Share Tech Mono',monospace; font-size:.85rem;
+  color:var(--accent-yellow); max-width:300px;
+  clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+  animation: toastIn .3s ease-out;
+  display:none;
+}
+@keyframes toastIn { from{opacity:0;transform:translateY(20px);} to{opacity:1;transform:translateY(0);} }
+
+/* ── WALL PLACEMENT ── */
+.wall-info {
+  text-align:center;
+  font-family:'Share Tech Mono',monospace; font-size:.85rem;
+  color:var(--text-dim); margin-top:10px;
+}
+.wall-info b { color:var(--accent-yellow); }
+
+/* ── TURN BANNER ── */
+.turn-banner {
+  display:flex; align-items:center; gap:16px;
+  margin-bottom:14px;
+}
+.turn-player {
+  font-family:'Orbitron',monospace; font-size:.9rem; font-weight:700;
+}
+.turn-player.atk { color:var(--atk); }
+.turn-player.def { color:var(--def); }
+.turn-round {
+  font-family:'Share Tech Mono',monospace; font-size:.75rem;
+  color:var(--text-dim); margin-left:auto;
+}
+
+/* ABILITY MODAL extras */
+.ability-who {
+  display:inline-block;
+  font-family:'Share Tech Mono',monospace;
+  font-size:.75rem; letter-spacing:.1em;
+  padding:3px 10px; margin-bottom:12px;
+}
+
+/* Selection help text */
+.help-text {
+  font-family:'Share Tech Mono',monospace;
+  font-size:.78rem; color:var(--accent-green); opacity:.8;
+  margin-top:8px; text-align:center; letter-spacing:.05em;
+}
+
+/* ── WINNER SCREEN ── */
+#screen-winner {
+  background: radial-gradient(ellipse at center, #0d1520 0%, #050810 100%);
+}
+.winner-text {
+  font-family:'Orbitron',monospace;
+  font-size:clamp(1.5rem,5vw,3.5rem); font-weight:900;
+  text-align:center; letter-spacing:.2em;
+  animation: titlePulse 2s ease-in-out infinite;
+}
+.winner-text.atk { color:var(--atk); text-shadow:0 0 40px rgba(255,51,85,.8); }
+.winner-text.def { color:var(--def); text-shadow:0 0 40px rgba(51,153,255,.8); }
+.winner-reason {
+  font-family:'Share Tech Mono',monospace; font-size:.9rem;
+  color:var(--text-dim); margin:16px 0 40px; text-align:center; letter-spacing:.1em;
+}
+
+/* scroll lock */
+.lock { overflow:hidden; }
+</style>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, get, onValue, off, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  window._fbLoaded = true;
+  window._fbApp = initializeApp({
+    apiKey: "AIzaSyCllUigZn5mMB2deMk-Dn1KHHGTN2OLPYY",
+    authDomain: "blind-force.firebaseapp.com",
+    databaseURL: "https://blind-force-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "blind-force",
+    storageBucket: "blind-force.firebasestorage.app",
+    messagingSenderId: "720816482851",
+    appId: "1:720816482851:web:baeea92ab62cac7e7c1f96"
+  });
+  window._db = getDatabase(window._fbApp);
+  window._fbRef = ref;
+  window._fbSet = set;
+  window._fbGet = get;
+  window._fbOnValue = onValue;
+  window._fbOff = off;
+  window._fbUpdate = update;
+</script>
+</head>
+<body>
+
+<!-- ══════════════════════════════ TITLE SCREEN ══════════════════════════════ -->
+<div id="screen-title" class="screen active">
+  <div class="title-glow">BLIND-FORCE</div>
+  <div class="title-sub">TACTICAL BOARD WARFARE</div>
+  <button class="btn-primary" onclick="startGame()">▶ LOCAL (mismo dispositivo)</button>
+  <button class="btn-primary" onclick="showScreen('lobby')" style="margin-top:12px;border-color:var(--accent-blue);color:var(--accent-blue);">🌐 ONLINE (dos dispositivos)</button>
+  <button class="btn-secondary" onclick="showInstructions()" style="margin-top:14px;border-color:rgba(255,255,255,.25);font-size:.9rem;">📖 INSTRUCCIONES</button>
+</div>
+
+
+<!-- ══════════════════════════════ LOBBY SCREEN ══════════════════════════════ -->
+<div id="screen-lobby" class="screen" style="background:radial-gradient(ellipse at center,#0d1520 0%,#050810 100%);flex-direction:column;gap:20px;padding:24px 16px;">
+  <div class="title-glow" style="font-size:clamp(1.4rem,3.5vw,2.5rem);margin-bottom:0;">BLIND-FORCE</div>
+  <div class="title-sub" style="margin-bottom:0;">ONLINE</div>
+
+  <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;width:100%;max-width:860px;">
+
+    <!-- CREATE -->
+    <div style="flex:1;min-width:270px;max-width:370px;background:linear-gradient(135deg,#0f1520,#0a0f1a);border:1px solid rgba(0,255,136,.25);padding:26px 24px;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#00ff88,transparent);"></div>
+      <div style="font-family:Orbitron,monospace;font-size:.85rem;font-weight:700;color:var(--accent-green);letter-spacing:.2em;margin-bottom:20px;">⚔ CREAR SALA</div>
+
+      <div style="font-family:Share Tech Mono,monospace;font-size:.68rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:8px;text-transform:uppercase;">Tu rol</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;">
+        <button id="create-role-atk" onclick="selectCreateRole('atk')"
+          style="padding:14px 8px;background:rgba(255,51,85,.12);border:1px solid var(--atk);cursor:pointer;font-family:Orbitron,monospace;font-size:.7rem;font-weight:700;letter-spacing:.08em;color:var(--atk);transition:all .2s;">
+          <span style="font-size:1.4rem;display:block;margin-bottom:4px;">⚔</span>ATACANTE
+        </button>
+        <button id="create-role-def" onclick="selectCreateRole('def')"
+          style="padding:14px 8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);cursor:pointer;font-family:Orbitron,monospace;font-size:.7rem;font-weight:700;letter-spacing:.08em;color:var(--text-dim);transition:all .2s;">
+          <span style="font-size:1.4rem;display:block;margin-bottom:4px;">🛡</span>DEFENSOR
+        </button>
+      </div>
+
+      <button onclick="createRoom()"
+        style="width:100%;padding:13px;background:rgba(0,255,136,.1);border:1px solid var(--accent-green);color:var(--accent-green);font-family:Orbitron,monospace;font-size:.78rem;font-weight:700;letter-spacing:.15em;cursor:pointer;transition:all .2s;"
+        onmouseover="this.style.background='rgba(0,255,136,.2)'" onmouseout="this.style.background='rgba(0,255,136,.1)'">
+        CREAR SALA
+      </button>
+      <div id="create-status" style="font-family:Share Tech Mono,monospace;font-size:.75rem;color:var(--text-dim);text-align:center;margin-top:10px;min-height:16px;"></div>
+
+      <div id="room-code-display" style="display:none;text-align:center;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06);">
+        <div style="font-family:Share Tech Mono,monospace;font-size:.68rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:6px;">CÓDIGO DE SALA</div>
+        <div id="room-code-text" style="font-family:Orbitron,monospace;font-size:2.8rem;font-weight:900;color:var(--accent-green);letter-spacing:.5em;text-shadow:0 0 30px rgba(0,255,136,.6);"></div>
+        <div style="display:flex;align-items:center;gap:6px;justify-content:center;margin-top:8px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:var(--accent-green);box-shadow:0 0 8px var(--accent-green);animation:pulse .8s ease-in-out infinite alternate;"></div>
+          <span id="waiting-text" style="font-family:Share Tech Mono,monospace;font-size:.72rem;color:var(--text-dim);">Esperando al rival...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- JOIN -->
+    <div style="flex:1;min-width:270px;max-width:370px;background:linear-gradient(135deg,#0f1520,#0a0f1a);border:1px solid rgba(51,153,255,.25);padding:26px 24px;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#3399ff,transparent);"></div>
+      <div style="font-family:Orbitron,monospace;font-size:.85rem;font-weight:700;color:var(--def);letter-spacing:.2em;margin-bottom:20px;">🔗 UNIRSE A SALA</div>
+
+      <div style="font-family:Share Tech Mono,monospace;font-size:.68rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:8px;text-transform:uppercase;">Tu rol (se asigna automáticamente)</div>
+      <div style="background:rgba(51,153,255,.06);border:1px solid rgba(51,153,255,.15);padding:10px 14px;margin-bottom:20px;font-family:Share Tech Mono,monospace;font-size:.75rem;color:var(--text-dim);">
+        El rol que elijas debe ser el contrario al del creador de la sala.
+      </div>
+
+      <div style="font-family:Share Tech Mono,monospace;font-size:.68rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:8px;text-transform:uppercase;">Código de sala</div>
+      <input id="join-code-input" maxlength="4" placeholder="XXXX"
+        oninput="this.value=this.value.toUpperCase()"
+        style="width:100%;padding:14px;text-align:center;font-family:Orbitron,monospace;font-size:1.6rem;font-weight:700;letter-spacing:.5em;text-transform:uppercase;background:rgba(51,153,255,.05);border:1px solid rgba(51,153,255,.3);color:var(--def);outline:none;transition:all .2s;box-sizing:border-box;margin-bottom:14px;"
+        onfocus="this.style.borderColor='var(--def)';this.style.boxShadow='0 0 16px rgba(51,153,255,.2)'"
+        onblur="this.style.borderColor='rgba(51,153,255,.3)';this.style.boxShadow='none'" />
+
+      <button onclick="joinRoom()"
+        style="width:100%;padding:13px;background:rgba(51,153,255,.1);border:1px solid var(--def);color:var(--def);font-family:Orbitron,monospace;font-size:.78rem;font-weight:700;letter-spacing:.15em;cursor:pointer;transition:all .2s;"
+        onmouseover="this.style.background='rgba(51,153,255,.2)'" onmouseout="this.style.background='rgba(51,153,255,.1)'">
+        UNIRSE
+      </button>
+      <div id="join-status" style="font-family:Share Tech Mono,monospace;font-size:.75rem;color:var(--text-dim);text-align:center;margin-top:10px;min-height:16px;"></div>
+    </div>
+
+  </div>
+
+  <button onclick="showScreen('title')" style="background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--text-dim);font-family:Rajdhani,sans-serif;font-size:.9rem;font-weight:600;padding:9px 24px;cursor:pointer;letter-spacing:.1em;transition:all .2s;" onmouseover="this.style.borderColor='rgba(255,255,255,.4)';this.style.color='var(--text)'" onmouseout="this.style.borderColor='rgba(255,255,255,.15)';this.style.color='var(--text-dim)'">↩ VOLVER</button>
+</div>
+
+<!-- ══════════════════════════════ PICK SCREEN ══════════════════════════════ -->
+<div id="screen-pick" class="screen">
+  <div class="phase-header">
+    <span class="phase-tag">FASE 1</span>
+    <span class="phase-title">SELECCIÓN DE UNIDADES</span>
+  </div>
+  <div id="pick-role-badge" style="margin-bottom:16px;"></div>
+  <div id="pick-instructions" class="sel-count" style="margin-bottom:18px;text-align:center;"></div>
+  <div id="card-grid" class="card-grid"></div>
+  <div id="pick-count" class="sel-count" style="margin-top:16px;text-align:center;"></div>
+  <div style="display:flex;gap:12px;margin-top:20px;align-items:center;flex-wrap:wrap;justify-content:center;">
+    <button class="btn-primary" id="pick-confirm" style="display:none;" onclick="confirmPick()">CONFIRMAR SELECCIÓN</button>
+    <button class="btn-secondary" id="pick-rival-intel" onclick="showRivalIntel()" style="border-color:var(--accent-yellow);color:var(--accent-yellow);">🔍 VER FICHAS RIVALES</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════ CONSTRUCT SCREEN ══════════════════════════ -->
+<div id="screen-construct" class="screen" style="flex-direction:column;">
+  <div class="phase-header" style="max-width:none;justify-content:center;">
+    <span class="phase-tag">FASE 2</span>
+    <span class="phase-title">CONSTRUCCIÓN DE PAREDES</span>
+  </div>
+  <div id="construct-turn-badge" style="margin-bottom:10px;text-align:center;"></div>
+  <div class="wall-info">Paredes colocadas: <b id="walls-placed">0</b> / 70 &nbsp;|&nbsp; Turno: <b id="wall-turn-label">—</b></div>
+  <div style="margin:14px auto; position:relative;">
+    <canvas id="construct-canvas" style="cursor:pointer;display:block;"></canvas>
+  </div>
+  <div class="help-text" id="construct-help">Haz clic en un SURCO para colocar una pared</div>
+  <!-- RANDOM MAP BUTTON — quitar esta línea para eliminar la función -->
+  <button class="btn-secondary" style="margin-top:10px;border-color:var(--accent-green);color:var(--accent-green);" onclick="generateRandomMap()">⚙ MAPA ALEATORIO</button>
+</div>
+
+<!-- ══════════════════════════════ SPAWN SCREEN ══════════════════════════════ -->
+<div id="screen-spawn" class="screen" style="flex-direction:column;">
+  <div class="phase-header" style="max-width:none;justify-content:center;">
+    <span class="phase-tag">FASE 3</span>
+    <span class="phase-title">DESPLIEGUE DE UNIDADES</span>
+  </div>
+  <div id="spawn-turn-badge" style="margin-bottom:10px;text-align:center;"></div>
+  <div style="margin:14px auto;">
+    <canvas id="spawn-canvas" style="cursor:pointer;display:block;"></canvas>
+  </div>
+  <div class="help-text" id="spawn-help"></div>
+  <button class="btn-primary" id="spawn-confirm" style="margin-top:16px;display:none;" onclick="confirmSpawn()">CONFIRMAR POSICIONES</button>
+</div>
+
+<!-- ══════════════════════════════ GAME SCREEN ══════════════════════════════ -->
+<div id="screen-game" class="screen" style="flex-direction:column;align-items:center;">
+  <div id="turn-banner" class="turn-banner" style="max-width:900px;width:100%;"></div>
+  <div class="phase-bar" id="phase-bar">
+    <div class="phase-step" id="ps-move">MOVIMIENTO</div>
+    <div class="phase-step" id="ps-vision">VISIÓN</div>
+    <div class="phase-step" id="ps-shoot">DISPARO</div>
+    <div class="phase-step" id="ps-end">FIN TURNO</div>
+  </div>
+  <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;justify-content:center;">
+    <div class="board-wrap">
+      <canvas id="game-canvas" style="cursor:pointer;display:block;"></canvas>
+    </div>
+    <div class="sidebar" id="sidebar"></div>
+  </div>
+  <div class="help-text" id="game-help" style="margin-top:10px;"></div>
+</div>
+
+<!-- ══════════════════════════════ WINNER SCREEN ══════════════════════════════ -->
+<div id="screen-winner" class="screen">
+  <div id="winner-text" class="winner-text"></div>
+  <div id="winner-reason" class="winner-reason"></div>
+  <button class="btn-primary" onclick="location.reload()">↩ NUEVA PARTIDA</button>
+</div>
+
+<!-- ══════════════════════════════ MODALS ══════════════════════════════ -->
+<div id="waiting-overlay">
+  <div class="waiting-box">
+    <div class="waiting-title" id="waiting-title">ESPERANDO</div>
+    <div class="waiting-msg" id="waiting-msg"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-btns" id="modal-btns"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// CONSTANTS & DEFINITIONS
+// ═══════════════════════════════════════════════════════════════════════════
+const GRID = 15;
+const BOMB_MIN = 5, BOMB_MAX = 9; // cols 5-9 (0-indexed), rows 5-9 → 5x5=25 cells
+
+// All available units
+const UNIT_DEFS = {
+  // ATTACKERS
+  bertin: {
+    id:'bertin', name:'Bertín', side:'atk', icon:'B',
+    abilityName:'RECONOCIMIENTO',
+    abilityDesc:'Desvela una casilla a distancia máx. 3 de Bertín (en cualquier dirección).',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  norberto: {
+    id:'norberto', name:'Norberto', side:'atk', icon:'N',
+    abilityName:'SIGILO',
+    abilityDesc:'Norberto es invisible para la visión del defensor durante la siguiente ronda defensora.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  guridi: {
+    id:'guridi', name:'Guridi', side:'atk', icon:'G',
+    abilityName:'INGENIERÍA',
+    abilityDesc:'Coloca 2 paredes físicas permanentes en surcos a distancia máx. 3 desde Guridi.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  tarantino: {
+    id:'tarantino', name:'Tarantino', side:'atk', icon:'T',
+    abilityName:'TRAMPA',
+    abilityDesc:'Coloca un dispositivo en una casilla adyacente (dist. 1). Si un defensor pisa esa casilla en su fase de movimiento, queda eliminado.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  // DEFENDERS
+  jorge: {
+    id:'jorge', name:'Jorge', side:'def', icon:'J',
+    abilityName:'VENGANZA',
+    abilityDesc:'Si Jorge es eliminado en la siguiente ronda atacante, se revelarán las posiciones de todos los atacantes vivos al finalizar esa ronda.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  dario: {
+    id:'dario', name:'Dario', side:'def', icon:'D',
+    abilityName:'SENSOR',
+    abilityDesc:'Coloca un dispositivo sensor en cualquier casilla. En cada ronda defensora, se desvela un radio de 1 casilla alrededor del sensor (mientras siga activo).',
+    abilityPhase:'movement',
+    abilityOnce:true,
+  },
+  xinchan: {
+    id:'xinchan', name:'Xinchan', side:'def', icon:'X',
+    abilityName:'MINA',
+    abilityDesc:'Coloca un dispositivo en una casilla a distancia máx. 2. Si un atacante pisa esa casilla en su fase de movimiento, queda eliminado.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  vicentn: {
+    id:'vicentn', name:'Vicentín', side:'def', icon:'V',
+    abilityName:'CAMUFLAJE',
+    abilityDesc:'Vicentín es invisible para la visión del atacante durante la siguiente ronda atacante.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  // ── NEW DEFENDERS ──────────────────────────────────────────────────────
+  sarapova: {
+    id:'sarapova', name:'Sarapova', side:'def', icon:'S',
+    abilityName:'BALIZA + TELETRANSPORTE',
+    abilityDesc:'(1ª vez) Coloca una ficha dispositivo en cualquier casilla de la sala de la bomba. (Luego, hasta 2 veces) Intercambia de posición con esa ficha dispositivo en la fase de movimiento.',
+    abilityPhase:'vision',
+    abilityOnce:false, // managed manually via sarapovaState
+  },
+  facundo: {
+    id:'facundo', name:'Facundo', side:'def', icon:'F',
+    abilityName:'INTERFERENCIA',
+    abilityDesc:'Coloca un dispositivo en una casilla diagonal a un surco-puerta. Si el atacante va a desvelar esa casilla, su visión queda limitada solo a esa casilla.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  catalina: {
+    id:'catalina', name:'Catalina', side:'def', icon:'C',
+    abilityName:'VISIÓN X',
+    abilityDesc:'Esta ronda de visión, Catalina ignora todos los obstáculos de pared al desvelar casillas.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  asencio: {
+    id:'asencio', name:'Asencio', side:'def', icon:'A',
+    abilityName:'BARRICADA',
+    abilityDesc:'Coloca una pared en un surco a distancia máx. 2 (no puede ser un surco-puerta).',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  torrente: {
+    id:'torrente', name:'Torrente', side:'def', icon:'T',
+    abilityName:'TRAMPA ÓPTICA',
+    abilityDesc:'Coloca un dispositivo en cualquier casilla. Si una ficha atacante desvela esa casilla dos rondas atacantes consecutivas, queda eliminada.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  horacio: {
+    id:'horacio', name:'Horacio', side:'def', icon:'H',
+    abilityName:'DERRIBO',
+    abilityDesc:'Elimina una pared contigua a su casilla (en cualquiera de los 4 surcos adyacentes).',
+    abilityPhase:'movement',
+    abilityOnce:true,
+  },
+  bisbal: {
+    id:'bisbal', name:'Bisbal', side:'def', icon:'B',
+    abilityName:'SEÑUELO',
+    abilityDesc:'Coloca una ficha señuelo idéntica (azul, mismo logo). No otorga visión ni movimiento, pero puede ser disparada por el atacante.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  melania: {
+    id:'melania', name:'Melania', side:'def', icon:'M',
+    abilityName:'SENSOR MURAL',
+    abilityDesc:'Coloca un dispositivo contiguo a una pared. Mientras esté activo, desvela dos casillas en línea recta al otro lado de esa pared en cada fase de visión defensora.',
+    abilityPhase:'movement',
+    abilityOnce:true,
+  },
+  esteban: {
+    id:'esteban', name:'Esteban', side:'def', icon:'E',
+    abilityName:'DRON',
+    abilityDesc:'Coloca un dispositivo dron contiguo a Esteban. El dron desvela casillas y se mueve como una ficha de personaje, pero no puede disparar.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  lucero: {
+    id:'lucero', name:'Lucero', side:'def', icon:'L',
+    abilityName:'REPRESALIA',
+    abilityDesc:'Accionable en movimiento. Si este turno Lucero elimina una ficha atacante en disparos, se revela aleatoriamente la posición de una ficha atacante viva.',
+    abilityPhase:'movement',
+    abilityOnce:true,
+  },
+  galileo: {
+    id:'galileo', name:'Galileo', side:'def', icon:'G',
+    abilityName:'CERROJO',
+    abilityDesc:'Coloca un dispositivo contiguo a un surco-puerta (en una de las dos casillas que lo flanquean). El atacante debe eliminarlo con un disparo antes de poder pasar por esa casilla.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  perico: {
+    id:'perico', name:'Perico', side:'def', icon:'P',
+    abilityName:'RADAR',
+    abilityDesc:'Elige fila o columna. Se revelan las fichas atacantes vivas que coincidan con la fila/columna de Perico.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  kevin: {
+    id:'kevin', name:'Kevin', side:'def', icon:'K',
+    abilityName:'ESCUDO',
+    abilityDesc:'Si Kevin es eliminado en la siguiente ronda atacante, la eliminación no se lleva a cabo (sin notificación al atacante).',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  rocinante: {
+    id:'rocinante', name:'Rocinante', side:'def', icon:'R',
+    abilityName:'LEGADO',
+    abilityDesc:'Si Rocinante es eliminado en la siguiente ronda atacante, desde ese momento en cada fase de visión defensora se desvelan las 9 casillas alrededor del lugar de su caída.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  // ── NEW ATTACKERS ──────────────────────────────────────────────────────
+  austin: {
+    id:'austin', name:'Austin', side:'atk', icon:'A',
+    abilityName:'JAMMER',
+    abilityDesc:'En la siguiente ronda defensora, los dispositivos defensores no desvelarán ninguna casilla.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  zorro: {
+    id:'zorro', name:'Zorro', side:'atk', icon:'Z',
+    abilityName:'SEÑUELO ÓPTICO',
+    abilityDesc:'Coloca un dispositivo a distancia máx. 2 desde Zorro. Si el defensor va a desvelar esa casilla, su visión queda limitada solo a esa casilla.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  francisco: {
+    id:'francisco', name:'Francisco', side:'atk', icon:'F',
+    abilityName:'SENSOR MURAL ATK',
+    abilityDesc:'Coloca un dispositivo contiguo a una pared. Mientras esté activo, desvela dos casillas en línea recta al otro lado de esa pared en cada fase de visión atacante.',
+    abilityPhase:'movement',
+    abilityOnce:true,
+  },
+  iarramendi: {
+    id:'iarramendi', name:'Iarramendi', side:'atk', icon:'I',
+    abilityName:'DOBLE',
+    abilityDesc:'Coloca una ficha doble (roja, mismo logo). Puede moverse como una ficha personaje pero no desvela casillas ni puede disparar.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  morientes: {
+    id:'morientes', name:'Morientes', side:'atk', icon:'M',
+    abilityName:'SABOTAJE',
+    abilityDesc:'Elimina un dispositivo defensor a distancia máx. 2 sin que se notifique en el cambio de turno.',
+    abilityPhase:'shoot',
+    abilityOnce:true,
+  },
+  wilson: {
+    id:'wilson', name:'Wilson', side:'atk', icon:'W',
+    abilityName:'BRECHA',
+    abilityDesc:'Elimina una pared contigua a su casilla.',
+    abilityPhase:'movement',
+    abilityOnce:true,
+  },
+  hector: {
+    id:'hector', name:'Héctor', side:'atk', icon:'H',
+    abilityName:'TIRO CIEGO',
+    abilityDesc:'Si Héctor está contiguo a una pared, desvela la casilla al otro lado. En la fase de disparos de este turno puede eliminar una ficha en esa casilla.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  curro: {
+    id:'curro', name:'Curro', side:'atk', icon:'C',
+    abilityName:'FRANCOTIRADOR',
+    abilityDesc:'En la fase de disparos de este turno, Curro puede eliminar una ficha atacante o dispositivo a distancia máx. 2 en vertical u horizontal.',
+    abilityPhase:'movement',
+    abilityOnce:true,
+  },
+  soriano: {
+    id:'soriano', name:'Soriano', side:'atk', icon:'S',
+    abilityName:'RECONOCIMIENTO MASIVO',
+    abilityDesc:'Elige 4 casillas del tablero — todas quedan desveladas en la fase de visión de este turno.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  daniel: {
+    id:'daniel', name:'Daniel', side:'atk', icon:'D',
+    abilityName:'TELETRANSPORTE',
+    abilityDesc:'Coloca una ficha dispositivo en dos casillas (fuera de la sala de bomba). Si Daniel se mueve a una de ellas, se teletransporta a la otra. Si un dispositivo es eliminado, se eliminan ambos.',
+    abilityPhase:'vision',
+    abilityOnce:false, // placement once, teleport unlimited while devices active
+  },
+  olaya: {
+    id:'olaya', name:'Olaya', side:'atk', icon:'O',
+    abilityName:'ÍMPETU',
+    abilityDesc:'Si Olaya elimina una ficha defensora en los disparos de esta ronda, en la siguiente ronda atacante podrá moverse hasta 2 casillas de radio en lugar de 1.',
+    abilityPhase:'movement',
+    abilityOnce:true,
+  },
+  koldo: {
+    id:'koldo', name:'Koldo', side:'atk', icon:'K',
+    abilityName:'INTERCEPCIÓN',
+    abilityDesc:'En la fase de visión de este turno también se desvelan las casillas que revelarían las fichas dispositivo defensoras.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+  vladimir: {
+    id:'vladimir', name:'Vladimir', side:'atk', icon:'V',
+    abilityName:'RASTREO',
+    abilityDesc:'Elige una ficha defensora viva — se revela la casilla en la que estaba al inicio de la penúltima ronda defensora.',
+    abilityPhase:'movement',
+    abilityOnce:true,
+  },
+  ivan: {
+    id:'ivan', name:'Iván', side:'atk', icon:'I',
+    abilityName:'BLOQUEO',
+    abilityDesc:'Una ficha defensora elegida aleatoriamente no podrá moverse en la siguiente ronda defensora. Al inicio de esa ronda se notifica al defensor cuál es la ficha bloqueada.',
+    abilityPhase:'vision',
+    abilityOnce:true,
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════════════════════════════════════
+let G = {};
+
+function initState() {
+  G = {
+    // picks
+    atkPick: [], // unit ids chosen by attacker
+    defPick: [], // unit ids chosen by defender
+    // walls: stored as strings "r,c,dir" where dir='h'(horizontal surco between row r and r+1 at col c) or 'v'(vertical surco between col c and c+1 at row r)
+    // Walls occupy surcos: 'h_r_c' between cell(r,c) top/bottom, 'v_r_c' between cell(r,c) left/right
+    // We store: Set of wall keys "h_r_c" or "v_r_c"
+    walls: new Set(),
+    fixedWalls: new Set(),
+    wallsPlaced: 0,
+    wallTurn: 'atk', // whose turn to place wall
+    // units on board: array of unit objects
+    // unit: { id, unitId, side, row, col, alive, abilityUsed, invisible, invisibleRound }
+    units: [],
+    devices: [], // { type:'tarantino'|'xinchan'|'dario', unitId, row, col, alive }
+    // spawn
+    spawnPhase: 'atk', // 'atk' or 'def'
+    spawnPlacements: { atk: {}, def: {} }, // unitId -> {row,col}
+    // game turn
+    currentSide: 'atk',
+    round: 1,
+    gamePhase: 'movement', // 'movement','vision','shoot','end'
+    selectedUnit: null, // unit id of selected unit for movement
+    movedUnits: new Set(),
+    shotFired: null, // last shot {fromUnit, toUnit} for legacy compat
+    shotsFired: [], // all shots this turn
+    shotUnits: new Set(), // unit ids that have already shot this turn
+    revealedCells: new Set(), // "r_c" strings visible this turn
+    bertinReconUsed: false,
+    // special flags
+    jorgeAbilityActive: false, // jorge ability activated, pending next atk round elimination
+    norbertoInvisRound: null, // round in which norberto invisible for def
+    vicentnInvisRound: null, // round in which vicentín invisible for atk
+    tarantinoDevice: null, // {row,col} or null
+    xinchanDevice: null,
+    darioDevice: null,
+    // bomb counters: {unitId: count}
+    bombCounters: {},
+    // ability placement mode
+    abilityMode: null, // {type, unitId, step, data}
+    // shooting
+    shootingUnit: null,
+    // pending elimination notifications
+    pendingNotifs: [],
+    // ── NEW UNIT STATE ──
+    sarapovaState: { devicePlaced:false, swapsLeft:2 }, // sarapova multi-use
+    sarapovaDevice: null,       // {row,col}
+    facundoDevice: null,        // {row,col}
+    zorroDevice: null,          // {row,col}
+    torrenteDevice: null,       // {row,col}
+    torrenteSeen: {},           // unitId -> last round it saw torrente cell
+    bisbalDecoy: null,          // {row,col}
+    iarramendDecoy: null,       // {row,col} - iarramendi decoy
+    estebanDrone: null,         // {row,col} - moves like unit
+    melaniaSensor: null,        // {row,col, wallDir, wallKey}
+    franciscoSensor: null,      // {row,col, wallDir, wallKey}
+    galileoDevice: null,        // {row,col}
+    hectorBlindCell: null,      // {row,col} - cell revealed by hector
+    hectorAbilityRound: -1,     // round hector used ability
+    austinJammerRound: -1,      // round austin used jammer (blocks def devices next def round)
+    luceroAbilityActive: false,
+    kevinShieldRound: -1,       // round kevin used shield
+    rocinanteLegacyActive: false,
+    rocinanteFallCell: null,    // {row,col}
+    rocinanteLegacyRound: -1,   // round rocinante fell
+    curroExtendedShot: false,   // curro extended range this turn
+    morientesSilentElim: false, // morientes silent elimination mode
+    catalinaVisionRound: -1,    // round catalina used vision ability
+    sorianoPickCount: 0,        // cells Soriano has picked so far (0-4)
+    danielAbilityUsed: false,   // Daniel placement done
+    olayaBoostRound: -1,        // round in which Olaya gets 2-cell movement
+    olayaKilledThisRound: false,// did Olaya kill in shoot phase this round
+    olayaAbilityActive: false,  // olaya ability triggered this turn
+    koldoActive: false,         // Koldo intercept active this vision phase
+    // Last move origin for Vladimir: defLastMoveFrom[unitId] = {row, col, round}
+    defLastMoveFrom: {},
+    bulletMarkers: [], // [{row,col}] shown during rival's next turn
+    ivanBlockedUnit: null,
+    ivanBlockRound: -1,
+    ivanBlockPending: false,
+    // Units seen by each side at any point: seenByAtk/seenByDef = Set of unitIds
+    seenByAtk: new Set(),
+    seenByDef: new Set(),
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCREEN UTILS
+// ═══════════════════════════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+}
+
+function showModal(title, body, btns) {
+  document.getElementById('modal-title').innerHTML = title;
+  document.getElementById('modal-body').innerHTML = body;
+  const c = document.getElementById('modal-btns');
+  c.innerHTML = '';
+  btns.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'btn-secondary ' + (b.cls||'');
+    btn.textContent = b.label;
+    btn.onclick = () => { closeModal(); b.action && b.action(); };
+    c.appendChild(btn);
+  });
+  document.getElementById('modal').classList.add('active');
+}
+function closeModal() { document.getElementById('modal').classList.remove('active'); }
+
+function toast(msg, dur=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>{ t.style.display='none'; }, dur);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// START GAME
+// ═══════════════════════════════════════════════════════════════════════════
+function startGame() {
+  initState();
+  setupFixedWalls();
+  startPick('atk');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FIXED WALLS
+// Central cell (7,7) surrounded, bomb zone perimeter with 4 openings
+// ═══════════════════════════════════════════════════════════════════════════
+function setupFixedWalls() {
+  const fw = G.fixedWalls;
+  // Central cell (7,7): surcos on all 4 sides
+  // top surco = h_6_7 (between row6 and row7 at col7)? 
+  // We define: h_r_c = horizontal wall BELOW cell(r,c), i.e. between row r and r+1, col c
+  // v_r_c = vertical wall RIGHT of cell(r,c), i.e. between col c and c+1, row r
+  // Central cell top: h_6_7 (below row6 = above row7)
+  fw.add('h_6_7'); // top of cell(7,7)
+  fw.add('h_7_7'); // bottom of cell(7,7)
+  fw.add('v_7_6'); // left of cell(7,7)
+  fw.add('v_7_7'); // right of cell(7,7)
+
+  // Bomb zone: rows 5-9, cols 5-9
+  // Perimeter walls with openings at center of each cardinal side
+  // North side: above row 5 = h_4_c for c in 5..9, opening at col 7
+  for(let c=5;c<=9;c++) if(c!==7) fw.add(`h_4_${c}`);
+  // South side: below row 9 = h_9_c for c in 5..9, opening at col 7
+  for(let c=5;c<=9;c++) if(c!==7) fw.add(`h_9_${c}`);
+  // West side: left of col 5 = v_r_4 for r in 5..9, opening at row 7
+  for(let r=5;r<=9;r++) if(r!==7) fw.add(`v_${r}_4`);
+  // East side: right of col 9 = v_r_9 for r in 5..9, opening at row 7
+  for(let r=5;r<=9;r++) if(r!==7) fw.add(`v_${r}_9`);
+
+  // Copy to walls
+  fw.forEach(w => G.walls.add(w));
+}
+
+function hasWall(r1,c1,r2,c2) {
+  // Only works for cardinally adjacent cells
+  return cardinalWallBetween(r1,c1,r2,c2);
+}
+
+// Wall between (r1,c1) and (r2,c2) where they are adjacent
+function wallKey(r1,c1,r2,c2) {
+  if(r2===r1+1) return `h_${r1}_${c1}`; // horizontal below r1
+  if(r2===r1-1) return `h_${r2}_${c1}`; // horizontal below r2
+  if(c2===c1+1) return `v_${r1}_${c1}`; // vertical right of c1
+  if(c2===c1-1) return `v_${r1}_${c2}`; // vertical right of c2
+  return null;
+}
+
+function showInstructions() {
+  const s = (t,c) => `<div style="color:var(--accent-yellow);font-family:Share Tech Mono,monospace;font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;margin:16px 0 6px;">${t}</div><div style="font-size:.85rem;color:var(--text-dim);line-height:1.6;">${c}</div>`;
+  const b = (t) => `<b style="color:var(--text);">${t}</b>`;
+
+  const body = `
+  ${s('🎯 Objetivo',
+    `Dos jugadores comparten el mismo dispositivo turnándose. El ${b('atacante')} gana si elimina todas las fichas defensoras, o si una de sus fichas permanece ${b('5 rondas consecutivas')} dentro de la sala de la bomba (las 25 casillas centrales) sin defensores dentro. El ${b('defensor')} gana si elimina todas las fichas atacantes.`)}
+
+  ${s('📐 El tablero',
+    `Cuadrícula de ${b('15×15 casillas')}. La ${b('sala de la bomba')} son las 25 casillas centrales (5×5), accesible por 4 entradas cardinales. La casilla del centro absoluto está permanentemente bloqueada. Entre casillas hay ${b('surcos')} donde se colocan paredes.`)}
+
+  ${s('⚙ Fases de una partida',
+    `<b>1. Selección:</b> cada jugador elige 4 fichas de personaje de las disponibles para su bando (atacante o defensor).<br>
+    <b>2. Construcción:</b> se colocan 70 paredes alternando turnos. Puedes usar el botón de mapa aleatorio.<br>
+    <b>3. Despliegue:</b> el atacante coloca sus fichas en casillas externas del tablero; el defensor en casillas de la sala de la bomba.<br>
+    <b>4. Lanzamiento:</b> una moneda al aire decide quién empieza.<br>
+    <b>5. Rondas:</b> el jugador activo ejecuta sus fases y entrega el dispositivo al rival.`)}
+
+  ${s('🔄 Fases de cada ronda',
+    `<b>Movimiento:</b> cada ficha se mueve hasta 1 casilla (respetando paredes). Las fichas rivales no son visibles.<br>
+    <b>Visión:</b> se revelan casillas en un radio de 2 desde cada ficha (1 dentro de la sala de la bomba). Las paredes y las "puertas" (surcos flanqueados por paredes) limitan la visión. Aquí se activan las habilidades de fase visión.<br>
+    <b>Disparo:</b> si una ficha rival fue revelada y está a distancia 1 en horizontal/vertical (o diagonal dentro de la sala), puedes eliminarla. Cada ficha puede disparar como máximo una vez por ronda. No es obligatorio disparar.<br>
+    <b>Cambio:</b> pantalla negra de cambio de dispositivo. Se notifican disparos, habilidades usadas y fichas sin mover.`)}
+
+  ${s('🧱 Paredes y visión',
+    `Las paredes bloquean el movimiento y la visión. Un ${b('surco-puerta')} (surco sin pared flanqueado por dos paredes paralelas) actúa como rendija: solo permite ver la casilla directamente al otro lado en línea recta, no en diagonal.`)}
+
+  ${s('⚡ Habilidades',
+    `Cada ficha tiene una habilidad de uso único (salvo excepciones). Cuando es accionable en la fase actual, su botón se ilumina en el panel lateral. Al pulsarlo aparece una ventana con la descripción y la opción de activar o cancelar.`)}
+
+  ${s('💣 Contador de bomba',
+    `Cuando una ficha atacante entra en la sala de la bomba, aparece un contador en el lateral. El contador sube al final de cada ronda atacante si no hay defensores en la sala. Si hay un defensor dentro, el contador se congela. Si llega a 5, el atacante gana.`)}
+
+  ${s('🔍 Niebla de guerra',
+    `Fuera de la fase de visión, las fichas rivales son invisibles. Lo que ves es solo lo que tus fichas revelaron en la última fase de visión. La ventana de cambio de turno es completamente opaca para proteger esta información.`)}`;
+
+  showModal('📖 INSTRUCCIONES — BLIND-FORCE', body, [{label:'ENTENDIDO'}]);
+}
+
+function showRivalIntel() {
+  const rivalSide = pickSide==='atk' ? 'def' : 'atk';
+  const rivalLabel = rivalSide==='atk' ? '⚔ ATACANTE' : '🛡 DEFENSOR';
+  const rivalColor = rivalSide==='atk' ? 'var(--atk)' : 'var(--def)';
+  const pool = Object.values(UNIT_DEFS).filter(u=>u.side===rivalSide);
+
+  let body = `<div style="color:${rivalColor};font-family:Share Tech Mono,monospace;font-size:.75rem;
+    letter-spacing:.1em;margin-bottom:14px;">${rivalLabel} — FICHAS POSIBLES</div>`;
+
+  pool.forEach(def=>{
+    body += `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;
+      border-bottom:1px solid rgba(255,255,255,.06);">
+      <div style="width:32px;height:32px;border-radius:3px;flex-shrink:0;display:flex;
+        align-items:center;justify-content:center;font-family:Orbitron,monospace;
+        font-size:.9rem;font-weight:900;
+        background:${rivalSide==='atk'?'rgba(255,51,85,.2)':'rgba(51,153,255,.2)'};
+        color:${rivalColor};border:1px solid ${rivalColor};">${def.icon}</div>
+      <div style="flex:1;">
+        <div style="font-weight:700;font-size:.9rem;margin-bottom:3px;">${def.name}</div>
+        <div style="font-size:.78rem;color:var(--text-dim);line-height:1.5;">
+          <span style="color:var(--accent-yellow);font-size:.72rem;">${def.abilityName}
+          (${def.abilityPhase==='vision'?'Visión':def.abilityPhase==='movement'?'Movimiento':'Disparo'})</span><br>
+          ${def.abilityDesc}
+        </div>
+      </div>
+    </div>`;
+  });
+
+  showModal(`INTELIGENCIA — FICHAS ${rivalLabel}`, body, [{label:'CERRAR'}]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE 1: PICK
+// ═══════════════════════════════════════════════════════════════════════════
+let pickSide = 'atk';
+
+function startPick(side) {
+  pickSide = side;
+  showScreen('pick');
+  renderPickScreen();
+}
+
+function renderPickScreen() {
+  const side = pickSide;
+  const badge = document.getElementById('pick-role-badge');
+  badge.innerHTML = side==='atk'
+    ? '<span class="role-badge atk">⚔ ATACANTE</span>'
+    : '<span class="role-badge def">🛡 DEFENSOR</span>';
+  const inst = document.getElementById('pick-instructions');
+  inst.textContent = `Selecciona 4 unidades para tu equipo`;
+  const pool = Object.values(UNIT_DEFS).filter(u => u.side===side);
+  const chosen = side==='atk' ? G.atkPick : G.defPick;
+  const grid = document.getElementById('card-grid');
+  grid.innerHTML='';
+  pool.forEach(u => {
+    const sel = chosen.includes(u.id);
+    const card = document.createElement('div');
+    card.className = `unit-card ${sel?'selected '+side:''}`;
+    card.innerHTML = `
+      <div class="unit-icon ${side}">${u.icon}</div>
+      <div class="unit-name">${u.name}</div>
+      <div class="unit-ability"><b>${u.abilityName}:</b> ${u.abilityDesc}</div>
+    `;
+    card.onclick = () => togglePick(u.id, side);
+    grid.appendChild(card);
+  });
+  const cnt = document.getElementById('pick-count');
+  cnt.textContent = `Seleccionadas: ${chosen.length} / 4`;
+  const btn = document.getElementById('pick-confirm');
+  btn.style.display = chosen.length===4 ? 'block' : 'none';
+}
+
+function togglePick(uid, side) {
+  const arr = side==='atk' ? G.atkPick : G.defPick;
+  const idx = arr.indexOf(uid);
+  if(idx>=0) { arr.splice(idx,1); }
+  else if(arr.length<4) { arr.push(uid); }
+  renderPickScreen();
+}
+
+function confirmPick() {
+  const side = pickSide;
+  if(side==='atk') {
+    // Show device change modal before defender picks
+    showModal('CAMBIO DE DISPOSITIVO',
+      '<b>El dispositivo pasa al DEFENSOR.</b><br><br>El atacante ya ha realizado su selección. Entrega el dispositivo al defensor.',
+      [{label:'LISTO', action:()=>startPick('def')}]);
+  } else {
+    // Both picked, go to construction
+    startConstruction();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE 2: CONSTRUCTION
+// ═══════════════════════════════════════════════════════════════════════════
+let cCanvas, cCtx;
+const CS = 34; // cell size for construct
+const WS = 8;  // surco size
+const COF = 20; // canvas offset
+
+function startConstruction() {
+  G.wallTurn = 'atk';
+  showScreen('construct');
+  cCanvas = document.getElementById('construct-canvas');
+  const total = (GRID*CS + (GRID+1)*WS);
+  cCanvas.width = total + COF*2;
+  cCanvas.height = total + COF*2;
+  cCtx = cCanvas.getContext('2d');
+  cCanvas.addEventListener('click', onConstructClick);
+  renderConstruct();
+}
+
+function cellTopLeft(r,c) {
+  // top-left pixel of cell(r,c) in construct canvas
+  return { x: COF + c*(CS+WS)+WS, y: COF + r*(CS+WS)+WS };
+}
+
+function renderConstruct() {
+  const ctx = cCtx;
+  const W = cCanvas.width, H = cCanvas.height;
+  ctx.clearRect(0,0,W,H);
+  // bg
+  ctx.fillStyle = '#0a0c0f';
+  ctx.fillRect(0,0,W,H);
+
+  // Draw cells
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++) {
+    const {x,y} = cellTopLeft(r,c);
+    const inBomb = r>=5&&r<=9&&c>=5&&c<=9;
+    ctx.fillStyle = inBomb ? '#1a1a0a' : '#0f1218';
+    ctx.fillRect(x,y,CS,CS);
+    if(inBomb) { ctx.strokeStyle='rgba(255,204,0,.15)'; ctx.lineWidth=1; ctx.strokeRect(x,y,CS,CS); }
+  }
+
+  // Draw surcos (clickable wall slots) and walls
+  // Horizontal surcos (between row r and r+1)
+  for(let r=0;r<GRID-1;r++) for(let c=0;c<GRID;c++) {
+    const {x,y} = cellTopLeft(r,c);
+    const wy = y+CS;
+    const key = `h_${r}_${c}`;
+    const isFixed = G.fixedWalls.has(key);
+    const isWall = G.walls.has(key);
+    if(isFixed) {
+      ctx.fillStyle='#8a7a50'; ctx.fillRect(x,wy,CS,WS);
+    } else if(isWall) {
+      ctx.fillStyle='#c8a850'; ctx.fillRect(x,wy,CS,WS);
+    } else {
+      ctx.fillStyle='rgba(255,255,255,.04)'; ctx.fillRect(x+2,wy+2,CS-4,WS-4);
+    }
+  }
+  // Vertical surcos (between col c and c+1)
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID-1;c++) {
+    const {x,y} = cellTopLeft(r,c);
+    const wx = x+CS;
+    const key = `v_${r}_${c}`;
+    const isFixed = G.fixedWalls.has(key);
+    const isWall = G.walls.has(key);
+    if(isFixed) {
+      ctx.fillStyle='#8a7a50'; ctx.fillRect(wx,y,WS,CS);
+    } else if(isWall) {
+      ctx.fillStyle='#c8a850'; ctx.fillRect(wx,y,WS,CS);
+    } else {
+      ctx.fillStyle='rgba(255,255,255,.04)'; ctx.fillRect(wx+2,y+2,WS-4,CS-4);
+    }
+  }
+
+  // Update UI
+  document.getElementById('walls-placed').textContent = G.wallsPlaced;
+  document.getElementById('wall-turn-label').textContent = G.wallTurn==='atk' ? 'ATACANTE' : 'DEFENSOR';
+  const badge = document.getElementById('construct-turn-badge');
+  badge.innerHTML = G.wallTurn==='atk'
+    ? '<span class="role-badge atk">⚔ ATACANTE — coloca una pared</span>'
+    : '<span class="role-badge def">🛡 DEFENSOR — coloca una pared</span>';
+}
+
+function onConstructClick(e) {
+  if(G.wallsPlaced>=70) return;
+  const rect = cCanvas.getBoundingClientRect();
+  const scaleX = cCanvas.width/rect.width;
+  const scaleY = cCanvas.height/rect.height;
+  const mx = (e.clientX-rect.left)*scaleX;
+  const my = (e.clientY-rect.top)*scaleY;
+
+  // Check horizontal surcos
+  for(let r=0;r<GRID-1;r++) for(let c=0;c<GRID;c++) {
+    const {x,y} = cellTopLeft(r,c);
+    const wy = y+CS;
+    const key = `h_${r}_${c}`;
+    if(G.fixedWalls.has(key)||G.walls.has(key)) continue;
+    if(mx>=x&&mx<=x+CS&&my>=wy&&my<=wy+WS) {
+      placeWall(key); return;
+    }
+  }
+  // Check vertical surcos
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID-1;c++) {
+    const {x,y} = cellTopLeft(r,c);
+    const wx = x+CS;
+    const key = `v_${r}_${c}`;
+    if(G.fixedWalls.has(key)||G.walls.has(key)) continue;
+    if(mx>=wx&&mx<=wx+WS&&my>=y&&my<=y+CS) {
+      placeWall(key); return;
+    }
+  }
+}
+
+function placeWall(key) {
+  G.walls.add(key);
+  G.wallsPlaced++;
+  G.wallTurn = G.wallTurn==='atk' ? 'def' : 'atk';
+  renderConstruct();
+  if(G.wallsPlaced>=70) {
+    setTimeout(()=>{
+      showModal('CONSTRUCCIÓN COMPLETA','Todas las <b>70 paredes</b> han sido colocadas. La fase de despliegue comenzará ahora.',
+        [{label:'CONTINUAR', action:startSpawn}]);
+    }, 300);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE 3: SPAWN
+// ═══════════════════════════════════════════════════════════════════════════
+let spCanvas, spCtx;
+const SCS = 36;
+const SWS = 6;
+const SOF = 16;
+
+function startSpawn() {
+  G.spawnPhase = 'atk';
+  showScreen('spawn');
+  spCanvas = document.getElementById('spawn-canvas');
+  const total = GRID*SCS+(GRID+1)*SWS;
+  spCanvas.width = total+SOF*2;
+  spCanvas.height = total+SOF*2;
+  spCtx = spCanvas.getContext('2d');
+  spCanvas.addEventListener('click', onSpawnClick);
+  renderSpawnScreen();
+}
+
+function spCellTL(r,c) {
+  return { x: SOF+c*(SCS+SWS)+SWS, y: SOF+r*(SCS+SWS)+SWS };
+}
+
+function renderSpawnScreen() {
+  const side = G.spawnPhase;
+  const badge = document.getElementById('spawn-turn-badge');
+  badge.innerHTML = side==='atk'
+    ? '<span class="role-badge atk">⚔ ATACANTE — elige casillas externas</span>'
+    : '<span class="role-badge def">🛡 DEFENSOR — elige casillas en la sala de la bomba</span>';
+  const help = document.getElementById('spawn-help');
+  const unitIds = side==='atk' ? G.atkPick : G.defPick;
+  const placed = G.spawnPlacements[side];
+  const remaining = unitIds.filter(id => !placed[id]);
+  help.textContent = remaining.length>0
+    ? `Unidad a colocar: ${UNIT_DEFS[remaining[0]].name} (${Object.keys(placed).length+1}/${unitIds.length})`
+    : 'Todas las unidades colocadas';
+  const btn = document.getElementById('spawn-confirm');
+  const allPlaced = Object.keys(placed).length===unitIds.length;
+  const isMySpawnTurn = !ONLINE.enabled || ONLINE.myRole === side;
+  btn.style.display = allPlaced && isMySpawnTurn ? 'block' : 'none';
+  drawSpawnBoard();
+}
+
+function drawSpawnBoard() {
+  const ctx = spCtx;
+  ctx.clearRect(0,0,spCanvas.width,spCanvas.height);
+  ctx.fillStyle='#0a0c0f'; ctx.fillRect(0,0,spCanvas.width,spCanvas.height);
+  const side = G.spawnPhase;
+
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++) {
+    const {x,y} = spCellTL(r,c);
+    const inBomb = r>=5&&r<=9&&c>=5&&c<=9;
+    const isEdge = r===0||r===14||c===0||c===14;
+    let bg = inBomb ? '#1a1a0a' : '#0f1218';
+    if(side==='atk'&&isEdge) bg='rgba(255,51,85,.08)';
+    if(side==='def'&&inBomb) bg='rgba(51,153,255,.08)';
+    ctx.fillStyle=bg; ctx.fillRect(x,y,SCS,SCS);
+    ctx.strokeStyle='rgba(255,255,255,.06)'; ctx.lineWidth=1; ctx.strokeRect(x,y,SCS,SCS);
+  }
+
+  // Draw walls
+  drawWallsOn(ctx, (r,c)=>spCellTL(r,c), SCS, SWS);
+
+  // Draw placed units
+  const placed = G.spawnPlacements[side];
+  Object.entries(placed).forEach(([uid,{row,col}]) => {
+    const def = UNIT_DEFS[uid];
+    drawUnit(ctx, spCellTL(row,col), SCS, def.icon, def.side);
+  });
+}
+
+function drawWallsOn(ctx, tlFn, cs, ws) {
+  for(let r=0;r<GRID-1;r++) for(let c=0;c<GRID;c++) {
+    const key=`h_${r}_${c}`;
+    if(!G.walls.has(key)) continue;
+    const {x,y}=tlFn(r,c);
+    ctx.fillStyle=G.fixedWalls.has(key)?'#8a7a50':'#c8a850';
+    ctx.fillRect(x,y+cs,cs,ws);
+  }
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID-1;c++) {
+    const key=`v_${r}_${c}`;
+    if(!G.walls.has(key)) continue;
+    const {x,y}=tlFn(r,c);
+    ctx.fillStyle=G.fixedWalls.has(key)?'#8a7a50':'#c8a850';
+    ctx.fillRect(x+cs,y,ws,cs);
+  }
+}
+
+function drawUnit(ctx, {x,y}, cs, icon, side, extra={}) {
+  const col = side==='atk'?'#ff3355': side==='def'?'#3399ff':'#888888';
+  const bg = side==='atk'?'rgba(255,51,85,.25)':side==='def'?'rgba(51,153,255,.25)':'rgba(128,128,128,.2)';
+  const sz = cs-6;
+  const ox = x+3, oy = y+3;
+  ctx.fillStyle=bg;
+  if(extra.selected) { ctx.fillStyle=side==='atk'?'rgba(255,51,85,.5)':'rgba(51,153,255,.5)'; }
+  ctx.fillRect(ox,oy,sz,sz);
+  ctx.strokeStyle=col; ctx.lineWidth=extra.selected?2:1.5;
+  ctx.strokeRect(ox,oy,sz,sz);
+  ctx.fillStyle=col;
+  ctx.font=`bold ${Math.floor(sz*.45)}px Orbitron,monospace`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(icon, x+cs/2, y+cs/2);
+}
+
+function onSpawnClick(e) {
+  if(ONLINE.enabled && ONLINE.myRole !== G.spawnPhase) return;
+  const side = G.spawnPhase;
+  const placed = G.spawnPlacements[side];
+  const unitIds = side==='atk' ? G.atkPick : G.defPick;
+  const remaining = unitIds.filter(id => !placed[id]);
+  if(remaining.length===0) return;
+  const rect = spCanvas.getBoundingClientRect();
+  const sx = spCanvas.width/rect.width;
+  const sy = spCanvas.height/rect.height;
+  const mx=(e.clientX-rect.left)*sx, my=(e.clientY-rect.top)*sy;
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++) {
+    const {x,y}=spCellTL(r,c);
+    if(mx<x||mx>x+SCS||my<y||my>y+SCS) continue;
+    if(side==='atk') {
+      if(r!==0&&r!==14&&c!==0&&c!==14) { toast('⚠ El atacante debe colocar en casillas externas'); return; }
+    } else {
+      if(r<5||r>9||c<5||c>9) { toast('⚠ El defensor debe colocar dentro de la sala de la bomba'); return; }
+    }
+    // Central cell always blocked
+    if(isCentralCell(r,c)) { toast('⚠ La casilla central está bloqueada'); return; }
+    // Check not already occupied
+    if(Object.values(placed).some(p=>p.row===r&&p.col===c)) { toast('⚠ Casilla ocupada'); return; }
+    placed[remaining[0]] = {row:r, col:c};
+    renderSpawnScreen();
+    return;
+  }
+}
+
+function confirmSpawn() {
+  if(G.spawnPhase==='atk') {
+    showModal('CAMBIO DE DISPOSITIVO',
+      '<b>El dispositivo pasa al DEFENSOR.</b><br><br>El atacante ya desplegó sus unidades. Entrega el dispositivo al defensor.',
+      [{label:'LISTO', action:()=>{ G.spawnPhase='def'; renderSpawnScreen(); }}]);
+  } else {
+    buildUnitsAndStart();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BUILD UNITS & START GAME
+// ═══════════════════════════════════════════════════════════════════════════
+function buildUnitsAndStart() {
+  G.units = [];
+  [...G.atkPick, ...G.defPick].forEach(uid => {
+    const def = UNIT_DEFS[uid];
+    const side = def.side;
+    const pos = G.spawnPlacements[side][uid];
+    G.units.push({
+      id: uid,
+      side: def.side,
+      icon: def.icon,
+      name: def.name,
+      row: pos.row, col: pos.col,
+      alive: true,
+      abilityUsed: false,
+      invisible: false,
+      invisibleUntilRound: -1,
+    });
+  });
+  // coin flip
+  showCoinFlip();
+}
+
+function showCoinFlip() {
+  const winner = Math.random()<.5 ? 'atk' : 'def';
+  const label = winner==='atk' ? '⚔ ATACANTE' : '🛡 DEFENSOR';
+  const col = winner==='atk' ? 'var(--atk)' : 'var(--def)';
+  showModal('LANZAMIENTO DE MONEDA',
+    `<div class="coin-wrap">
+      <div class="coin" style="border-color:${col};color:${col};">?</div>
+      <div>Empieza: <b style="color:${col}">${label}</b></div>
+    </div>`,
+    [{label:'COMENZAR PARTIDA', action:()=>{ G.currentSide=winner; startGameLoop(); }}]);
+  // animate coin result
+  setTimeout(()=>{
+    document.querySelector('.coin').textContent = winner==='atk'?'A':'D';
+  }, 1500);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GAME LOOP
+// ═══════════════════════════════════════════════════════════════════════════
+let gCanvas, gCtx;
+const GCS = 40;
+const GWS = 6;
+const GOF = 14;
+
+function startGameLoop() {
+  showScreen('game');
+  gCanvas = document.getElementById('game-canvas');
+  const total = GRID*GCS+(GRID+1)*GWS;
+  gCanvas.width = total+GOF*2;
+  gCanvas.height = total+GOF*2;
+  gCtx = gCanvas.getContext('2d');
+  gCanvas.addEventListener('click', onGameClick);
+  G.gamePhase = 'movement';
+  G.movedUnits = new Set();
+  G.shotFired = null;
+  G.revealedCells = new Set();
+  G.selectedUnit = null;
+  renderGame();
+  updatePhasebar();
+  updateTurnBanner();
+  updateSidebar();
+  setHelp('Selecciona una unidad y muévela (máx. 1 casilla). Cuando termines de mover todas haz clic en AVANZAR.');
+}
+
+function gCellTL(r,c) {
+  return { x: GOF+c*(GCS+GWS)+GWS, y: GOF+r*(GCS+GWS)+GWS };
+}
+
+function viewSide() {
+  return (ONLINE.enabled && ONLINE.myRole) ? ONLINE.myRole : G.currentSide;
+}
+
+function renderGame() {
+  const ctx = gCtx;
+  ctx.clearRect(0,0,gCanvas.width,gCanvas.height);
+  ctx.fillStyle='#0a0c0f'; ctx.fillRect(0,0,gCanvas.width,gCanvas.height);
+  const phase = G.gamePhase;
+  const side = viewSide();
+
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++) {
+    const {x,y}=gCellTL(r,c);
+    const inBomb=r>=5&&r<=9&&c>=5&&c<=9;
+    const isCentral = isCentralCell(r,c);
+    const key=`${r}_${c}`;
+    const revealed = G.revealedCells.has(key);
+    let bg = inBomb ? '#1a1a0a' : '#0a0c0f';
+    if(isCentral) bg='#050507';
+    if(revealed&&!isCentral) bg = inBomb ? '#252510' : '#131820';
+    ctx.fillStyle=bg; ctx.fillRect(x,y,GCS,GCS);
+    // bomb zone tint
+    if(isCentral) {
+      ctx.fillStyle='rgba(255,0,0,.08)'; ctx.fillRect(x,y,GCS,GCS);
+      ctx.strokeStyle='rgba(255,0,0,.25)'; ctx.lineWidth=1; ctx.strokeRect(x,y,GCS,GCS);
+      // X mark
+      ctx.strokeStyle='rgba(255,0,0,.3)'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(x+4,y+4); ctx.lineTo(x+GCS-4,y+GCS-4); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x+GCS-4,y+4); ctx.lineTo(x+4,y+GCS-4); ctx.stroke();
+    } else if(inBomb) { ctx.strokeStyle='rgba(255,204,0,.1)'; ctx.lineWidth=1; ctx.strokeRect(x,y,GCS,GCS); }
+    else { ctx.strokeStyle='rgba(255,255,255,.05)'; ctx.lineWidth=1; ctx.strokeRect(x,y,GCS,GCS); }
+    // vision overlay
+    if(revealed&&!isCentral) {
+      ctx.fillStyle='rgba(0,255,136,.04)'; ctx.fillRect(x,y,GCS,GCS);
+    }
+    // Coordinate label top-right
+    ctx.fillStyle='rgba(255,255,255,.18)';
+    ctx.font='6px Share Tech Mono,monospace';
+    ctx.textAlign='right'; ctx.textBaseline='top';
+    ctx.fillText(`${c+1},${r+1}`, x+GCS-2, y+2);
+  }
+
+  // Walls
+  drawWallsOn(ctx,(r,c)=>gCellTL(r,c),GCS,GWS);
+
+  // Bomb zone label
+  const {x:bx,y:by}=gCellTL(5,5);  const {x:bx2,y:by2}=gCellTL(9,9);
+  ctx.strokeStyle='rgba(255,204,0,.3)'; ctx.lineWidth=1.5;
+  ctx.setLineDash([4,4]);
+  ctx.strokeRect(bx,by,bx2-bx+GCS,by2-by+GCS);
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(255,204,0,.3)';
+  ctx.font='bold 9px Share Tech Mono,monospace';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('SALA DE LA BOMBA', (bx+bx2+GCS)/2, by-8);
+
+  // Bullet markers: show where shots were fired last turn
+  if(G.bulletMarkers && G.bulletMarkers.length>0) {
+    G.bulletMarkers.forEach(({row,col})=>{
+      const {x,y}=gCellTL(row,col);
+      // Red background flash
+      ctx.fillStyle='rgba(255,51,85,.15)'; ctx.fillRect(x,y,GCS,GCS);
+      ctx.strokeStyle='rgba(255,51,85,.5)'; ctx.lineWidth=1;
+      ctx.strokeRect(x+1,y+1,GCS-2,GCS-2);
+      // Draw bullet shape: circle + rectangle
+      const cx2=x+GCS/2, cy2=y+GCS/2;
+      const r2=Math.floor(GCS*.13);
+      // Bullet body (rounded rect)
+      ctx.fillStyle='rgba(255,120,120,.9)';
+      ctx.beginPath();
+      ctx.roundRect(cx2-r2,cy2-r2*2.2,r2*2,r2*3.5,r2*0.6);
+      ctx.fill();
+      // Bullet tip (triangle)
+      ctx.beginPath();
+      ctx.moveTo(cx2-r2,cy2-r2*2.2);
+      ctx.lineTo(cx2+r2,cy2-r2*2.2);
+      ctx.lineTo(cx2,cy2-r2*3.8);
+      ctx.closePath();
+      ctx.fill();
+    });
+  }
+
+  // Devices - visible to owner always; visible to rival only if cell is revealed this turn
+  G.devices.filter(d=>d.alive).forEach(d=>{
+    const ATK_DEVICES = new Set(['tarantino','francisco','zorro','iarramendi','daniel']);
+    const deviceOwnerSide = ATK_DEVICES.has(d.type) ? 'atk' : 'def';
+    const isMineDevice = side===deviceOwnerSide;
+    const cellKey=`${d.row}_${d.col}`;
+    const rivalCanSee = G.revealedCells.has(cellKey);
+    if(!isMineDevice && !rivalCanSee) return;
+    const {x,y}=gCellTL(d.row,d.col);
+    const srcDef = UNIT_DEFS[d.unitId];
+
+    // Iarramendi decoy: render as full atk unit (identical to the real piece)
+    if(d.type==='iarramendi') {
+      drawUnit(ctx,{x,y},GCS,srcDef.icon,'atk');
+      return;
+    }
+    // Bisbal decoy: render as full def unit (identical to the real piece)
+    if(d.type==='bisbal') {
+      drawUnit(ctx,{x,y},GCS,srcDef.icon,'def');
+      return;
+    }
+    // All other devices: grey neutral style
+    ctx.fillStyle='rgba(128,128,128,.2)'; ctx.fillRect(x+3,y+3,GCS-6,GCS-6);
+    ctx.strokeStyle='#888'; ctx.lineWidth=1.5; ctx.strokeRect(x+3,y+3,GCS-6,GCS-6);
+    ctx.fillStyle='#aaa';
+    ctx.font=`bold ${Math.floor(GCS*.35)}px Orbitron,monospace`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(srcDef.icon, x+GCS/2, y+GCS/2);
+  });
+
+  // Units (current player's always visible; rival visible only if revealed)
+  G.units.filter(u=>u.alive).forEach(u=>{
+    const isMine = u.side===side;
+    const key=`${u.row}_${u.col}`;
+    const visible = isMine || G.revealedCells.has(key);
+    // Check invisible
+    const isInvis = u.side!==side && isUnitInvisibleTo(u, side);
+    if(!visible || isInvis) return;
+    const {x,y}=gCellTL(u.row,u.col);
+    const sel = G.selectedUnit===u.id;
+    const moved = G.movedUnits.has(u.id);
+    const extra = {selected:sel, dimmed:moved&&phase==='movement'&&isMine};
+    drawUnit(ctx,{x,y},GCS,u.icon,u.side,extra);
+    // moved indicator
+    if(moved&&phase==='movement'&&isMine) {
+      ctx.fillStyle='rgba(255,255,255,.3)';
+      ctx.fillRect(x+GCS-9,y,9,9);
+    }
+    // bomb counter
+    if(u.side==='atk') {
+      const cnt = G.bombCounters[u.id]||0;
+      if(cnt>0 && inBombZone(u.row,u.col)) {
+        ctx.fillStyle='rgba(255,51,85,.8)';
+        ctx.font='bold 9px Share Tech Mono,monospace';
+        ctx.textAlign='left'; ctx.textBaseline='top';
+        ctx.fillText(`B:${cnt}`, x+2, y+2);
+      }
+    }
+  });
+
+  // Highlight selected unit valid moves
+  if(phase==='movement' && G.selectedUnit) {
+    if(G.selectedUnit==='esteban_drone') {
+      const drone=G.devices.find(d=>d.type==='esteban'&&d.alive);
+      if(drone) {
+        // Highlight drone itself as selected
+        const {x,y}=gCellTL(drone.row,drone.col);
+        ctx.fillStyle='rgba(51,153,255,.3)'; ctx.fillRect(x,y,GCS,GCS);
+        ctx.strokeStyle='rgba(51,153,255,.9)'; ctx.lineWidth=2; ctx.strokeRect(x,y,GCS,GCS);
+        getDroneValidMoves(drone).forEach(({r,c})=>{
+          const {x,y}=gCellTL(r,c);
+          ctx.fillStyle='rgba(0,255,136,.12)'; ctx.fillRect(x,y,GCS,GCS);
+          ctx.strokeStyle='rgba(0,255,136,.4)'; ctx.lineWidth=1.5; ctx.strokeRect(x,y,GCS,GCS);
+        });
+      }
+    } else {
+      const u = getUnit(G.selectedUnit);
+      if(u) {
+        getValidMoves(u).forEach(({r,c})=>{
+          const {x,y}=gCellTL(r,c);
+          ctx.fillStyle='rgba(0,255,136,.12)'; ctx.fillRect(x,y,GCS,GCS);
+          ctx.strokeStyle='rgba(0,255,136,.4)'; ctx.lineWidth=1.5; ctx.strokeRect(x,y,GCS,GCS);
+        });
+      }
+    }
+  }
+
+  // Highlight shootable targets
+  if(phase==='shoot') {
+    getShootableTargets().forEach(tObj=>{
+      const t=tObj.target;
+      const {x,y}=gCellTL(t.row,t.col);
+      ctx.fillStyle='rgba(255,51,85,.15)'; ctx.fillRect(x,y,GCS,GCS);
+      ctx.strokeStyle='rgba(255,51,85,.7)'; ctx.lineWidth=2;
+      ctx.setLineDash([3,3]); ctx.strokeRect(x,y,GCS,GCS); ctx.setLineDash([]);
+    });
+  }
+
+  // Bertin recon: highlight placeable cells
+  if(G.abilityMode && G.abilityMode.type==='bertin_recon') {
+    const u = getUnit('bertin');
+    if(u) {
+      for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++) {
+        const dist = Math.max(Math.abs(r-u.row),Math.abs(c-u.col));
+        if(dist<=3) {
+          const {x,y}=gCellTL(r,c);
+          ctx.fillStyle='rgba(0,255,136,.08)'; ctx.fillRect(x,y,GCS,GCS);
+          ctx.strokeStyle='rgba(0,255,136,.3)'; ctx.lineWidth=1; ctx.strokeRect(x,y,GCS,GCS);
+        }
+      }
+    }
+  }
+
+  // Guridi / Asencio wall placement highlight
+  if(G.abilityMode && (G.abilityMode.type==='guridi_wall'||G.abilityMode.type==='asencio_wall')) {
+    const uid2=G.abilityMode.unitId;
+    const u = getUnit(uid2);
+    const maxD = uid2==='guridi'?3:2;
+    if(u) {
+      for(let r=Math.max(0,u.row-maxD);r<=Math.min(14,u.row+maxD);r++)
+        for(let c=Math.max(0,u.col-maxD);c<=Math.min(14,u.col+maxD);c++) {
+          const {x,y}=gCellTL(r,c);
+          ctx.fillStyle='rgba(255,204,0,.05)'; ctx.fillRect(x,y,GCS,GCS);
+        }
+    }
+  }
+  // Tarantino device placement
+  if(G.abilityMode && G.abilityMode.type==='tarantino_device') {
+    const u = getUnit('tarantino');
+    if(u) {
+      [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr,dc])=>{
+        const nr=u.row+dr, nc=u.col+dc;
+        if(nr<0||nr>=GRID||nc<0||nc>=GRID) return;
+        const {x,y}=gCellTL(nr,nc);
+        ctx.fillStyle='rgba(255,51,85,.15)'; ctx.fillRect(x,y,GCS,GCS);
+        ctx.strokeStyle='rgba(255,51,85,.5)'; ctx.lineWidth=1.5; ctx.strokeRect(x,y,GCS,GCS);
+      });
+    }
+  }
+  // Xinchan device placement
+  if(G.abilityMode && G.abilityMode.type==='xinchan_device') {
+    const u = getUnit('xinchan');
+    if(u) {
+      for(let r=Math.max(0,u.row-2);r<=Math.min(14,u.row+2);r++)
+        for(let c=Math.max(0,u.col-2);c<=Math.min(14,u.col+2);c++) {
+          const {x,y}=gCellTL(r,c);
+          ctx.fillStyle='rgba(51,153,255,.15)'; ctx.fillRect(x,y,GCS,GCS);
+          ctx.strokeStyle='rgba(51,153,255,.5)'; ctx.lineWidth=1.5; ctx.strokeRect(x,y,GCS,GCS);
+        }
+    }
+  }
+  // Dario sensor placement
+  if(G.abilityMode && G.abilityMode.type==='dario_sensor') {
+    for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++) {
+      const {x,y}=gCellTL(r,c);
+      ctx.fillStyle='rgba(51,153,255,.08)'; ctx.fillRect(x,y,GCS,GCS);
+      ctx.strokeStyle='rgba(51,153,255,.25)'; ctx.lineWidth=1; ctx.strokeRect(x,y,GCS,GCS);
+    }
+  }
+  // Francisco / Melania sensor placement — highlight cells with adjacent wall, outside bomb zone
+  if(G.abilityMode && (G.abilityMode.type==='francisco_sensor'||G.abilityMode.type==='melania_sensor')) {
+    const col = G.abilityMode.type==='francisco_sensor' ? 'rgba(255,51,85' : 'rgba(51,153,255';
+    for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++) {
+      if(isCentralCell(r,c)) continue;
+      if(G.abilityMode.type==='francisco_sensor' && inBombZone(r,c)) continue;
+      if(!hasAdjacentWall(r,c)) continue;
+      const {x,y}=gCellTL(r,c);
+      ctx.fillStyle=col+',.12)'; ctx.fillRect(x,y,GCS,GCS);
+      ctx.strokeStyle=col+',.4)'; ctx.lineWidth=1; ctx.strokeRect(x,y,GCS,GCS);
+    }
+  }
+  // Soriano: all cells available (any non-central)
+  if(G.abilityMode && G.abilityMode.type==='soriano_pick') {
+    for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++) {
+      if(isCentralCell(r,c)) continue;
+      const {x,y}=gCellTL(r,c);
+      ctx.fillStyle='rgba(255,51,85,.08)'; ctx.fillRect(x,y,GCS,GCS);
+      ctx.strokeStyle='rgba(255,51,85,.25)'; ctx.lineWidth=1; ctx.strokeRect(x,y,GCS,GCS);
+    }
+  }
+  // Daniel: all cells available for device placement
+  if(G.abilityMode && G.abilityMode.type==='daniel_place') {
+    for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++) {
+      if(isCentralCell(r,c)) continue;
+      if(inBombZone(r,c)) continue;
+      if(G.devices.find(d=>d.alive&&d.row===r&&d.col===c)) continue;
+      const {x,y}=gCellTL(r,c);
+      ctx.fillStyle='rgba(255,51,85,.08)'; ctx.fillRect(x,y,GCS,GCS);
+      ctx.strokeStyle='rgba(255,51,85,.25)'; ctx.lineWidth=1; ctx.strokeRect(x,y,GCS,GCS);
+    }
+  }
+  // Zorro device: highlight cells within radius 2 of Zorro
+  if(G.abilityMode && G.abilityMode.type==='zorro_device') {
+    const u=getUnit('zorro');
+    if(u) {
+      for(let r=Math.max(0,u.row-2);r<=Math.min(GRID-1,u.row+2);r++) {
+        for(let c=Math.max(0,u.col-2);c<=Math.min(GRID-1,u.col+2);c++) {
+          if(isCentralCell(r,c)) continue;
+          if(G.devices.find(d=>d.alive&&d.row===r&&d.col===c)) continue;
+          const {x,y}=gCellTL(r,c);
+          ctx.fillStyle='rgba(255,51,85,.12)'; ctx.fillRect(x,y,GCS,GCS);
+          ctx.strokeStyle='rgba(255,51,85,.4)'; ctx.lineWidth=1; ctx.strokeRect(x,y,GCS,GCS);
+        }
+      }
+    }
+  }
+}
+
+function inBombZone(r,c){ return r>=5&&r<=9&&c>=5&&c<=9; }
+
+function isUnitInvisibleTo(unit, observerSide) {
+  if(unit.invisibleUntilRound < 0) return false;
+  // invisible for the observer's round
+  if(unit.id==='norberto' && observerSide==='def' && G.round===unit.invisibleUntilRound) return true;
+  if(unit.id==='vicentn' && observerSide==='atk' && G.round===unit.invisibleUntilRound) return true;
+  return false;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VISION SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════
+function computeVision() {
+  G.revealedCells = new Set();
+  const side = viewSide();
+  const myUnits = G.units.filter(u=>u.alive&&u.side===side);
+
+  // Catalina: vision without wall obstacles this round
+  const catalinaActive = side==='def' && G.catalinaVisionRound===G.round && G.units.find(u=>u.id==='catalina'&&u.alive);
+
+  // Build per-unit vision maps so Facundo/Zorro can limit specific units
+  const unitVision = new Map(); // unitId -> Set of "r_c" keys
+  myUnits.forEach(u => {
+    const cells = new Set();
+    cells.add(`${u.row}_${u.col}`);
+    const inBomb = inBombZone(u.row, u.col);
+    const radius = inBomb ? 1 : 2;
+    for(let dr=-radius;dr<=radius;dr++) for(let dc=-radius;dc<=radius;dc++) {
+      if(dr===0&&dc===0) continue;
+      const tr=u.row+dr, tc=u.col+dc;
+      if(tr<0||tr>=GRID||tc<0||tc>=GRID) continue;
+      if(isCentralCell(tr,tc)) continue;
+      if(catalinaActive || canSee(u.row,u.col,tr,tc)) cells.add(`${tr}_${tc}`);
+    }
+    unitVision.set(u.id, cells);
+  });
+
+  // Apply Facundo: if an atk unit can see Facundo's device, limit that unit to ONLY the device cell
+  if(side==='atk') {
+    const fd=G.devices.find(d=>d.type==='facundo'&&d.alive);
+    if(fd) {
+      const fdKey=`${fd.row}_${fd.col}`;
+      myUnits.forEach(u=>{
+        const cells=unitVision.get(u.id);
+        if(cells.has(fdKey)) {
+          // This unit saw Facundo's device — limit it to just that cell + own position
+          const limited=new Set();
+          limited.add(`${u.row}_${u.col}`);
+          limited.add(fdKey);
+          unitVision.set(u.id, limited);
+        }
+      });
+    }
+  }
+
+  // Apply Zorro: if a def unit can see Zorro's device, limit that unit to ONLY the device cell
+  if(side==='def') {
+    const zd=G.devices.find(d=>d.type==='zorro'&&d.alive);
+    if(zd) {
+      const zdKey=`${zd.row}_${zd.col}`;
+      myUnits.forEach(u=>{
+        const cells=unitVision.get(u.id);
+        if(cells.has(zdKey)) {
+          const limited=new Set();
+          limited.add(`${u.row}_${u.col}`);
+          limited.add(zdKey);
+          unitVision.set(u.id, limited);
+        }
+      });
+    }
+  }
+
+  // Merge all unit visions into revealedCells
+  unitVision.forEach(cells=>cells.forEach(k=>G.revealedCells.add(k)));
+
+  // Track which enemy units are now visible (for intel panel)
+  const enemySide2 = side==='atk'?'def':'atk';
+  G.units.filter(u=>u.side===enemySide2&&u.alive).forEach(u=>{
+    if(G.revealedCells.has(`${u.row}_${u.col}`) && !isUnitInvisibleTo(u,side)) {
+      if(side==='atk') G.seenByAtk.add(u.id);
+      else G.seenByDef.add(u.id);
+    }
+  });
+
+  // Esteban drone: reveals radius 1 (wall-respecting), controlled by def
+  if(side==='def') {
+    const drone=G.devices.find(d=>d.type==='esteban'&&d.alive);
+    if(drone) {
+      const radius=1;
+      G.revealedCells.add(`${drone.row}_${drone.col}`);
+      for(let dr=-radius;dr<=radius;dr++) for(let dc=-radius;dc<=radius;dc++) {
+        if(dr===0&&dc===0) continue;
+        const tr=drone.row+dr, tc=drone.col+dc;
+        if(tr<0||tr>=GRID||tc<0||tc>=GRID) continue;
+        if(isCentralCell(tr,tc)) continue;
+        if(canSee(drone.row,drone.col,tr,tc)) G.revealedCells.add(`${tr}_${tc}`);
+      }
+    }
+  }
+
+  // Dario sensor
+  const austinBlocking = side==='def' && G.austinJammerRound===G.round;
+  if(!austinBlocking && side==='def' && G.darioDevice && G.devices.find(d=>d.type==='dario'&&d.alive)) {
+    const {row,col}=G.darioDevice;
+    G.revealedCells.add(`${row}_${col}`);
+    for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++) {
+      if(dr===0&&dc===0) continue;
+      const nr=row+dr, nc=col+dc;
+      if(nr<0||nr>=GRID||nc<0||nc>=GRID) continue;
+      if(isCentralCell(nr,nc)) continue;
+      if(canSee(row,col,nr,nc)) G.revealedCells.add(`${nr}_${nc}`);
+    }
+  }
+
+  // Melania sensor (def side)
+  if(!austinBlocking && side==='def') {
+    const ms=G.devices.find(d=>d.type==='melania'&&d.alive);
+    if(ms) {
+      getMuralSensorCells(ms.row,ms.col,ms.wallKey).forEach(cell=>{
+        if(!isCentralCell(cell.row,cell.col)) G.revealedCells.add(`${cell.row}_${cell.col}`);
+      });
+    }
+  }
+
+  // Francisco sensor (atk side)
+  if(side==='atk') {
+    const fs=G.devices.find(d=>d.type==='francisco'&&d.alive);
+    if(fs) {
+      getMuralSensorCells(fs.row,fs.col,fs.wallKey).forEach(cell=>{
+        if(!isCentralCell(cell.row,cell.col)) G.revealedCells.add(`${cell.row}_${cell.col}`);
+      });
+    }
+  }
+
+  // Koldo intercept: reveal what defender devices would reveal this turn
+  if(side==='atk' && G.koldoActive) {
+    const defDevTypes=['dario','melania','sarapova','esteban','torrente','facundo','galileo','bisbal','xinchan'];
+    G.devices.filter(d=>d.alive&&defDevTypes.includes(d.type)).forEach(d=>{
+      // Reveal radius 1 around each defender device using canSee
+      const inBomb=inBombZone(d.row,d.col);
+      G.revealedCells.add(`${d.row}_${d.col}`);
+      for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++) {
+        if(dr===0&&dc===0) continue;
+        const nr=d.row+dr,nc=d.col+dc;
+        if(nr<0||nr>=GRID||nc<0||nc>=GRID) continue;
+        if(isCentralCell(nr,nc)) continue;
+        if(canSee(d.row,d.col,nr,nc)) G.revealedCells.add(`${nr}_${nc}`);
+      }
+      // Melania-type sensors: also reveal mural cells
+      if(d.type==='melania'&&d.wallKey) {
+        getMuralSensorCells(d.row,d.col,d.wallKey).forEach(cell=>{
+          if(!isCentralCell(cell.row,cell.col)) G.revealedCells.add(`${cell.row}_${cell.col}`);
+        });
+      }
+    });
+  }
+
+  // Rocinante legacy: if active, reveal 3x3 around fall cell every def vision
+  if(side==='def' && G.rocinanteLegacyActive && G.rocinanteFallCell) {
+    const {row,col}=G.rocinanteFallCell;
+    for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++) {
+      const nr=row+dr,nc=col+dc;
+      if(nr>=0&&nr<GRID&&nc>=0&&nc<GRID&&!isCentralCell(nr,nc)) G.revealedCells.add(`${nr}_${nc}`);
+    }
+  }
+
+  // Héctor blind cell (revealed this vision phase)
+  if(side==='atk' && G.hectorBlindCell && G.hectorAbilityRound===G.round) {
+    G.revealedCells.add(`${G.hectorBlindCell.row}_${G.hectorBlindCell.col}`);
+  }
+
+  // Torrente: track which atk units see the torrente cell
+  if(side==='atk' && G.torrenteDevice) {
+    const td=G.devices.find(d=>d.type==='torrente'&&d.alive);
+    if(td && G.revealedCells.has(`${td.row}_${td.col}`)) {
+      // Find which atk unit revealed it
+      const revealers=myUnits.filter(u=>canSee(u.row,u.col,td.row,td.col));
+      revealers.forEach(u=>{
+        if(!td.seenBy) td.seenBy={};
+        if(td.seenBy[u.id]===G.round-1) {
+          // Seen two consecutive atk rounds: eliminate
+          u.alive=false;
+          td.alive=false;
+          G.pendingNotifs.push(`💥 ${u.name} cayó en la trampa óptica de Torrente y fue eliminada.`);
+        }
+        td.seenBy[u.id]=G.round;
+      });
+    }
+  }
+
+}
+
+function canSee(fr,fc,tr,tc) {
+  const steps = Math.max(Math.abs(tr-fr),Math.abs(tc-fc));
+  if(steps===0) return true;
+
+  // ── Door-adjacency pre-check ────────────────────────────────────────────
+  // If the source is adjacent to a flanking aperture (door) in a given cardinal
+  // direction, the only cell visible through that door is the immediately
+  // adjacent cell on the other side (dist=1, same row or col).
+  // Any target further or off-axis that would require crossing that door is blocked.
+  [[0,1],[0,-1],[1,0],[-1,0]].forEach(()=>{}); // no-op, handled below
+  for(const [dr,dc] of [[0,1],[0,-1],[1,0],[-1,0]]) {
+    const nr=fr+dr, nc=fc+dc;
+    if(nr<0||nr>=GRID||nc<0||nc>=GRID) continue;
+    if(cardinalWallBetween(fr,fc,nr,nc)) continue; // wall blocks, not a door
+    if(!isFlankingAperture(fr,fc,nr,nc)) continue; // not a door
+    // This surco is a flanking aperture. Determine if the ray to (tr,tc) would
+    // cross it. The ray crosses this door if it goes in the same cardinal direction
+    // and the target is not exactly (nr,nc).
+    // "Crosses" = (tr,tc) is on the far side: moving vertically (dr≠0) means
+    // tr is beyond nr in the same direction; moving horizontally means tc is beyond.
+    const onFarSide = dr!==0
+      ? (Math.sign(tr-fr)===dr) // same vertical direction
+      : (Math.sign(tc-fc)===dc); // same horizontal direction
+    const straightThrough = dr!==0
+      ? (tc===nc) // same column
+      : (tr===nr); // same row
+    if(onFarSide && straightThrough && (tr!==nr || tc!==nc)) return false;
+    // Also block diagonals that cross this door opening
+    if(onFarSide && !straightThrough) return false;
+  }
+  // ────────────────────────────────────────────────────────────────────────
+
+  let cr=fr, cc=fc;
+  for(let i=1;i<=steps;i++) {
+    const nr = fr+Math.round((tr-fr)*i/steps);
+    const nc = fc+Math.round((tc-fc)*i/steps);
+    if(nr===cr&&nc===cc) continue;
+
+    const isDiag = (nr!==cr && nc!==cc);
+
+    if(!isDiag) {
+      // ── Cardinal step ──────────────────────────────────────────────────
+      // Blocked by a wall on this surco
+      if(cardinalWallBetween(cr,cc,nr,nc)) return false;
+
+      // Aperture (slit) rule: if this cardinal surco is an aperture flanked by
+      // two parallel walls on either side, vision beyond it is collimated —
+      // only the straight-through perpendicular cell is visible.
+      if(isFlankingAperture(cr,cc,nr,nc)) {
+        // The ray is crossing the aperture. Allow it only if the final target
+        // is exactly straight through (same column for vertical crossing,
+        // same row for horizontal crossing).
+        const movingVertically   = (nr!==cr); // dr≠0
+        const movingHorizontally = (nc!==cc); // dc≠0
+        if(movingVertically   && tc!==cc) return false;
+        if(movingHorizontally && tr!==cr) return false;
+      }
+
+    } else {
+      // ── Diagonal step ──────────────────────────────────────────────────
+      // A diagonal ray crosses two cardinal surcos simultaneously.
+      // It is blocked if EITHER surco has a wall.
+      const hBlocked = cardinalWallBetween(cr,cc,cr,nc); // horizontal surco
+      const vBlocked = cardinalWallBetween(cr,cc,nr,cc); // vertical surco
+      if(hBlocked || vBlocked) return false;
+
+      // If either crossed surco is a flanking aperture the diagonal cannot
+      // pass through it (apertures only allow straight-through perpendicular rays).
+      if(isFlankingAperture(cr,cc,cr,nc)) return false;
+      if(isFlankingAperture(cr,cc,nr,cc)) return false;
+    }
+
+    cr=nr; cc=nc;
+  }
+  return true;
+}
+
+// Returns true when the surco between two cardinally-adjacent cells (r1,c1)→(r2,c2)
+// has no wall itself BUT is flanked on BOTH sides by walls of the same orientation,
+// making it a narrow aperture (rendija).
+function isFlankingAperture(r1,c1,r2,c2) {
+  // Moving vertically (dr≠0): surco is horizontal h_min(r1,r2)_c
+  // Flanking walls are horizontal surcos in the same row-gap but ±1 column
+  if(r2===r1+1 || r2===r1-1) {
+    const rTop = Math.min(r1,r2);
+    const c    = c1; // c1===c2 for cardinal
+    if(G.walls.has(`h_${rTop}_${c}`)) return false; // surco itself is a wall, not aperture
+    const leftWall  = G.walls.has(`h_${rTop}_${c-1}`);
+    const rightWall = G.walls.has(`h_${rTop}_${c+1}`);
+    return leftWall && rightWall;
+  }
+  // Moving horizontally (dc≠0): surco is vertical v_r_min(c1,c2)
+  // Flanking walls are vertical surcos in the same col-gap but ±1 row
+  if(c2===c1+1 || c2===c1-1) {
+    const cLeft = Math.min(c1,c2);
+    const r     = r1; // r1===r2 for cardinal
+    if(G.walls.has(`v_${r}_${cLeft}`)) return false; // surco itself is a wall
+    const topWall    = G.walls.has(`v_${r-1}_${cLeft}`);
+    const bottomWall = G.walls.has(`v_${r+1}_${cLeft}`);
+    return topWall && bottomWall;
+  }
+  return false;
+}
+
+function isAdjacent(r1,c1,r2,c2) {
+  return Math.abs(r1-r2)<=1&&Math.abs(c1-c2)<=1&&!(r1===r2&&c1===c2);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MOVEMENT
+// ═══════════════════════════════════════════════════════════════════════════
+// Central cell is permanently blocked
+function isCentralCell(r,c){ return r===7&&c===7; }
+
+function getValidMoves(u) {
+  const moves=[];
+  // Olaya boost: radius 2 via BFS the round after she killed a defender
+  const maxSteps = (u.id==='olaya' && G.olayaBoostRound===G.round) ? 2 : 1;
+
+  if(maxSteps===1) {
+    [[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]].forEach(([dr,dc])=>{
+    const nr=u.row+dr, nc=u.col+dc;
+    if(nr<0||nr>=GRID||nc<0||nc>=GRID) return;
+    if(isCentralCell(nr,nc)) return;
+    if(dr===0||dc===0) {
+      if(cardinalWallBetween(u.row,u.col,nr,nc)) return;
+    } else {
+      if(cardinalWallBetween(u.row,u.col,u.row,nc)) return;
+      if(cardinalWallBetween(u.row,u.col,nr,u.col)) return;
+    }
+    if(G.units.some(o=>o.alive&&o.side===u.side&&o.row===nr&&o.col===nc)) return;
+    if(u.side==='atk' && G.devices.some(d=>d.type==='galileo'&&d.alive&&d.row===nr&&d.col===nc)) return;
+    moves.push({r:nr,c:nc});
+  });
+  } else {
+    // BFS up to maxSteps steps respecting walls
+    const visited = new Set([`${u.row}_${u.col}`]);
+    let frontier = [{r:u.row,c:u.col}];
+    for(let step=0;step<maxSteps;step++) {
+      const next=[];
+      frontier.forEach(({r:cr,c:cc})=>{
+        [[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]].forEach(([dr,dc])=>{
+          const nr=cr+dr, nc=cc+dc;
+          if(nr<0||nr>=GRID||nc<0||nc>=GRID) return;
+          if(isCentralCell(nr,nc)) return;
+          const key=`${nr}_${nc}`;
+          if(visited.has(key)) return;
+          if(dr===0||dc===0) {
+            if(cardinalWallBetween(cr,cc,nr,nc)) return;
+          } else {
+            if(cardinalWallBetween(cr,cc,cr,nc)) return;
+            if(cardinalWallBetween(cr,cc,nr,cc)) return;
+          }
+          if(G.units.some(o=>o.alive&&o.side===u.side&&o.row===nr&&o.col===nc)) return;
+          if(u.side==='atk' && G.devices.some(d=>d.type==='galileo'&&d.alive&&d.row===nr&&d.col===nc)) return;
+          visited.add(key);
+          next.push({r:nr,c:nc});
+          if(step>0) moves.push({r:nr,c:nc}); // only add cells beyond step 1
+        });
+      });
+      if(step===0) { next.forEach(m=>moves.push(m)); } // step 1 cells
+      frontier=next;
+    }
+  }
+  return moves;
+}
+
+// Valid moves for Esteban drone (radius 1, wall-respecting, no Galileo block)
+function getDroneValidMoves(drone) {
+  const moves=[];
+  [[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]].forEach(([dr,dc])=>{
+    const nr=drone.row+dr, nc=drone.col+dc;
+    if(nr<0||nr>=GRID||nc<0||nc>=GRID) return;
+    if(isCentralCell(nr,nc)) return;
+    if(dr===0||dc===0) {
+      if(cardinalWallBetween(drone.row,drone.col,nr,nc)) return;
+    } else {
+      if(cardinalWallBetween(drone.row,drone.col,drone.row,nc)) return;
+      if(cardinalWallBetween(drone.row,drone.col,nr,drone.col)) return;
+    }
+    moves.push({r:nr,c:nc});
+  });
+  return moves;
+}
+
+// Returns true if there is a wall in the surco between two cardinally-adjacent cells
+function cardinalWallBetween(r1,c1,r2,c2) {
+  if(r2===r1+1) return G.walls.has(`h_${r1}_${c1}`);
+  if(r2===r1-1) return G.walls.has(`h_${r2}_${c2}`);
+  if(c2===c1+1) return G.walls.has(`v_${r1}_${c1}`);
+  if(c2===c1-1) return G.walls.has(`v_${r2}_${c2}`);
+  return false;
+}
+
+function moveUnit(uid, r, c) {
+  const u = getUnit(uid);
+  if(!u) return;
+  const oldR=u.row, oldC=u.col;
+  // Track last move origin for Vladimir (defender units only)
+  if(u.side==='def') {
+    G.defLastMoveFrom[u.id]={row:oldR, col:oldC, round:G.round};
+  }
+  u.row=r; u.col=c;
+  G.movedUnits.add(uid);
+  G.selectedUnit = null;
+
+  // Daniel teleport: if Daniel steps on one of his devices, jump to the other
+  if(uid==='daniel') {
+    const danielDevs = G.devices.filter(d=>d.type==='daniel'&&d.alive);
+    const stepped = danielDevs.find(d=>d.row===r&&d.col===c);
+    if(stepped && danielDevs.length===2) {
+      const other = danielDevs.find(d=>d!==stepped);
+      u.row=other.row; u.col=other.col;
+    }
+  }
+
+  // Check device traps
+  checkDeviceTrap(u);
+
+  // Update bomb counters
+  if(u.side==='atk') {
+    if(inBombZone(r,c)) {
+      if(!G.bombCounters[uid]) G.bombCounters[uid]=0;
+      // counter increments at END of atk round, not here
+    } else {
+      G.bombCounters[uid]=0; // left bomb zone, reset
+    }
+  }
+  renderGame();
+  updateSidebar();
+}
+
+function checkDeviceTrap(unit) {
+  // Tarantino
+  if(unit.side==='def' && G.tarantinoDevice) {
+    const d = G.devices.find(dv=>dv.type==='tarantino'&&dv.alive);
+    if(d && d.row===unit.row && d.col===unit.col) {
+      unit.alive=false;
+      d.alive=false;
+      G.pendingNotifs.push(`💥 ${unit.name} (DEFENSOR) cayó en el dispositivo de Tarantino y fue eliminada.`);
+    }
+  }
+  // Xinchan
+  if(unit.side==='atk' && G.xinchanDevice) {
+    const d = G.devices.find(dv=>dv.type==='xinchan'&&dv.alive);
+    if(d && d.row===unit.row && d.col===unit.col) {
+      unit.alive=false;
+      d.alive=false;
+      G.pendingNotifs.push(`💥 ${unit.name} (ATACANTE) cayó en el dispositivo de Xinchan y fue eliminada.`);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SHOOTING
+// ═══════════════════════════════════════════════════════════════════════════
+function getShootableTargets() {
+  const side = viewSide();
+  const myUnits = G.units.filter(u=>u.alive&&u.side===side&&!G.shotUnits.has(u.id));
+  const rivals = G.units.filter(u=>u.alive&&u.side!==side);
+  const ATK_DEVICES = new Set(['tarantino','francisco','zorro','iarramendi','daniel']);
+  // All rival devices are shootable, EXCEPT Daniel devices cannot be shot by the attacker
+  const rivalDevices = G.devices.filter(d=>{
+    if(!d.alive) return false;
+    const ownerSide = ATK_DEVICES.has(d.type) ? 'atk' : 'def';
+    if(ownerSide === side) return false; // own devices not shootable
+    if(d.type==='daniel' && side==='atk') return false; // attacker cannot shoot Daniel devices
+    return true;
+  });
+  const targets=[];
+
+  myUnits.forEach(shooter=>{
+    const inBomb=inBombZone(shooter.row,shooter.col);
+    const isCurro = shooter.id==='curro' && G.curroExtendedShot;
+    const isHector = shooter.id==='hector' && G.hectorAbilityRound===G.round && G.hectorBlindCell;
+
+    // Rival units
+    rivals.forEach(target=>{
+      if(!G.revealedCells.has(`${target.row}_${target.col}`)) return;
+      if(isUnitInvisibleTo(target,side)) return;
+      const dr=Math.abs(target.row-shooter.row),dc=Math.abs(target.col-shooter.col);
+      if(inBomb) {
+        if(dr===1&&dc===1) { if(!targets.find(t=>t.target===target)) targets.push({target,shooter}); }
+      } else if(isCurro) {
+        if((dr<=2&&dc===0)||(dr===0&&dc<=2)) { if(!targets.find(t=>t.target===target)) targets.push({target,shooter}); }
+      } else if(isHector && target.row===G.hectorBlindCell.row && target.col===G.hectorBlindCell.col) {
+        targets.push({target,shooter});
+      } else {
+        if((dr===1&&dc===0)||(dr===0&&dc===1)) {
+          if(!cardinalWallBetween(shooter.row,shooter.col,target.row,target.col))
+            if(!targets.find(t=>t.target===target)) targets.push({target,shooter});
+        }
+      }
+    });
+
+    // Rival devices — all of them, same range rules as units
+    rivalDevices.forEach(d=>{
+      if(!G.revealedCells.has(`${d.row}_${d.col}`)) return;
+      const dr=Math.abs(d.row-shooter.row),dc=Math.abs(d.col-shooter.col);
+      // Iarramendi and Bisbal decoys appear as real units (no señuelo label)
+      const showAsReal = (d.type==='iarramendi'||d.type==='bisbal');
+      const displayName = showAsReal ? UNIT_DEFS[d.unitId].name : UNIT_DEFS[d.unitId].name+' [dispositivo]';
+      const asTarget={name:displayName,row:d.row,col:d.col,isDevice:true,deviceRef:d};
+      let inRange=false;
+      if(inBomb) {
+        inRange = dr===1&&dc===1;
+      } else if(isCurro) {
+        inRange = (dr<=2&&dc===0)||(dr===0&&dc<=2);
+      } else if(isHector && d.row===G.hectorBlindCell.row && d.col===G.hectorBlindCell.col) {
+        inRange = true;
+      } else {
+        inRange = ((dr===1&&dc===0)||(dr===0&&dc===1)) && !cardinalWallBetween(shooter.row,shooter.col,d.row,d.col);
+      }
+      if(inRange && !targets.find(t=>t.target.row===d.row&&t.target.col===d.col))
+        targets.push({target:asTarget,shooter});
+    });
+  });
+  return targets;
+}
+
+function shootTarget(targetObj) {
+  const side = viewSide();
+  const target = targetObj.target;
+  const shooter = targetObj.shooter;
+
+  G.shotUnits.add(shooter.id);
+  if(!G.shotsFired) G.shotsFired=[];
+  G.shotsFired.push({fromUnit:shooter,toUnit:target,fromRow:shooter.row,fromCol:shooter.col});
+  G.shotFired={fromUnit:shooter,toUnit:target,fromRow:shooter.row,fromCol:shooter.col};
+
+  if(target.isDevice) {
+    target.deviceRef.alive=false;
+    // For Iarramendi/Bisbal decoys don't reveal it's a decoy
+    const d=target.deviceRef;
+    if(d.type==='iarramendi'||d.type==='bisbal') {
+      G.shotsFired[G.shotsFired.length-1].toUnit={name:UNIT_DEFS[d.unitId].name,row:d.row,col:d.col};
+    }
+    renderGame(); updateSidebar();
+    const remaining=getShootableTargets();
+    if(remaining.length>0) setHelp('Disparo realizado. Quedan '+remaining.length+' objetivo(s). Sigue o AVANZA.');
+    else setHelp('Sin más objetivos. Pulsa AVANZAR.');
+    return;
+  }
+  if(target.id==='kevin' && G.kevinShieldRound===G.round) {
+    // Shot blocked — notify position of shooter but not elimination
+    G.shotsFired[G.shotsFired.length-1] = {
+      fromUnit:shooter, toUnit:null,
+      fromRow:shooter.row, fromCol:shooter.col,
+      blocked:true
+    };
+    renderGame(); updateSidebar(); return;
+  }
+  if(target.id==='jorge' && G.jorgeAbilityActive) {
+    G.pendingNotifs.push('VENGANZA DE JORGE: Se revelan las posiciones de los atacantes vivos.');
+    G.jorgeAbilityActive=false; G.jorgeRevealPending=true;
+  }
+  if(target.id==='rocinante' && G.rocinanteLegacyActive && G.rocinanteLegacyRound===G.round) {
+    G.rocinanteFallCell={row:target.row,col:target.col};
+    G.pendingNotifs.push('Rocinante cayó en ('+(target.col+1)+','+(target.row+1)+'). Legado activo.');
+  }
+  target.alive=false;
+
+  // Olaya: if she kills a defender while ability is active, grant boost next round
+  if(shooter.id==='olaya' && G.olayaAbilityActive) {
+    G.olayaKilledThisRound=true;
+  }
+
+  if(G.luceroAbilityActive && shooter.side==='def') {
+    const atkAlive=G.units.filter(u=>u.side==='atk'&&u.alive);
+    if(atkAlive.length>0) {
+      const picked=atkAlive[Math.floor(Math.random()*atkAlive.length)];
+      G.pendingNotifs.push('REPRESALIA DE LUCERO: '+picked.name+' en ('+(picked.col+1)+','+(picked.row+1)+')');
+    }
+    G.luceroAbilityActive=false;
+  }
+  // Eliminate devices on target cell; Daniel: if one device eliminated, both go
+  G.devices.forEach(d=>{
+    if(d.alive&&d.row===target.row&&d.col===target.col) {
+      d.alive=false;
+      if(d.type==='daniel') {
+        G.devices.filter(d2=>d2.type==='daniel'&&d2.alive).forEach(d2=>{ d2.alive=false; });
+      }
+    }
+  });
+  renderGame(); updateSidebar(); checkWinConditions();
+  const remaining=getShootableTargets();
+  if(remaining.length>0) setHelp('Disparo realizado. Quedan '+remaining.length+' objetivo(s). Sigue o AVANZA.');
+  else setHelp('Sin más objetivos. Pulsa AVANZAR.');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WIN CONDITIONS
+// ═══════════════════════════════════════════════════════════════════════════
+function checkWinConditions() {
+  const atkAlive = G.units.filter(u=>u.side==='atk'&&u.alive).length;
+  const defAlive = G.units.filter(u=>u.side==='def'&&u.alive).length;
+  if(atkAlive===0) { endGame('def','Todas las unidades atacantes eliminadas'); return; }
+  if(defAlive===0) { endGame('atk','Todas las unidades defensoras eliminadas'); return; }
+  // Bomb condition: check at end of atk turn
+  if(G.currentSide==='atk') {
+    for(const uid of G.atkPick) {
+      const cnt = G.bombCounters[uid]||0;
+      if(cnt>=5) { endGame('atk',`${UNIT_DEFS[uid].name} permaneció 5 rondas en la sala de la bomba`); return; }
+    }
+  }
+}
+
+function endGame(winner, reason) {
+  document.getElementById('winner-text').textContent = winner==='atk' ? '⚔ ATACANTE GANA' : '🛡 DEFENSOR GANA';
+  document.getElementById('winner-text').className = 'winner-text '+winner;
+  document.getElementById('winner-reason').textContent = reason;
+  showScreen('winner');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE TRANSITIONS
+// ═══════════════════════════════════════════════════════════════════════════
+function advancePhase() {
+  if(G.abilityMode) { toast('⚠ Finaliza primero la habilidad activa'); return; }
+  const phase = G.gamePhase;
+  if(phase==='movement') {
+    computeVision();
+    G.gamePhase='vision';
+    renderGame();
+    updatePhasebar();
+    updateSidebar();
+    setHelp('Fase de VISIÓN — observa las casillas reveladas. Activa habilidades si están disponibles. Luego AVANZA.');
+  } else if(phase==='vision') {
+    G.gamePhase='shoot';
+    renderGame();
+    updatePhasebar();
+    updateSidebar();
+    const targets = getShootableTargets();
+    if(targets.length>0) setHelp(`Hay ${targets.length} objetivo(s) en rango. Haz clic en un objetivo rojo para disparar o AVANZA para pasar.`);
+    else setHelp('Sin objetivos en rango. AVANZA para finalizar turno.');
+  } else if(phase==='shoot') {
+    endTurn();
+  }
+}
+
+function endTurn() {
+  // Update bomb counters for current atk units in bomb zone
+  if(G.currentSide==='atk') {
+    // Olaya boost: if she killed this round, grant boost for next atk round
+    if(G.olayaKilledThisRound) {
+      G.olayaBoostRound = G.round+1;
+      G.olayaKilledThisRound=false;
+      G.olayaAbilityActive=false;
+    }
+    // Check if any defender is in bomb zone at end of this turn
+    const defInBomb = G.units.some(u=>u.side==='def'&&u.alive&&inBombZone(u.row,u.col));
+    G.atkPick.forEach(uid=>{
+      const u=getUnit(uid);
+      if(!u||!u.alive) return;
+      if(inBombZone(u.row,u.col)) {
+        if(!defInBomb) {
+          // Increment only if bomb zone is clear of defenders
+          G.bombCounters[uid]=(G.bombCounters[uid]||0)+1;
+        }
+        // If defInBomb, counter stays frozen (don't reset, don't increment)
+      } else {
+        G.bombCounters[uid]=0; // Left bomb zone: reset
+      }
+    });
+    checkWinConditions();
+  }
+
+  // Collect notifs
+  let notifMsg='';
+  if(G.shotsFired && G.shotsFired.length>0) {
+    G.shotsFired.forEach(s=>{
+      if(s.blocked) {
+        notifMsg += `🎯 Disparo desde (${s.fromRow+1},${s.fromCol+1}) — sin eliminación.<br>`;
+      } else {
+        notifMsg += `🎯 Disparo desde (${s.fromRow+1},${s.fromCol+1}) — <b>${s.toUnit.name}</b> eliminada en (${s.toUnit.col+1},${s.toUnit.row+1}).<br>`;
+      }
+    });
+  }
+  if(G.pendingNotifs.length>0) {
+    notifMsg += G.pendingNotifs.join('<br>')+'\n';
+    G.pendingNotifs=[];
+  }
+  if(G.jorgeRevealPending) {
+    const atkPos = G.units.filter(u=>u.side==='atk'&&u.alive)
+      .map(u=>`${u.name}: (${u.row+1},${u.col+1})`).join(', ');
+    notifMsg += `🗺 Posiciones atacantes: ${atkPos}<br>`;
+    G.jorgeRevealPending=false;
+  }
+
+  // Device delayed notifications (tarantino/xinchan notif at start of next own turn)
+  // Store them
+  // Collect bullet markers for rival's next turn
+  if(G.shotsFired && G.shotsFired.length>0) {
+    G.pendingBulletMarkers = G.shotsFired
+      .filter(s=>!s.blocked)
+      .map(s=>({row:s.fromRow, col:s.fromCol}));
+  } else {
+    G.pendingBulletMarkers = [];
+  }
+
+  const nextSide = G.currentSide==='atk'?'def':'atk';
+
+  // Count units that did not move this turn
+  const myAliveUnits = G.units.filter(u=>u.side===G.currentSide&&u.alive);
+  const unmovedUnits = myAliveUnits.filter(u=>!G.movedUnits.has(u.id));
+  // Also count Esteban drone if defender's turn
+  let droneUnmoved = false;
+  if(G.currentSide==='def') {
+    const drone=G.devices.find(d=>d.type==='esteban'&&d.alive);
+    if(drone && !G.movedUnits.has('esteban_drone')) droneUnmoved=true;
+  }
+  const unmovedCount = unmovedUnits.length + (droneUnmoved?1:0);
+  let unmovedMsg = '';
+  if(unmovedCount>0) {
+    unmovedMsg = `<br><span style="color:var(--accent-yellow);font-family:Share Tech Mono,monospace;font-size:.82rem;">⚠ Fichas sin mover este turno: ${unmovedCount}</span>`;
+  }
+
+  const changeMsg = `<b>CAMBIO DE DISPOSITIVO</b><br>Entrega el dispositivo al ${nextSide==='atk'?'ATACANTE':'DEFENSOR'}.`
+    + unmovedMsg
+    + (notifMsg ? `<br><br><b>NOTIFICACIONES:</b><br>${notifMsg}` : '');
+
+  showModal('FIN DE TURNO', changeMsg, [{label:'LISTO', action:startNextTurn}]);
+}
+
+function startNextTurn() {
+  G.currentSide = G.currentSide==='atk'?'def':'atk';
+  if(G.currentSide==='atk') G.round++;
+  // Set bullet markers from shots fired last turn (shown to rival this turn)
+  // Markers are cleared at start of the turn after that
+  G.bulletMarkers = G.pendingBulletMarkers || [];
+  G.pendingBulletMarkers = [];
+  // Ivan block: activate for this defender round if pending
+  if(G.currentSide==='def' && G.ivanBlockPending && G.ivanBlockedUnit) {
+    G.ivanBlockRound = G.round;
+    G.ivanBlockPending = false;
+  }
+  G.gamePhase='movement';
+  G.movedUnits=new Set();
+  // Pre-mark Ivan-blocked unit so it can't be selected for movement
+  if(G.currentSide==='def' && G.ivanBlockRound===G.round && G.ivanBlockedUnit) {
+    G.movedUnits.add(G.ivanBlockedUnit);
+  }  G.shotFired=null;  G.shotsFired=[];
+  G.shotUnits=new Set();
+  G.curroExtendedShot=false;
+  G.morientesSilentElim=false;
+  G.hectorBlindCell=null;
+  G.koldoActive=false;
+  G.olayaKilledThisRound=false;
+  G.revealedCells=new Set();
+  G.selectedUnit=null;
+  G.shootingUnit=null;
+  renderGame();
+  updatePhasebar();
+  updateTurnBanner();
+  updateSidebar();
+  setHelp('Selecciona una unidad y muévela (máx. 1 casilla). AVANZA cuando termines.');
+
+  // Ivan block: notify defender at start of their turn
+  if(G.currentSide==='def' && G.ivanBlockRound===G.round && G.ivanBlockedUnit) {
+    const blockedUnit = getUnit(G.ivanBlockedUnit);
+    const name = blockedUnit ? blockedUnit.name : G.ivanBlockedUnit;
+    showModal('⚠ BLOQUEO — IVÁN',
+      'La ficha <b>'+name+'</b> no puede moverse esta ronda por efecto de la habilidad del atacante Iván.',
+      [{label:'ENTENDIDO'}]);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CLICK HANDLER
+// ═══════════════════════════════════════════════════════════════════════════
+function onGameClick(e) {
+  const rect = gCanvas.getBoundingClientRect();
+  const sx=gCanvas.width/rect.width, sy=gCanvas.height/rect.height;
+  const mx=(e.clientX-rect.left)*sx, my=(e.clientY-rect.top)*sy;
+
+  // Find clicked cell
+  let cr=-1, cc=-1;
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++) {
+    const {x,y}=gCellTL(r,c);
+    if(mx>=x&&mx<=x+GCS&&my>=y&&my<=y+GCS) { cr=r; cc=c; break; }
+  }
+  if(cr<0) {
+    // Surco click modes
+    if(G.abilityMode) {
+      const t=G.abilityMode.type;
+      if(t==='guridi_wall'||t==='asencio_wall') { handleSurcoWallPlace(mx,my); return; }
+      if(t==='wilson_wall'||t==='horacio_wall'||t==='hector_wall') { handleSurcoRemoveOrReveal(mx,my); return; }
+    }
+    return;
+  }
+
+  // Ability mode handlers
+  if(G.abilityMode) {
+    handleAbilityClick(cr,cc,mx,my);
+    return;
+  }
+
+  const phase=G.gamePhase, side=G.currentSide; // always use currentSide for interaction logic
+
+  if(phase==='movement') {
+    // Esteban drone: if drone is selected, try to move it
+    if(G.selectedUnit==='esteban_drone') {
+      const drone=G.devices.find(d=>d.type==='esteban'&&d.alive);
+      if(drone) {
+        const valid=getDroneValidMoves(drone);
+        if(valid.find(m=>m.r===cr&&m.c===cc)) {
+          drone.row=cr; drone.col=cc;
+          G.movedUnits.add('esteban_drone');
+          G.selectedUnit=null;
+          renderGame(); return;
+        }
+      }
+      G.selectedUnit=null; renderGame(); return;
+    }
+    // If unit selected, try to move
+    if(G.selectedUnit) {
+      const u=getUnit(G.selectedUnit);
+      const valid=getValidMoves(u);
+      if(valid.find(m=>m.r===cr&&m.c===cc)) {
+        moveUnit(G.selectedUnit,cr,cc);
+        return;
+      }
+    }
+    // Click on Esteban drone (defender side only)
+    if(side==='def') {
+      const drone=G.devices.find(d=>d.type==='esteban'&&d.alive&&d.row===cr&&d.col===cc);
+      if(drone && !G.movedUnits.has('esteban_drone')) {
+        G.selectedUnit='esteban_drone';
+        renderGame(); return;
+      }
+    }
+    // Select own unit
+    const clicked=G.units.find(u=>u.alive&&u.side===side&&u.row===cr&&u.col===cc);
+    if(clicked && !G.movedUnits.has(clicked.id)) {
+      G.selectedUnit=clicked.id;
+      renderGame();
+      return;
+    }
+    G.selectedUnit=null; renderGame();
+  } else if(phase==='shoot') {
+    const targets=getShootableTargets();
+    const tObj=targets.find(t=>t.target.row===cr&&t.target.col===cc);
+    if(tObj) {
+      showModal('CONFIRMAR DISPARO',
+        `¿Disparar a <b>${tObj.target.name}</b> en (${cr+1},${cc+1})?`,
+        [
+          {label:'DISPARAR',cls:'btn-danger',action:()=>{ shootTarget(tObj); }},
+          {label:'CANCELAR'}
+        ]);
+    }
+  }
+}
+
+// Wilson / Horacio: remove adjacent wall by clicking its surco
+// Hector: reveal cell beyond adjacent wall
+function handleSurcoRemoveOrReveal(mx,my) {
+  const mode=G.abilityMode;
+  const u=getUnit(mode.unitId);
+  if(!u) return;
+  const adjW=getAdjacentWalls(u.row,u.col);
+
+  for(const w of adjW) {
+    let hit=false;
+    if(w.key.startsWith('h_')) {
+      const parts=w.key.split('_'); const wr=parseInt(parts[1]),wc=parseInt(parts[2]);
+      const {x,y}=gCellTL(wr,wc);
+      hit = mx>=x&&mx<=x+GCS&&my>=y+GCS&&my<=y+GCS+GWS;
+    } else {
+      const parts=w.key.split('_'); const wr=parseInt(parts[1]),wc=parseInt(parts[2]);
+      const {x,y}=gCellTL(wr,wc);
+      hit = mx>=x+GCS&&mx<=x+GCS+GWS&&my>=y&&my<=y+GCS;
+    }
+    if(hit) {
+      if(mode.type==='wilson_wall'||mode.type==='horacio_wall') {
+        G.walls.delete(w.key);
+        finishAbility(); renderGame();
+      } else if(mode.type==='hector_wall') {
+        const beyond=cellBeyondWall(u.row,u.col,w.key);
+        if(beyond) {
+          G.revealedCells.add(`${beyond.row}_${beyond.col}`);
+          G.hectorBlindCell={row:beyond.row,col:beyond.col};
+          G.hectorAbilityRound=G.round;
+          finishAbility(); renderGame();
+          toast(`✓ Héctor: casilla (${beyond.col+1},${beyond.row+1}) desvelada`);
+        }
+      }
+      return;
+    }
+  }
+  toast('⚠ Haz clic directamente sobre el surco de la pared');
+}
+function handleSurcoWallPlace(mx,my) {
+  const mode=G.abilityMode;
+  const uid=mode.unitId;
+  const u=getUnit(uid);
+  if(!u) return;
+  const data=mode.data;
+  const maxDist = uid==='guridi' ? 3 : 2;
+  const maxWalls = uid==='guridi' ? 2 : 1;
+
+  for(let r=0;r<GRID-1;r++) for(let c=0;c<GRID;c++) {
+    const {x,y}=gCellTL(r,c);
+    const wy=y+GCS;
+    const key=`h_${r}_${c}`;
+    if(G.walls.has(key)) continue;
+    const dist=Math.max(Math.abs(r-u.row),Math.abs(c-u.col));
+    if(dist>maxDist) continue;
+    // Asencio: cannot place on a door surco
+    if(uid==='asencio' && isFlankingAperture(r,c,r+1,c)) continue;
+    if(mx>=x&&mx<=x+GCS&&my>=wy&&my<=wy+GWS) {
+      G.walls.add(key); data.placed=(data.placed||0)+1;
+      if(data.placed>=maxWalls) finishAbility();
+      else { renderGame(); setHelp(uid.charAt(0).toUpperCase()+uid.slice(1)+': coloca la 2ª pared ('+(data.placed)+'/'+maxWalls+')'); }
+      return;
+    }
+  }
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID-1;c++) {
+    const {x,y}=gCellTL(r,c);
+    const wx=x+GCS;
+    const key=`v_${r}_${c}`;
+    if(G.walls.has(key)) continue;
+    const dist=Math.max(Math.abs(r-u.row),Math.abs(c-u.col));
+    if(dist>maxDist) continue;
+    if(uid==='asencio' && isFlankingAperture(r,c,r,c+1)) continue;
+    if(mx>=wx&&mx<=wx+GWS&&my>=y&&my<=y+GCS) {
+      G.walls.add(key); data.placed=(data.placed||0)+1;
+      if(data.placed>=maxWalls) finishAbility();
+      else { renderGame(); setHelp(uid.charAt(0).toUpperCase()+uid.slice(1)+': coloca la 2ª pared ('+(data.placed)+'/'+maxWalls+')'); }
+      return;
+    }
+  }
+}
+
+function handleAbilityClick(r,c,mx,my) {
+  const mode=G.abilityMode;
+  if(mode.type==='bertin_recon') {
+    const u=getUnit('bertin');
+    if(!u) return;
+    const dist=Math.max(Math.abs(r-u.row),Math.abs(c-u.col));
+    if(dist<=3) { G.revealedCells.add(`${r}_${c}`); finishAbility(); renderGame(); }
+    else toast('⚠ Demasiado lejos (máx. 3 casillas)');
+  } else if(mode.type==='tarantino_device') {
+    const u=getUnit('tarantino');
+    const dr=Math.abs(r-u.row), dc=Math.abs(c-u.col);
+    if((dr===1&&dc===0)||(dr===0&&dc===1)) {
+      if(G.devices.find(d=>d.row===r&&d.col===c)) { toast('⚠ Casilla ocupada'); return; }
+      G.devices.push({type:'tarantino',unitId:'tarantino',row:r,col:c,alive:true});
+      G.tarantinoDevice={row:r,col:c};
+      finishAbility(); renderGame();
+    } else toast('⚠ Debe ser casilla adyacente (dist. 1)');
+  } else if(mode.type==='xinchan_device') {
+    const u=getUnit('xinchan');
+    const dr=Math.abs(r-u.row), dc=Math.abs(c-u.col);
+    if(dr<=2&&dc<=2) {
+      if(G.devices.find(d=>d.row===r&&d.col===c)) { toast('⚠ Casilla ocupada'); return; }
+      G.devices.push({type:'xinchan',unitId:'xinchan',row:r,col:c,alive:true});
+      G.xinchanDevice={row:r,col:c};
+      finishAbility(); renderGame();
+    } else toast('⚠ Demasiado lejos (máx. 2 casillas)');
+  } else if(mode.type==='dario_sensor') {
+    if(G.devices.find(d=>d.row===r&&d.col===c)) { toast('⚠ Casilla ocupada'); return; }
+    G.devices.push({type:'dario',unitId:'dario',row:r,col:c,alive:true});
+    G.darioDevice={row:r,col:c};
+    finishAbility(); computeVision(); renderGame();
+  } else if(mode.type==='sarapova_place') {
+    if(!inBombZone(r,c)) { toast('⚠ Solo casillas de la sala de la bomba'); return; }
+    if(isCentralCell(r,c)) { toast('⚠ Casilla central bloqueada'); return; }
+    if(G.devices.find(d=>d.row===r&&d.col===c)) { toast('⚠ Casilla ocupada'); return; }
+    G.devices.push({type:'sarapova',unitId:'sarapova',row:r,col:c,alive:true});
+    G.sarapovaDevice={row:r,col:c};
+    G.sarapovaState.devicePlaced=true;
+    finishAbility(); renderGame();
+  } else if(mode.type==='francisco_sensor') {
+    if(isCentralCell(r,c)) { toast('⚠ Casilla central bloqueada'); return; }
+    if(!hasAdjacentWall(r,c)) { toast('⚠ La casilla debe tener una pared en un surco adyacente'); return; }
+    const wk=firstAdjacentWallKey(r,c);
+    G.devices.push({type:'francisco',unitId:'francisco',row:r,col:c,alive:true,wallKey:wk});
+    G.franciscoSensor={row:r,col:c,wallKey:wk};
+    finishAbility(); computeVision(); renderGame();
+  } else if(mode.type==='melania_sensor') {
+    if(isCentralCell(r,c)) { toast('⚠ Casilla central bloqueada'); return; }
+    if(!hasAdjacentWall(r,c)) { toast('⚠ La casilla debe tener una pared en un surco adyacente'); return; }
+    const wk=firstAdjacentWallKey(r,c);
+    G.devices.push({type:'melania',unitId:'melania',row:r,col:c,alive:true,wallKey:wk});
+    G.melaniaSensor={row:r,col:c,wallKey:wk};
+    finishAbility(); computeVision(); renderGame();
+  } else if(mode.type==='facundo_device') {
+    if(inBombZone(r,c)||isCentralCell(r,c)) { toast('⚠ No puede ser dentro de la sala de bomba'); return; }
+    const doors=getDoorSurcos();
+    const valid=doors.some(dk=>getDiagCellsAroundDoor(dk).some(cell=>cell.row===r&&cell.col===c));
+    if(!valid) { toast('⚠ Debe ser diagonal a un surco-puerta'); return; }
+    if(G.devices.find(d=>d.row===r&&d.col===c)) { toast('⚠ Casilla ocupada'); return; }
+    G.devices.push({type:'facundo',unitId:'facundo',row:r,col:c,alive:true});
+    G.facundoDevice={row:r,col:c};
+    finishAbility(); renderGame();
+  } else if(mode.type==='torrente_device') {
+    if(isCentralCell(r,c)) { toast('⚠ Casilla central bloqueada'); return; }
+    if(G.devices.find(d=>d.row===r&&d.col===c)) { toast('⚠ Casilla ocupada'); return; }
+    G.devices.push({type:'torrente',unitId:'torrente',row:r,col:c,alive:true,seenBy:{}});
+    G.torrenteDevice={row:r,col:c};
+    finishAbility(); renderGame();
+  } else if(mode.type==='bisbal_decoy') {
+    if(isCentralCell(r,c)) { toast('⚠ Casilla central bloqueada'); return; }
+    if(G.devices.find(d=>d.row===r&&d.col===c)) { toast('⚠ Casilla ocupada'); return; }
+    G.bisbalDecoy={row:r,col:c};
+    G.devices.push({type:'bisbal',unitId:'bisbal',row:r,col:c,alive:true,isDecoy:true});
+    finishAbility(); renderGame();
+  } else if(mode.type==='iarramendi_decoy') {
+    if(isCentralCell(r,c)) { toast('⚠ Casilla central bloqueada'); return; }
+    if(G.devices.find(d=>d.row===r&&d.col===c)) { toast('⚠ Casilla ocupada'); return; }
+    G.iarramendDecoy={row:r,col:c};
+    G.devices.push({type:'iarramendi',unitId:'iarramendi',row:r,col:c,alive:true,isDecoy:true,canMove:true,movedThisTurn:false});
+    finishAbility(); renderGame();
+  } else if(mode.type==='esteban_drone') {
+    const uEsteban=getUnit('esteban');
+    if(!uEsteban) return;
+    const dr2=Math.abs(r-uEsteban.row),dc2=Math.abs(c-uEsteban.col);
+    if(!((dr2===1&&dc2===0)||(dr2===0&&dc2===1))) { toast('⚠ Debe ser casilla contigua a Esteban'); return; }
+    if(isCentralCell(r,c)) { toast('⚠ Casilla central bloqueada'); return; }
+    if(G.devices.find(d=>d.row===r&&d.col===c)) { toast('⚠ Casilla ocupada'); return; }
+    G.devices.push({type:'esteban',unitId:'esteban',row:r,col:c,alive:true,canMove:true,movedThisTurn:false});
+    G.estebanDrone={row:r,col:c};
+    finishAbility(); renderGame();
+  } else if(mode.type==='galileo_device') {
+    if(inBombZone(r,c)||isCentralCell(r,c)) { toast('⚠ No puede ser dentro de la sala de bomba'); return; }
+    const doors2=getDoorSurcos();
+    const valid2=doors2.some(dk=>getAdjCellsAroundDoor(dk).some(cell=>cell.row===r&&cell.col===c));
+    if(!valid2) { toast('⚠ Debe ser contiguo a un surco-puerta'); return; }
+    if(G.devices.find(d=>d.row===r&&d.col===c)) { toast('⚠ Casilla ocupada'); return; }
+    G.devices.push({type:'galileo',unitId:'galileo',row:r,col:c,alive:true});
+    G.galileoDevice={row:r,col:c};
+    finishAbility(); renderGame();
+  } else if(mode.type==='zorro_device') {
+    const uZorro=getUnit('zorro');
+    if(!uZorro) return;
+    const dr3=Math.abs(r-uZorro.row),dc3=Math.abs(c-uZorro.col);
+    if(dr3>2||dc3>2) { toast('⚠ Demasiado lejos (máx. 2 casillas)'); return; }
+    if(isCentralCell(r,c)) { toast('⚠ Casilla central bloqueada'); return; }
+    if(G.devices.find(d=>d.row===r&&d.col===c)) { toast('⚠ Casilla ocupada'); return; }
+    G.devices.push({type:'zorro',unitId:'zorro',row:r,col:c,alive:true});
+    G.zorroDevice={row:r,col:c};
+    finishAbility(); renderGame();
+  } else if(mode.type==='morientes_elim') {
+    const uMorientes=getUnit('morientes');
+    if(!uMorientes) return;
+    const dr4=Math.abs(r-uMorientes.row),dc4=Math.abs(c-uMorientes.col);
+    if(dr4>2||dc4>2) { toast('⚠ Demasiado lejos (máx. 2 casillas)'); return; }
+    const defDevTypes=new Set(['dario','melania','facundo','xinchan','torrente','bisbal','galileo','sarapova','esteban']);
+    const d=G.devices.find(dv=>dv.alive&&dv.row===r&&dv.col===c&&defDevTypes.has(dv.type));
+    if(!d) { toast('⚠ No hay dispositivo defensor en esa casilla'); return; }
+    d.alive=false;
+    finishAbility(); renderGame();
+  } else if(mode.type==='wilson_wall'||mode.type==='horacio_wall') {
+    toast('⚠ Haz clic en un surco-pared contiguo, no en una casilla');
+  } else if(mode.type==='asencio_wall') {
+    toast('⚠ Haz clic en un surco entre casillas, no en una casilla');
+  } else if(mode.type==='hector_wall') {
+    toast('⚠ Haz clic en un surco-pared contiguo a Héctor');
+  } else if(mode.type==='soriano_pick') {
+    if(isCentralCell(r,c)) { toast('⚠ Casilla central bloqueada'); return; }
+    G.revealedCells.add(`${r}_${c}`);
+    mode.data.picked++;
+    renderGame();
+    if(mode.data.picked>=4) {
+      finishAbility();
+      setHelp('Soriano: 4 casillas desveladas.');
+    } else {
+      setHelp(`SORIANO: Haz clic en más casillas para desvelarlas (${mode.data.picked}/4).`);
+    }
+  } else if(mode.type==='daniel_place') {
+    if(isCentralCell(r,c)) { toast('⚠ Casilla central bloqueada'); return; }
+    if(inBombZone(r,c)) { toast('⚠ No puede ser una casilla de la sala de bomba'); return; }
+    if(G.devices.find(d=>d.row===r&&d.col===c)) { toast('⚠ Casilla ocupada'); return; }
+    G.devices.push({type:'daniel',unitId:'daniel',row:r,col:c,alive:true});
+    mode.data.placed++;
+    if(mode.data.placed>=2) {
+      G.danielAbilityUsed=true;
+      finishAbility(); renderGame();
+      toast('✓ Daniel: dos dispositivos colocados');
+    } else {
+      renderGame();
+      setHelp('DANIEL: Haz clic en la 2ª casilla para colocar el dispositivo (2/2).');
+    }
+  }
+}
+
+function finishAbility() { G.abilityMode=null; renderGame(); updateSidebar(); }
+
+// Returns list of wall keys in the 4 cardinal surcos adjacent to cell (r,c)
+// Returns true if cell (r,c) has at least one wall in any adjacent surco (including fixed walls)
+function hasAdjacentWall(r,c) {
+  if(r>0      && G.walls.has(`h_${r-1}_${c}`)) return true;
+  if(r<GRID-1 && G.walls.has(`h_${r}_${c}`))   return true;
+  if(c>0      && G.walls.has(`v_${r}_${c-1}`)) return true;
+  if(c<GRID-1 && G.walls.has(`v_${r}_${c}`))   return true;
+  return false;
+}
+
+// Returns first wall key adjacent to (r,c), including fixed walls
+function firstAdjacentWallKey(r,c) {
+  if(r>0      && G.walls.has(`h_${r-1}_${c}`)) return `h_${r-1}_${c}`;
+  if(r<GRID-1 && G.walls.has(`h_${r}_${c}`))   return `h_${r}_${c}`;
+  if(c>0      && G.walls.has(`v_${r}_${c-1}`)) return `v_${r}_${c-1}`;
+  if(c<GRID-1 && G.walls.has(`v_${r}_${c}`))   return `v_${r}_${c}`;
+  return null;
+}
+
+function getAdjacentWalls(r,c) {
+  const walls=[];
+  if(r>0      && G.walls.has(`h_${r-1}_${c}`) && !G.fixedWalls.has(`h_${r-1}_${c}`)) walls.push({key:`h_${r-1}_${c}`,dr:-1,dc:0});
+  if(r<GRID-1 && G.walls.has(`h_${r}_${c}`)   && !G.fixedWalls.has(`h_${r}_${c}`))   walls.push({key:`h_${r}_${c}`,dr:1,dc:0});
+  if(c>0      && G.walls.has(`v_${r}_${c-1}`) && !G.fixedWalls.has(`v_${r}_${c-1}`)) walls.push({key:`v_${r}_${c-1}`,dr:0,dc:-1});
+  if(c<GRID-1 && G.walls.has(`v_${r}_${c}`)   && !G.fixedWalls.has(`v_${r}_${c}`))   walls.push({key:`v_${r}_${c}`,dr:0,dc:1});
+  return walls;
+}
+
+// Returns the cell on the other side of a wall key from (r,c)
+function cellBeyondWall(r,c,wallKey) {
+  if(wallKey.startsWith('h_')) {
+    const parts=wallKey.split('_'); const wr=parseInt(parts[1]);
+    return wr>=r ? {row:r+1,col:c} : {row:r-1,col:c};
+  } else {
+    const parts=wallKey.split('_'); const wc=parseInt(parts[2]);
+    return wc>=c ? {row:r,col:c+1} : {row:r,col:c-1};
+  }
+}
+
+// Perico radar reveal
+function pericoRadar(mode) {
+  const u=getUnit('perico');
+  if(!u) return;
+  const enemies = G.units.filter(u2=>u2.side==='atk'&&u2.alive);
+  const found = mode==='row'
+    ? enemies.filter(e=>e.row===u.row)
+    : enemies.filter(e=>e.col===u.col);
+  if(found.length===0) {
+    showModal('RADAR DE PERICO','No hay fichas atacantes en esa '+(mode==='row'?'fila':'columna')+'.',[{label:'OK'}]);
+  } else {
+    const list=found.map(e=>`<b>${e.name}</b>: (${e.col+1},${e.row+1})`).join('<br>');
+    showModal('RADAR DE PERICO — RESULTADO',
+      `Fichas atacantes en la misma ${mode==='row'?'fila':'columna'} que Perico:<br><br>${list}`,[{label:'OK'}]);
+  }
+}
+
+// Melania/Francisco sensor: find direction of wall and two cells beyond it
+function getMuralSensorCells(r,c,wallKey) {
+  // wallKey tells us which wall. Find direction and the two cells beyond
+  let dir, cells=[];
+  if(wallKey.startsWith('h_')) {
+    const parts=wallKey.split('_'); const wr=parseInt(parts[1]);
+    if(wr>=r) { // wall below: reveal r+1 and r+2
+      for(let i=1;i<=2;i++) { const nr=r+i; if(nr<GRID) cells.push({row:nr,col:c}); }
+    } else {    // wall above: reveal r-1 and r-2
+      for(let i=1;i<=2;i++) { const nr=r-i; if(nr>=0) cells.push({row:nr,col:c}); }
+    }
+  } else {
+    const parts=wallKey.split('_'); const wc=parseInt(parts[2]);
+    if(wc>=c) { // wall right: reveal c+1 and c+2
+      for(let i=1;i<=2;i++) { const nc=c+i; if(nc<GRID) cells.push({row:r,col:nc}); }
+    } else {    // wall left: reveal c-1 and c-2
+      for(let i=1;i<=2;i++) { const nc=c-i; if(nc>=0) cells.push({row:r,col:nc}); }
+    }
+  }
+  return cells;
+}
+
+// Get cells diagonally adjacent to a door surco (for Facundo/Galileo placement)
+function getDiagCellsAroundDoor(wallKey) {
+  // wallKey: h_r_c or v_r_c that is a flanking aperture (door)
+  const cells=[];
+  if(wallKey.startsWith('h_')) {
+    const parts=wallKey.split('_'); const r=parseInt(parts[1]),c=parseInt(parts[2]);
+    // door is between row r and r+1 at col c
+    // diagonal cells: (r, c-1),(r, c+1),(r+1,c-1),(r+1,c+1)
+    [[r,c-1],[r,c+1],[r+1,c-1],[r+1,c+1]].forEach(([nr,nc])=>{
+      if(nr>=0&&nr<GRID&&nc>=0&&nc<GRID&&!inBombZone(nr,nc)&&!isCentralCell(nr,nc)) cells.push({row:nr,col:nc});
+    });
+  } else {
+    const parts=wallKey.split('_'); const r=parseInt(parts[1]),c=parseInt(parts[2]);
+    // door is between col c and c+1 at row r
+    // diagonal cells: (r-1,c),(r+1,c),(r-1,c+1),(r+1,c+1)
+    [[r-1,c],[r+1,c],[r-1,c+1],[r+1,c+1]].forEach(([nr,nc])=>{
+      if(nr>=0&&nr<GRID&&nc>=0&&nc<GRID&&!inBombZone(nr,nc)&&!isCentralCell(nr,nc)) cells.push({row:nr,col:nc});
+    });
+  }
+  return cells;
+}
+
+// Get cells directly adjacent to a door surco (for Galileo)
+function getAdjCellsAroundDoor(wallKey) {
+  const cells=[];
+  if(wallKey.startsWith('h_')) {
+    const parts=wallKey.split('_'); const r=parseInt(parts[1]),c=parseInt(parts[2]);
+    [[r,c],[r+1,c]].forEach(([nr,nc])=>{
+      if(nr>=0&&nr<GRID&&nc>=0&&nc<GRID&&!inBombZone(nr,nc)&&!isCentralCell(nr,nc)) cells.push({row:nr,col:nc});
+    });
+  } else {
+    const parts=wallKey.split('_'); const r=parseInt(parts[1]),c=parseInt(parts[2]);
+    [[r,c],[r,c+1]].forEach(([nr,nc])=>{
+      if(nr>=0&&nr<GRID&&nc>=0&&nc<GRID&&!inBombZone(nr,nc)&&!isCentralCell(nr,nc)) cells.push({row:nr,col:nc});
+    });
+  }
+  return cells;
+}
+
+// Get all door surcos within radius of unit (for asencio/facundo/galileo UI)
+function getDoorSurcos() {
+  const doors=[];
+  for(let r=0;r<GRID-1;r++) for(let c=0;c<GRID;c++) {
+    const key=`h_${r}_${c}`;
+    if(!G.walls.has(key) && isFlankingAperture(r,c,r+1,c)) doors.push(key);
+  }
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID-1;c++) {
+    const key=`v_${r}_${c}`;
+    if(!G.walls.has(key) && isFlankingAperture(r,c,r,c+1)) doors.push(key);
+  }
+  return doors;
+}
+
+function triggerAbility(uid) {
+  const u=getUnit(uid);
+  const def=UNIT_DEFS[uid];
+  if(!u||!u.alive) return;
+
+  // Sarapova special: multi-use
+  if(uid==='sarapova') {
+    const phase=G.gamePhase;
+    if(!G.sarapovaState.devicePlaced && phase==='vision') {
+      // First use: place device
+    } else if(G.sarapovaState.devicePlaced && G.sarapovaState.swapsLeft>0 && phase==='movement') {
+      // Subsequent uses: swap
+    } else { toast('⚠ Habilidad no disponible en esta fase'); return; }
+    showModal('HABILIDAD: '+def.abilityName,
+      `<span class="role-badge def">${u.name}</span><br><br>${def.abilityDesc}`,
+      [{label:'ACTIVAR',action:()=>executeAbility(uid)},{label:'CANCELAR'}]);
+    return;
+  }
+
+  if(u.abilityUsed) return;
+
+  showModal(
+    'HABILIDAD: '+def.abilityName,
+    `<span class="ability-who ${u.side==='atk'?'role-badge atk':'role-badge def'}">${u.name}</span>
+    <br><br>${def.abilityDesc}`,
+    [
+      {label:'ACTIVAR', cls: u.side==='atk'?'btn-danger':'',
+        action:()=>executeAbility(uid)},
+      {label:'CANCELAR'}
+    ]
+  );
+}
+
+function executeAbility(uid) {
+  const u=getUnit(uid);
+  u.abilityUsed=true;
+  switch(uid) {
+    case 'bertin':
+      G.abilityMode={type:'bertin_recon',unitId:uid,data:{}};
+      setHelp('BERTÍN: Haz clic en una casilla a distancia máx. 3 para revelarla.');
+      break;
+    case 'norberto':
+      u.invisibleUntilRound = G.round+1;
+      toast('✓ Norberto invisible en la próxima ronda defensora');
+      updateSidebar();
+      break;
+    case 'guridi':
+      G.abilityMode={type:'guridi_wall',unitId:uid,data:{placed:0}};
+      setHelp('GURIDI: Haz clic en un surco (max dist. 3) para colocar pared 1/2');
+      break;
+    case 'tarantino':
+      G.abilityMode={type:'tarantino_device',unitId:uid,data:{}};
+      setHelp('TARANTINO: Haz clic en una casilla adyacente para colocar el dispositivo.');
+      break;
+    case 'jorge':
+      G.jorgeAbilityActive=true;
+      toast('✓ Venganza de Jorge activada — si es eliminada esta ronda se revelan los atacantes');
+      updateSidebar();
+      break;
+    case 'dario':
+      G.abilityMode={type:'dario_sensor',unitId:uid,data:{}};
+      setHelp('DARIO: Haz clic en cualquier casilla para colocar el sensor.');
+      break;
+    case 'xinchan':
+      G.abilityMode={type:'xinchan_device',unitId:uid,data:{}};
+      setHelp('XINCHAN: Haz clic en una casilla (máx. dist. 2) para colocar la mina.');
+      break;
+    case 'vicentn':
+      u.invisibleUntilRound = G.round+1;
+      toast('✓ Vicentín invisible en la próxima ronda atacante');
+      updateSidebar();
+      break;
+    // ── NEW DEFENDERS ──
+    case 'sarapova':
+      if(!G.sarapovaState.devicePlaced) {
+        u.abilityUsed = false; // don't mark used yet, managed manually
+        G.abilityMode={type:'sarapova_place',unitId:uid,data:{}};
+        setHelp('SARAPOVA: Haz clic en una casilla de la sala de la bomba para colocar la baliza.');
+      } else if(G.sarapovaState.swapsLeft>0) {
+        // swap with device
+        const d = G.devices.find(dv=>dv.type==='sarapova'&&dv.alive);
+        if(!d) { toast('⚠ La baliza ya no está activa'); break; }
+        const tr=d.row, tc=d.col, ur=u.row, uc=u.col;
+        u.row=tr; u.col=tc; d.row=ur; d.col=uc;
+        G.sarapovaDevice={row:ur,col:uc};
+        G.sarapovaState.swapsLeft--;
+        if(G.sarapovaState.swapsLeft===0) u.abilityUsed=true;
+        toast(`✓ Sarapova intercambiada (quedan ${G.sarapovaState.swapsLeft} intercambios)`);
+        renderGame(); updateSidebar();
+      }
+      break;
+    case 'facundo':
+      G.abilityMode={type:'facundo_device',unitId:uid,data:{}};
+      setHelp('FACUNDO: Haz clic en una casilla diagonal a un surco-puerta (fuera de la sala de bomba).');
+      break;
+    case 'catalina':
+      G.catalinaVisionRound = G.round;
+      toast('✓ Catalina: visión sin obstáculos activada para esta ronda');
+      updateSidebar();
+      // recompute vision ignoring walls for catalina
+      computeVision(); renderGame();
+      break;
+    case 'asencio':
+      G.abilityMode={type:'asencio_wall',unitId:uid,data:{}};
+      setHelp('ASENCIO: Haz clic en un surco (dist. máx. 2, no puede ser surco-puerta) para colocar pared.');
+      break;
+    case 'torrente':
+      G.abilityMode={type:'torrente_device',unitId:uid,data:{}};
+      setHelp('TORRENTE: Haz clic en cualquier casilla para colocar el dispositivo.');
+      break;
+    case 'horacio':
+      G.abilityMode={type:'horacio_wall',unitId:uid,data:{}};
+      setHelp('HORACIO: Haz clic en un surco contiguo a Horacio para eliminar esa pared.');
+      break;
+    case 'bisbal':
+      G.abilityMode={type:'bisbal_decoy',unitId:uid,data:{}};
+      setHelp('BISBAL: Haz clic en cualquier casilla para colocar el señuelo.');
+      break;
+    case 'melania':
+      G.abilityMode={type:'melania_sensor',unitId:uid,data:{}};
+      setHelp('MELANIA: Haz clic en una casilla contigua a una pared para colocar el sensor mural.');
+      break;
+    case 'esteban':
+      G.abilityMode={type:'esteban_drone',unitId:uid,data:{}};
+      setHelp('ESTEBAN: Haz clic en una casilla contigua a Esteban para desplegar el dron.');
+      break;
+    case 'lucero':
+      G.luceroAbilityActive=true;
+      toast('✓ Lucero: si eliminas una ficha atacante este turno, se revelará su posición');
+      updateSidebar();
+      break;
+    case 'galileo':
+      G.abilityMode={type:'galileo_device',unitId:uid,data:{}};
+      setHelp('GALILEO: Haz clic en una casilla contigua a un surco-puerta (fuera de sala de bomba) para colocar el cerrojo.');
+      break;
+    case 'perico':
+      showModal('RADAR DE PERICO','¿Qué quieres rastrear?',[
+        {label:'FILA', action:()=>{ pericoRadar('row'); }},
+        {label:'COLUMNA', action:()=>{ pericoRadar('col'); }},
+      ]);
+      break;
+    case 'kevin':
+      G.kevinShieldRound = G.round+1;
+      toast('✓ Kevin: escudo activo para la siguiente ronda atacante');
+      updateSidebar();
+      break;
+    case 'rocinante':
+      G.rocinanteLegacyActive = true;
+      G.rocinanteLegacyRound = G.round+1; // activates if eliminated next atk round
+      toast('✓ Rocinante: legado activado para la siguiente ronda atacante');
+      updateSidebar();
+      break;
+    // ── NEW ATTACKERS ──
+    case 'austin':
+      G.austinJammerRound = G.round+1; // next def round devices blocked
+      toast('✓ Austin: dispositivos defensores bloqueados en la próxima ronda defensora');
+      updateSidebar();
+      break;
+    case 'zorro':
+      G.abilityMode={type:'zorro_device',unitId:uid,data:{}};
+      setHelp('ZORRO: Haz clic en una casilla (dist. máx. 2) para colocar el señuelo óptico.');
+      break;
+    case 'francisco':
+      G.abilityMode={type:'francisco_sensor',unitId:uid,data:{}};
+      setHelp('FRANCISCO: Haz clic en una casilla contigua a una pared para colocar el sensor mural.');
+      break;
+    case 'iarramendi':
+      G.abilityMode={type:'iarramendi_decoy',unitId:uid,data:{}};
+      setHelp('IARRAMENDI: Haz clic en cualquier casilla para colocar el doble.');
+      break;
+    case 'morientes':
+      G.morientesSilentElim=true;
+      G.abilityMode={type:'morientes_elim',unitId:uid,data:{}};
+      setHelp('MORIENTES: Haz clic en un dispositivo defensor a distancia máx. 2 para eliminarlo silenciosamente.');
+      break;
+    case 'wilson':
+      G.abilityMode={type:'wilson_wall',unitId:uid,data:{}};
+      setHelp('WILSON: Haz clic en un surco contiguo a Wilson para eliminar esa pared.');
+      break;
+    case 'hector': {
+      // Find adjacent walls
+      const adjWalls = getAdjacentWalls(u.row,u.col);
+      if(adjWalls.length===0) { toast('⚠ Héctor no está contiguo a ninguna pared'); u.abilityUsed=false; break; }
+      G.abilityMode={type:'hector_wall',unitId:uid,data:{walls:adjWalls}};
+      setHelp('HÉCTOR: Haz clic en un surco contiguo (pared) para ver el otro lado.');
+      break;
+    }
+    case 'curro':
+      G.curroExtendedShot=true;
+      toast('✓ Curro: alcance extendido a 2 casillas H/V activado para esta fase de disparos');
+      updateSidebar();
+      break;
+    case 'soriano':
+      G.sorianoPickCount=0;
+      G.abilityMode={type:'soriano_pick',unitId:uid,data:{picked:0}};
+      setHelp('SORIANO: Haz clic en 4 casillas para desvelarlas (0/4).');
+      break;
+    case 'daniel':
+      if(!G.danielAbilityUsed) {
+        G.abilityMode={type:'daniel_place',unitId:uid,data:{placed:0}};
+        setHelp('DANIEL: Haz clic en la 1ª casilla para colocar el dispositivo (1/2).');
+      }
+      break;
+    case 'olaya':
+      G.olayaKilledThisRound=false; // will be set true if olaya kills in shoot phase
+      // Mark that olaya ability is active — check at shoot phase
+      G.olayaAbilityActive=true;
+      toast('✓ Olaya: ímpetu activo — si eliminas una ficha defensora hoy ganarás radio 2 la próxima ronda');
+      updateSidebar();
+      break;
+    case 'ivan': {
+      const defAlive = G.units.filter(du=>du.side==='def'&&du.alive);
+      if(defAlive.length===0) { toast('No hay fichas defensoras en juego'); u.abilityUsed=false; break; }
+      const picked = defAlive[Math.floor(Math.random()*defAlive.length)];
+      G.ivanBlockedUnit = picked.id;
+      // Block applies on the next defender round
+      // We'll check at startNextTurn when side switches to def
+      G.ivanBlockRound = -1; // will be set when def turn starts
+      G.ivanBlockPending = true;
+      toast('✓ Iván: bloqueo aplicado — una ficha defensora no podrá moverse la próxima ronda');
+      updateSidebar();
+      break;
+    }
+      G.koldoActive=true;
+      toast('✓ Koldo: intercepción activa — los dispositivos defensores también desvelan casillas este turno');
+      // Recompute vision with koldo active
+      computeVision(); renderGame(); updateSidebar();
+      break;
+    case 'vladimir': {
+      const defAlive = G.units.filter(du=>du.side==='def'&&du.alive);
+      if(defAlive.length===0) { toast('No hay fichas defensoras en juego'); u.abilityUsed=false; break; }
+      const btns = defAlive.map(du=>({
+        label: du.name,
+        action: ()=>{
+          const from = G.defLastMoveFrom[du.id];
+          if(!from) {
+            showModal('RASTREO — '+du.name,
+              '<b>'+du.name+'</b> aún no ha realizado ningún movimiento en la partida.',
+              [{label:'OK'}]);
+          } else {
+            showModal('RASTREO — '+du.name,
+              '<b>'+du.name+'</b> realizó su último movimiento desde la casilla <b>('+(from.col+1)+','+(from.row+1)+')</b> (ronda '+from.round+').',
+              [{label:'OK'}]);
+          }
+        }
+      }));
+      btns.push({label:'CANCELAR', action:()=>{ u.abilityUsed=false; }});
+      showModal('RASTREO — elige una ficha', 'Selecciona la ficha defensora cuya posición anterior quieres conocer:', btns);
+      break;
+    }
+  }
+  renderGame();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+function getUnit(id) { return G.units.find(u=>u.id===id); }
+
+function updatePhasebar() {
+  const phases=['move','vision','shoot','end'];
+  const labels=['ps-move','ps-vision','ps-shoot','ps-end'];
+  const current={'movement':0,'vision':1,'shoot':2,'end':3}[G.gamePhase];
+  labels.forEach((l,i)=>{
+    const el=document.getElementById(l);
+    el.className='phase-step'+(i===current?' active':i<current?' done':'');
+  });
+}
+
+function updateTurnBanner() {
+  const side=viewSide();
+  document.getElementById('turn-banner').innerHTML=`
+    <span class="turn-player ${side}">${side==='atk'?'⚔ ATACANTE':'🛡 DEFENSOR'}</span>
+    <button onclick="advancePhase()" class="btn-primary" style="padding:8px 20px;font-size:.8rem;">AVANZAR FASE ▶</button>
+    <span class="turn-round">RONDA ${G.round}</span>
+  `;
+}
+
+function updateSidebar() {
+  const sb=document.getElementById('sidebar');
+  const side=viewSide();
+  const phase=G.gamePhase;
+  let html='';
+
+  // Bomb counters
+  const atkUnitsInBomb=G.atkPick.filter(uid=>{ const u=getUnit(uid); return u&&u.alive&&inBombZone(u.row,u.col); });
+  if(atkUnitsInBomb.length>0||Object.values(G.bombCounters).some(v=>v>0)) {
+    html+=`<div class="sidebar-panel"><div class="sidebar-title">💣 CONTADORES BOMBA</div>`;
+    G.atkPick.forEach(uid=>{
+      const cnt=G.bombCounters[uid]||0;
+      if(cnt>0||atkUnitsInBomb.includes(uid)) {
+        html+=`<div class="bomb-counter">
+          <div class="bomb-counter-name">${UNIT_DEFS[uid].name}: ${cnt}/5</div>
+          <div class="bomb-counter-bar"><div class="bomb-counter-fill" style="width:${cnt*20}%"></div></div>
+        </div>`;
+      }
+    });
+    html+=`</div>`;
+  }
+
+  // Current player units (with ability buttons) — compact list
+  html+=`<div class="sidebar-panel"><div class="sidebar-title">${side==='atk'?'⚔ ATACANTE':'🛡 DEFENSOR'} — UNIDADES</div>`;
+  const myUnits=G.units.filter(u=>u.side===side);
+  myUnits.forEach(u=>{
+    const def=UNIT_DEFS[u.id];
+    const canUse=!u.abilityUsed&&u.alive&&isAbilityAvailable(u,phase);
+    html+=`<div class="unit-list-item">
+      <div class="unit-list-dot ${side} ${u.alive?'':'dead'}">${u.icon}</div>
+      <div class="unit-list-name" style="${u.alive?'':'text-decoration:line-through;opacity:.4;'}">
+        ${u.name}${u.alive?'':' <small style="color:var(--text-dim)">KIA</small>'}
+      </div>
+      ${u.alive&&!u.abilityUsed?`<button class="unit-ability-btn ${side} ${canUse?'glow-'+side:''}"
+        ${canUse?`onclick="triggerAbility('${u.id}')"`:' disabled'}
+        title="${def.abilityName}">${u.icon}★</button>`:''}
+      ${u.abilityUsed?`<span style="font-size:.6rem;color:var(--text-dim);font-family:Share Tech Mono">USADO</span>`:''}
+    </div>`;
+  });
+  html+=`</div>`;
+
+  // ── INTEL: own full roster (collapsible) ──
+  const ownLabel = side==='atk' ? '📋 FICHAS ATACANTES' : '📋 FICHAS DEFENSORAS';
+  const ownId = 'intel-own';
+  html += buildIntelPanel(ownId, ownLabel, side==='atk'?G.atkPick:G.defPick, side, true);
+
+  // ── INTEL: seen enemies (collapsible) ──
+  const seenIds = side==='atk' ? G.seenByAtk : G.seenByDef;
+  const enemySide = side==='atk'?'def':'atk';
+  const enemyLabel = side==='atk' ? '🔍 FICHAS ENEMIGAS VISTAS' : '🔍 FICHAS ENEMIGAS VISTAS';
+  const seenArr = [...seenIds].filter(id=>G.units.find(u=>u.id===id));
+  const enemyId = 'intel-enemy';
+  if(seenArr.length>0) {
+    html += buildIntelPanel(enemyId, enemyLabel, seenArr, enemySide, false);
+  } else {
+    html += `<div class="intel-section"><button class="intel-toggle" onclick="toggleIntel('${enemyId}')">
+      <span>${enemyLabel} (0)</span><span class="arrow">▼</span></button></div>`;
+  }
+
+  sb.innerHTML=html;
+}
+
+function buildIntelPanel(id, label, unitIds, side, showAbilityBtn) {
+  const units = unitIds.map(uid=>G.units.find(u=>u.id===uid)).filter(Boolean);
+  const open = document.getElementById('intel-open-'+id) ? 'open' : '';
+  let html=`<div class="intel-section">
+    <button class="intel-toggle ${open}" id="intel-btn-${id}" onclick="toggleIntel('${id}')">
+      <span>${label} (${units.length})</span><span class="arrow">▼</span>
+    </button>
+    <div class="intel-body ${open}" id="intel-body-${id}">`;
+  units.forEach(u=>{
+    const def=UNIT_DEFS[u.id];
+    const dead=!u.alive;
+    const phase=G.gamePhase;
+    const canUse=showAbilityBtn&&!u.abilityUsed&&u.alive&&isAbilityAvailable(u,phase);
+    html+=`<div class="intel-unit-row">
+      <div class="intel-dot ${side} ${dead?'dead':''}">${u.icon}</div>
+      <div class="intel-info">
+        <div class="intel-name ${dead?'dead':''}">${u.name}${dead?' <small style="color:var(--text-dim)">KIA</small>':''}</div>
+        <div class="intel-ability"><b>${def.abilityName}:</b> ${def.abilityDesc}</div>
+      </div>`;
+    if(showAbilityBtn&&u.alive&&!u.abilityUsed) {
+      html+=`<button class="unit-ability-btn ${side} ${canUse?'glow-'+side:''}"
+        ${canUse?`onclick="triggerAbility('${u.id}')"`:' disabled'}
+        title="${def.abilityName}">${u.icon}★</button>`;
+    }
+    if(showAbilityBtn&&u.abilityUsed) {
+      html+=`<span style="font-size:.6rem;color:var(--text-dim);font-family:Share Tech Mono;flex-shrink:0">USADO</span>`;
+    }
+    html+=`</div>`;
+  });
+  html+=`</div></div>`;
+  return html;
+}
+
+function toggleIntel(id) {
+  const btn=document.getElementById('intel-btn-'+id);
+  const body=document.getElementById('intel-body-'+id);
+  if(!btn||!body) return;
+  const isOpen=body.classList.contains('open');
+  body.classList.toggle('open',!isOpen);
+  btn.classList.toggle('open',!isOpen);
+  // Persist open state so re-render keeps it
+  if(!isOpen) {
+    const marker=document.createElement('span');
+    marker.id='intel-open-'+id; marker.style.display='none';
+    document.body.appendChild(marker);
+  } else {
+    const marker=document.getElementById('intel-open-'+id);
+    if(marker) marker.remove();
+  }
+}
+
+function isAbilityAvailable(u, phase) {
+  if(!u.alive) return false;
+  const def=UNIT_DEFS[u.id];
+
+  // Sarapova: special multi-use
+  if(u.id==='sarapova') {
+    if(!G.sarapovaState.devicePlaced && phase==='vision') return true;
+    if(G.sarapovaState.devicePlaced && G.sarapovaState.swapsLeft>0 && phase==='movement') return true;
+    return false;
+  }
+
+  // Daniel: placement once (vision phase), teleport handled via moveUnit
+  if(u.id==='daniel') {
+    if(!G.danielAbilityUsed && phase==='vision') return true;
+    return false;
+  }
+  // Olaya: only once, movement phase
+  if(u.id==='olaya') {
+    if(u.abilityUsed) return false;
+    return phase==='movement';
+  }
+  if(def.abilityPhase==='movement' && phase==='movement') return true;
+  if(def.abilityPhase==='vision'   && phase==='vision')   return true;
+  if(def.abilityPhase==='shoot'    && phase==='shoot')    return true;
+  return false;
+}
+
+function setHelp(msg) { document.getElementById('game-help').textContent=msg; }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RANDOM MAP GENERATOR — eliminar esta función entera para quitar la feature
+// ═══════════════════════════════════════════════════════════════════════════
+function generateRandomMap() {
+  // Reset non-fixed walls
+  G.walls = new Set(G.fixedWalls);
+  G.wallsPlaced = 0;
+
+  const candidate = [];
+
+  // ── 1. OUTER RING (13×13, rows 1-13, cols 1-13) ──────────────────────────
+  // 4-cell-wide corridor between ring and bomb zone (bomb zone: rows 5-9, cols 5-9)
+  // Ring surcos:
+  //   North edge: h_0_c  for c in 1..13  (below row 0 = above row 1)
+  //   South edge: h_13_c for c in 1..13  (below row 13)
+  //   West edge:  v_r_0  for r in 1..13  (right of col 0 = left of col 1)
+  //   East edge:  v_r_13 for r in 1..13  (right of col 13)
+  // Each side has 13 surcos. Pick 2 random openings per side, not at corners.
+
+  function pickTwoOpenings(len) {
+    const pool = [];
+    for(let i=1;i<len-1;i++) pool.push(i);
+    for(let i=pool.length-1;i>0;i--) {
+      const j=Math.floor(Math.random()*(i+1));
+      [pool[i],pool[j]]=[pool[j],pool[i]];
+    }
+    let a=pool[0], b=pool[1];
+    let tries=0;
+    while(Math.abs(a-b)<2 && tries<50) {
+      for(let i=pool.length-1;i>0;i--) {
+        const j=Math.floor(Math.random()*(i+1));
+        [pool[i],pool[j]]=[pool[j],pool[i]];
+      }
+      a=pool[0]; b=pool[1]; tries++;
+    }
+    return new Set([a,b]);
+  }
+
+  // North side: h_0_c, c from 1 to 13 → 13 surcos
+  const northOpen = pickTwoOpenings(13);
+  for(let i=0;i<13;i++) {
+    const c=1+i, key=`h_0_${c}`;
+    if(!northOpen.has(i) && !G.walls.has(key)) candidate.push({key, ring:true});
+  }
+  // South side: h_13_c, c from 1 to 13
+  const southOpen = pickTwoOpenings(13);
+  for(let i=0;i<13;i++) {
+    const c=1+i, key=`h_13_${c}`;
+    if(!southOpen.has(i) && !G.walls.has(key)) candidate.push({key, ring:true});
+  }
+  // West side: v_r_0, r from 1 to 13
+  const westOpen = pickTwoOpenings(13);
+  for(let i=0;i<13;i++) {
+    const r=1+i, key=`v_${r}_0`;
+    if(!westOpen.has(i) && !G.walls.has(key)) candidate.push({key, ring:true});
+  }
+  // East side: v_r_13, r from 1 to 13
+  const eastOpen = pickTwoOpenings(13);
+  for(let i=0;i<13;i++) {
+    const r=1+i, key=`v_${r}_13`;
+    if(!eastOpen.has(i) && !G.walls.has(key)) candidate.push({key, ring:true});
+  }
+
+  // Place all ring walls first
+  candidate.filter(c=>c.ring).forEach(c=>{ G.walls.add(c.key); G.wallsPlaced++; });
+
+  // ── 2. INTERIOR SCATTER (remaining up to 65) ─────────────────────────────
+  // Interior = between ring (rows 1-13) and bomb zone, excluding ring and fixed walls
+  const needed = 70 - G.wallsPlaced;
+
+  const interiorPool = [];
+
+  // Helper: returns true if a surco is inside or on the boundary of the bomb zone interior
+  // (i.e. both cells it borders are inside the bomb zone rows 5-9, cols 5-9)
+  function surcoInsideBombZone(key) {
+    if(key.startsWith('h_')) {
+      const parts=key.split('_'); const r=parseInt(parts[1]),c=parseInt(parts[2]);
+      // borders cells (r,c) and (r+1,c) - both must be in bomb zone
+      return r>=5&&r<=8&&c>=5&&c<=9; // h_r_c: row r and r+1 both in 5-9, col in 5-9
+    } else {
+      const parts=key.split('_'); const r=parseInt(parts[1]),c=parseInt(parts[2]);
+      // borders cells (r,c) and (r,c+1) - both must be in bomb zone
+      return r>=5&&r<=9&&c>=5&&c<=8;
+    }
+  }
+
+  // Helper: returns true if a surco is one of the 4 door openings of the bomb zone perimeter
+  // (the fixed-wall perimeter has gaps at col 7 north/south and row 7 east/west)
+  function isBombZoneDoor(key) {
+    // North opening: h_4_7 (absent from fixedWalls = open gap)
+    // South opening: h_9_7
+    // West opening:  v_7_4
+    // East opening:  v_7_9
+    return key==='h_4_7'||key==='h_9_7'||key==='v_7_4'||key==='v_7_9';
+  }
+
+  // Horizontal surcos inside the ring: h_r_c with r in 1..12, c in 1..13
+  for(let r=1;r<=12;r++) for(let c=1;c<=13;c++) {
+    const key=`h_${r}_${c}`;
+    if(G.walls.has(key)) continue;
+    if(surcoInsideBombZone(key)) continue;
+    if(isBombZoneDoor(key)) continue;
+    interiorPool.push(key);
+  }
+  // Vertical surcos inside the ring: v_r_c with r in 1..13, c in 1..12
+  for(let r=1;r<=13;r++) for(let c=1;c<=12;c++) {
+    const key=`v_${r}_${c}`;
+    if(G.walls.has(key)) continue;
+    if(surcoInsideBombZone(key)) continue;
+    if(isBombZoneDoor(key)) continue;
+    interiorPool.push(key);
+  }
+
+  // Shuffle
+  for(let i=interiorPool.length-1;i>0;i--) {
+    const j=Math.floor(Math.random()*(i+1));
+    [interiorPool[i],interiorPool[j]]=[interiorPool[j],interiorPool[i]];
+  }
+
+  // Add walls one by one with connectivity check
+  let added=0;
+  for(let i=0;i<interiorPool.length&&added<needed;i++) {
+    const key=interiorPool[i];
+    if(G.walls.has(key)) continue;
+    G.walls.add(key);
+    if(isMapConnected()) {
+      G.wallsPlaced++;
+      added++;
+    } else {
+      G.walls.delete(key);
+    }
+  }
+
+  renderConstruct();
+  document.getElementById('construct-help').textContent =
+    `Mapa generado (${G.wallsPlaced} paredes). Puedes seguir añadiendo manualmente o continuar.`;
+
+  if(G.wallsPlaced>=70) {
+    setTimeout(()=>{
+      showModal('MAPA GENERADO','Se han colocado <b>70 paredes</b> automáticamente. Puedes continuar al despliegue.',
+        [{label:'CONTINUAR', action:startSpawn}]);
+    }, 400);
+  }
+}
+
+// Flood fill to verify the map is fully connected (no unreachable zones)
+// Ensures every walkable cell can reach every other walkable cell
+function isMapConnected() {
+  // Find all walkable cells (not central cell)
+  const walkable = [];
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++) {
+    if(r===7&&c===7) continue;
+    walkable.push(`${r}_${c}`);
+  }
+
+  // BFS from cell (0,0)
+  const visited = new Set();
+  const queue = [[0,0]];
+  visited.add('0_0');
+  const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+
+  while(queue.length>0) {
+    const [r,c]=queue.shift();
+    for(const [dr,dc] of dirs) {
+      const nr=r+dr, nc=c+dc;
+      if(nr<0||nr>=GRID||nc<0||nc>=GRID) continue;
+      if(nr===7&&nc===7) continue;
+      const key=`${nr}_${nc}`;
+      if(visited.has(key)) continue;
+      // Check wall between (r,c) and (nr,nc)
+      if(cardinalWallBetween(r,c,nr,nc)) continue;
+      visited.add(key);
+      queue.push([nr,nc]);
+    }
+  }
+
+  // All walkable cells must be visited
+  return walkable.every(k=>visited.has(k));
+}
+// ── END RANDOM MAP GENERATOR ──────────────────────────────────────────────
+
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ONLINE LAYER
+// ═══════════════════════════════════════════════════════════════════════════
+let ONLINE = {
+  enabled:false, roomId:null, myRole:null,
+  createRole:'atk', joinRole:'atk',
+  lastPushTs:0, isApplying:false,
+  currentStep: null,  // last step we fully handled
+};
+
+// ── Serialization ─────────────────────────────────────────────────────────
+function serializeG() {
+  const s = JSON.parse(JSON.stringify(G, (k,v) => v instanceof Set ? [...v] : v));
+  s._pushedBy = ONLINE.myRole;
+  s._pushTs   = ONLINE.lastPushTs;
+  s.selectedUnit = null; s.shootingUnit = null; s.abilityMode = null;
+  return s;
+}
+function deserializeG(data) {
+  const d = Object.assign({}, data);
+  ['walls','fixedWalls','movedUnits','shotUnits','revealedCells','seenByAtk','seenByDef']
+    .forEach(k=>{ d[k]=new Set(Array.isArray(d[k])?d[k]:[]); });
+  d.selectedUnit=null; d.shootingUnit=null;
+  return d;
+}
+
+// ── Push / Step ────────────────────────────────────────────────────────────
+async function pushState() {
+  if(!ONLINE.enabled||ONLINE.isApplying) return;
+  ONLINE.lastPushTs = Date.now();
+  try {
+    await window._fbSet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/state'), serializeG());
+  } catch(e){ console.error('pushState',e); }
+}
+async function setStep(step) {
+  await new Promise(r=>setTimeout(r,300));
+  await window._fbSet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/step'), step);
+}
+
+// ── Waiting overlay ────────────────────────────────────────────────────────
+function showWaiting(title, msg) {
+  document.getElementById('waiting-title').textContent = title;
+  document.getElementById('waiting-msg').innerHTML = (msg||'')+'<br><br><span class="waiting-dot-anim" style="color:var(--accent-green);font-family:Share Tech Mono,monospace;font-size:.8rem;">Esperando</span>';
+  document.getElementById('waiting-overlay').classList.add('active');
+}
+function hideWaiting() {
+  document.getElementById('waiting-overlay').classList.remove('active');
+}
+
+// ── Listeners ──────────────────────────────────────────────────────────────
+function startListening() {
+  window._fbOnValue(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/state'), snap => {
+    const data=snap.val();
+    if(!data||ONLINE.isApplying) return;
+    if(data._pushedBy===ONLINE.myRole&&data._pushTs===ONLINE.lastPushTs) return;
+    ONLINE.isApplying=true;
+    const prevSide=G.currentSide;
+    G=deserializeG(data);
+    ONLINE.isApplying=false;
+    onStateReceived(prevSide,data);
+  });
+}
+
+function listenStep() {
+  window._fbOnValue(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/step'), snap => {
+    const step=snap.val();
+    if(!step||step===ONLINE.currentStep) return;
+    ONLINE.currentStep=step;
+    handleStep(step);
+  });
+}
+
+// ── State receiver ─────────────────────────────────────────────────────────
+function onStateReceived(prevSide, data) {
+  if(ONLINE.suppressStateUpdates) return;
+  const sid=(document.querySelector('.screen.active')||{}).id||'';
+  const gameActive=data.units&&data.units.length>0;
+  if(!gameActive&&sid==='screen-construct'){ renderConstruct(); updateConstructTurnUI(); return; }
+  if(!gameActive&&sid==='screen-spawn'){ renderSpawnScreen(); return; }
+  if(!gameActive) return;
+  if(sid!=='screen-game'){
+    startGameLoop();
+    if(!isMe){
+      const rl=ONLINE.myRole==='atk'?'DEFENSOR':'ATACANTE';
+      showWaiting('TURNO DEL '+rl,'El '+rl.toLowerCase()+' está jugando su turno.');
+    }
+    return;
+  }
+  const isMe=data.currentSide===ONLINE.myRole;
+  const wasMe=prevSide===ONLINE.myRole;
+  if(isMe&&!wasMe){
+    // Rival just ended their turn — hide waiting, show turn summary
+    hideWaiting();
+    renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
+    showTurnNotification(prevSide);
+  } else if(!isMe){
+    // Rival is playing — keep board rendered under waiting overlay
+    renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
+  } else {
+    renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
+  }
+}
+// ── Step handler ───────────────────────────────────────────────────────────
+async function handleStep(step) {
+  try {
+    const snap=await window._fbGet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/state'));
+    const r=snap.val();
+    if(r){
+      if(step==='construction'||step==='spawn_both'||step==='spawn_atk'||step==='spawn_def'){
+        // Full sync of picks and walls
+        if(r.atkPick)  G.atkPick =r.atkPick;
+        if(r.defPick)  G.defPick =r.defPick;
+        if(Array.isArray(r.walls)){
+          G.walls=new Set(r.walls);
+          G.fixedWalls=new Set(r.fixedWalls||[...G.fixedWalls]);
+          G.wallsPlaced=r.wallsPlaced||0;
+          G.wallTurn=r.wallTurn||'atk';
+        }
+        G.spawnPlacements=r.spawnPlacements||{atk:{},def:{}};
+        if(!G.spawnPlacements.atk) G.spawnPlacements.atk={};
+        if(!G.spawnPlacements.def) G.spawnPlacements.def={};
+      } else {
+        // Game phase: full deserialize
+        ONLINE.isApplying=true;
+        G=deserializeG(r);
+        ONLINE.isApplying=false;
+      }
+    }
+  } catch(e){ console.error('handleStep fetch error',e); }
+
+  hideWaiting(); closeModal();
+
+  if(step==='construction'){
+    showScreen('construct');
+    if(!cCanvas){
+      cCanvas=document.getElementById('construct-canvas');
+      const t=(GRID*CS+(GRID+1)*WS); cCanvas.width=t+COF*2; cCanvas.height=t+COF*2; cCtx=cCanvas.getContext('2d');
+    }
+    cCanvas.removeEventListener('click',onConstructClick); cCanvas.addEventListener('click',onConstructClick);
+    renderConstruct(); updateConstructTurnUI();
+
+  } else if(step==='spawn_atk'||step==='spawn_both'){
+    G.spawnPhase = ONLINE.myRole;
+    // Ensure spawnPlacements is initialized
+    if(!G.spawnPlacements) G.spawnPlacements={atk:{},def:{}};
+    if(!G.spawnPlacements.atk) G.spawnPlacements.atk={};
+    if(!G.spawnPlacements.def) G.spawnPlacements.def={};
+    showScreen('spawn');
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      _initSpawnCanvas();
+      renderSpawnScreen();
+    }));
+
+  } else if(step==='spawn_def'){
+    // Legacy fallback — treat same as spawn_both
+    G.spawnPhase = ONLINE.myRole;
+    showScreen('spawn');
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      _initSpawnCanvas();
+      renderSpawnScreen();
+    }));
+
+  } else if(step==='game_start'){
+    buildUnitsAndStart_online();
+  }
+}
+
+function _initSpawnCanvas(){
+  spCanvas=document.getElementById('spawn-canvas');
+  const t=GRID*SCS+(GRID+1)*SWS; spCanvas.width=t+SOF*2; spCanvas.height=t+SOF*2;
+  spCtx=spCanvas.getContext('2d');
+  spCanvas.removeEventListener('click',onSpawnClick); spCanvas.addEventListener('click',onSpawnClick);
+}
+
+function initGameCanvas(){
+  gCanvas=document.getElementById('game-canvas');
+  const t=GRID*GCS+(GRID+1)*GWS; gCanvas.width=t+GOF*2; gCanvas.height=t+GOF*2;
+  gCtx=gCanvas.getContext('2d');
+  gCanvas.removeEventListener('click',onGameClick); gCanvas.addEventListener('click',onGameClick);
+}
+
+// ── Turn notification ──────────────────────────────────────────────────────
+function phaseHelp(phase){
+  if(phase==='movement') return 'Tu turno — fase de MOVIMIENTO';
+  if(phase==='vision')   return 'Tu turno — fase de VISIÓN';
+  if(phase==='shoot'){const t=getShootableTargets(); return t.length?'Tu turno — DISPAROS. Haz clic en objetivo o AVANZA.':'Sin objetivos. Pulsa AVANZAR.';}
+  return '';
+}
+
+function showTurnNotification(rivalSide){
+  const shots=G.shotsFired||[];
+  const rivalLabel=(rivalSide||'atk')==='atk'?'ATACANTE':'DEFENSOR';
+  let msg='';
+  if(shots.length>0){
+    msg+='<b>DISPAROS DEL '+rivalLabel+':</b><br>';
+    shots.forEach(s=>{
+      if(s.blocked) msg+='🎯 Disparo desde ('+(s.fromCol+1)+','+(s.fromRow+1)+') — sin eliminación.<br>';
+      else if(s.toUnit) msg+='🎯 Desde ('+(s.fromCol+1)+','+(s.fromRow+1)+') — <b>'+s.toUnit.name+'</b> eliminada.<br>';
+    });
+  } else {
+    msg+='Sin disparos este turno.<br>';
+  }
+  const rivalUnits=G.units.filter(u=>u.side===(rivalSide||'atk')&&u.alive);
+  const unmovedCount=rivalUnits.filter(u=>!G.movedUnits.has(u.id)).length;
+  if(unmovedCount>0) msg+='<br>⚠ Fichas sin mover por el '+rivalLabel.toLowerCase()+': <b>'+unmovedCount+'</b>';
+  if(G.pendingNotifs&&G.pendingNotifs.length){ msg+='<br><br><b>AVISOS:</b><br>'+G.pendingNotifs.join('<br>'); G.pendingNotifs=[]; }
+  if(G.currentSide==='def'&&G.ivanBlockRound===G.round&&G.ivanBlockedUnit){
+    const bu=getUnit(G.ivanBlockedUnit); if(bu) msg+='<br><br>⚠ <b>BLOQUEO IVÁN:</b> '+bu.name+' no puede moverse esta ronda.';
+  }
+  _origShowModal('RESUMEN — TURNO '+rivalLabel, msg||'El rival ha terminado.', [{label:'CERRAR Y COMENZAR TURNO', action:()=>{
+    renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar(); setHelp(phaseHelp(G.gamePhase));
+  }}]);
+}
+// ── Game build ─────────────────────────────────────────────────────────────
+function buildUnitsAndStart_online(){
+  ONLINE.suppressStateUpdates=true;
+  // Units should already be built by buildUnitsLocally() in checkBothSpawnsDone
+  // But if not (e.g. defender receiving game_start step), build them now
+  if(G.units.length===0) buildUnitsLocally();
+
+  if(ONLINE.myRole==='atk'){
+    const w=Math.random()<.5?'atk':'def'; G.currentSide=w;
+    pushState().then(()=>window._fbSet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/coinWinner'),w));
+  }
+  window._fbOnValue(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/coinWinner'),snap=>{
+    const w=snap.val(); if(!w) return;
+    window._fbOff(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/coinWinner'));
+    G.currentSide=w;
+    const label=w==='atk'?'⚔ ATACANTE':'🛡 DEFENSOR', isMe=w===ONLINE.myRole;
+    ONLINE.suppressStateUpdates=false;
+    _origShowModal('LANZAMIENTO DE MONEDA',
+      'Empieza: <b style="color:'+(w==='atk'?'var(--atk)':'var(--def)')+'">'+label+'</b><br><br>'+(isMe?'¡Empiezas tú la primera ronda!':'El rival empieza la primera ronda.'),
+      [{label:'COMENZAR', action:()=>{
+        G.currentSide=w;
+        G.gamePhase='movement';
+        G.movedUnits=new Set();
+        G.shotFired=null;
+        G.revealedCells=new Set();
+        G.selectedUnit=null;
+        startGameLoop(); // initializes canvas, renders game correctly
+        if(isMe){
+          setHelp(phaseHelp('movement'));
+          pushState();
+        } else {
+          const rl=ONLINE.myRole==='atk'?'DEFENSOR':'ATACANTE';
+          showWaiting('TURNO DEL '+rl, 'El '+rl.toLowerCase()+' está jugando su turno.');
+        }
+      }}]);
+  });
+}
+
+// ── Lobby ──────────────────────────────────────────────────────────────────
+function selectCreateRole(role){
+  ONLINE.createRole=role;
+  const a=document.getElementById('create-role-atk'),b=document.getElementById('create-role-def');
+  a.style.background=role==='atk'?'rgba(255,51,85,.18)':'rgba(255,255,255,.03)';
+  a.style.borderColor=role==='atk'?'var(--atk)':'rgba(255,255,255,.1)';
+  a.style.color=role==='atk'?'var(--atk)':'var(--text-dim)';
+  b.style.background=role==='def'?'rgba(51,153,255,.18)':'rgba(255,255,255,.03)';
+  b.style.borderColor=role==='def'?'var(--def)':'rgba(255,255,255,.1)';
+  b.style.color=role==='def'?'var(--def)':'var(--text-dim)';
+}
+function selectJoinRole(role){ ONLINE.joinRole=role; }
+function genRoomCode(){ return Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*33)]).join(''); }
+
+async function createRoom(){
+  const status=document.getElementById('create-status'); status.textContent='Creando sala...';
+  const code=genRoomCode();
+  try{
+    await window._fbSet(window._fbRef(window._db,'rooms/'+code),{created:Date.now(),host:ONLINE.createRole,guest:null,state:null,step:null,picks:null,coinWinner:null});
+    ONLINE.roomId=code; ONLINE.myRole=ONLINE.createRole; ONLINE.enabled=true; ONLINE.currentStep=null;
+    status.textContent='';
+    document.getElementById('room-code-display').style.display='block';
+    document.getElementById('room-code-text').textContent=code;
+    window._fbOnValue(window._fbRef(window._db,'rooms/'+code+'/guest'),snap=>{
+      if(!snap.val()) return;
+      window._fbOff(window._fbRef(window._db,'rooms/'+code+'/guest'));
+      document.getElementById('waiting-text').textContent='✓ Rival conectado — iniciando...';
+      setTimeout(startOnlineGame,600);
+    });
+  }catch(e){ status.textContent='Error: '+e.message; ONLINE.enabled=false; }
+}
+
+async function joinRoom(){
+  const code=document.getElementById('join-code-input').value.trim().toUpperCase();
+  const status=document.getElementById('join-status');
+  if(code.length!==4){status.textContent='⚠ Código de 4 caracteres';return;}
+  status.textContent='Buscando sala...';
+  try{
+    const snap=await window._fbGet(window._fbRef(window._db,'rooms/'+code));
+    if(!snap.exists()){status.textContent='⚠ Sala no encontrada';return;}
+    ONLINE.roomId=code; ONLINE.myRole=snap.val().host==='atk'?'def':'atk'; ONLINE.enabled=true; ONLINE.currentStep=null;
+    await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/guest'),ONLINE.myRole);
+    status.textContent='✓ Conectado como '+(ONLINE.myRole==='atk'?'ATACANTE':'DEFENSOR');
+    setTimeout(startOnlineGame,600);
+  }catch(e){status.textContent='Error: '+e.message; ONLINE.enabled=false;}
+}
+
+function startOnlineGame(){
+  initState(); setupFixedWalls(); ONLINE.currentStep=null; ONLINE.suppressStateUpdates=false;
+  startListening(); listenStep();
+  startPick(ONLINE.myRole);
+}
+
+function checkBothPicksDone(){
+  window._fbOnValue(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/picks'),snap=>{
+    const picks=snap.val();
+    if(!picks||!picks.atk||!picks.def||picks.atk.length<4||picks.def.length<4) return;
+    window._fbOff(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/picks'));
+    G.atkPick=picks.atk; G.defPick=picks.def;
+    if(ONLINE.myRole==='atk') pushState().then(()=>setStep('construction'));
+  });
+}
+
+// ── Overrides ──────────────────────────────────────────────────────────────
+const _origConfirmPick=confirmPick;
+window.confirmPick=function(){
+  if(!ONLINE.enabled){_origConfirmPick();return;}
+  const arr=ONLINE.myRole==='atk'?G.atkPick:G.defPick;
+  if(arr.length<4) return;
+  window._fbSet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/picks/'+ONLINE.myRole),arr).then(()=>{
+    document.getElementById('pick-confirm').style.display='none';
+    document.getElementById('pick-instructions').textContent='Fichas enviadas — esperando al rival...';
+    document.getElementById('card-grid').innerHTML='<div style="color:var(--accent-green);font-family:Share Tech Mono,monospace;font-size:.8rem;text-align:center;padding:40px;grid-column:1/-1;">✓ Confirmado. Esperando al rival...</div>';
+    document.getElementById('pick-count').textContent='';
+    checkBothPicksDone();
+  });
+};
+
+const _origPlaceWall=placeWall;
+window.placeWall=function(key){
+  if(ONLINE.enabled&&G.wallTurn!==ONLINE.myRole){toast('⚠ No es tu turno');return;}
+  _origPlaceWall(key);
+  if(!ONLINE.enabled) return;
+  if(G.wallsPlaced>=70) pushState().then(()=>setStep('spawn_both'));
+  else{ pushState(); updateConstructTurnUI(); }
+};
+
+const _origGenerateRandomMap=generateRandomMap;
+window.generateRandomMap=function(){
+  _origGenerateRandomMap();
+  if(!ONLINE.enabled) return;
+  if(G.wallsPlaced>=70) pushState().then(()=>setStep('spawn_both'));
+  else pushState();
+};
+
+const _origConfirmSpawn=confirmSpawn;
+window.confirmSpawn=function(){
+  if(!ONLINE.enabled){_origConfirmSpawn();return;}
+  const myPlacements=G.spawnPlacements[ONLINE.myRole];
+  window._fbSet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/spawns/'+ONLINE.myRole),myPlacements)
+    .then(()=>{
+      document.getElementById('spawn-confirm').style.display='none';
+      document.getElementById('spawn-help').textContent='✓ Despliegue confirmado — esperando al rival...';
+      checkBothSpawnsDone();
+    });
+};
+
+function checkBothSpawnsDone(){
+  const spawnsRef=window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/spawns');
+  window._fbOnValue(spawnsRef,snap=>{
+    const spawns=snap.val();
+    if(!spawns||!spawns.atk||!spawns.def) return;
+    if(Object.keys(spawns.atk).length<4||Object.keys(spawns.def).length<4) return;
+    window._fbOff(spawnsRef);
+    G.spawnPlacements.atk=spawns.atk;
+    G.spawnPlacements.def=spawns.def;
+    // Both players build units locally from spawn data
+    buildUnitsLocally();
+    // Only attacker pushes complete state + triggers game_start
+    if(ONLINE.myRole==='atk') pushState().then(()=>setStep('game_start'));
+    else {
+      // Defender waits for game_start step — handled by listenStep → handleStep
+    }
+  });
+}
+
+function buildUnitsLocally(){
+  G.units=[];
+  [...G.atkPick,...G.defPick].forEach(uid=>{
+    const def=UNIT_DEFS[uid]; if(!def) return;
+    const pos=G.spawnPlacements[def.side]&&G.spawnPlacements[def.side][uid]; if(!pos) return;
+    G.units.push({id:uid,side:def.side,icon:def.icon,name:def.name,
+      row:pos.row,col:pos.col,alive:true,abilityUsed:false,
+      invisible:false,invisibleUntilRound:-1});
+  });
+}
+
+const _origAdvancePhase=advancePhase;
+window.advancePhase=function(){
+  if(ONLINE.enabled&&!isMyTurn()){toast('⚠ No es tu turno');return;}
+  _origAdvancePhase();
+  if(ONLINE.enabled) pushState();
+};
+
+window.endTurn=function(){
+  if(ONLINE.enabled&&!isMyTurn()) return;
+  if(!ONLINE.enabled){ endTurn(); return; }
+  const prevSide=G.currentSide;
+  // Bomb counters & win check
+  if(G.currentSide==='atk'){
+    const dib=G.units.some(u=>u.side==='def'&&u.alive&&inBombZone(u.row,u.col));
+    G.atkPick.forEach(uid=>{
+      const u=getUnit(uid); if(!u||!u.alive) return;
+      if(inBombZone(u.row,u.col)){ if(!dib) G.bombCounters[uid]=(G.bombCounters[uid]||0)+1; }
+      else G.bombCounters[uid]=0;
+    });
+    checkWinConditions();
+  }
+  // Olaya boost
+  if(G.olayaKilledThisRound){ G.olayaBoostRound=G.round+1; G.olayaKilledThisRound=false; G.olayaAbilityActive=false; }
+  G.pendingBulletMarkers=(G.shotsFired||[]).filter(s=>!s.blocked).map(s=>({row:s.fromRow,col:s.fromCol}));
+  // Switch turn
+  G.currentSide=G.currentSide==='atk'?'def':'atk';
+  if(G.currentSide==='atk') G.round++;
+  if(G.currentSide==='def'&&G.ivanBlockPending&&G.ivanBlockedUnit){ G.ivanBlockRound=G.round; G.ivanBlockPending=false; }
+  G.gamePhase='movement';
+  G.bulletMarkers=G.pendingBulletMarkers||[]; G.pendingBulletMarkers=[];
+  G.movedUnits=new Set();
+  if(G.currentSide==='def'&&G.ivanBlockRound===G.round&&G.ivanBlockedUnit) G.movedUnits.add(G.ivanBlockedUnit);
+  G.shotFired=null; G.shotsFired=[]; G.shotUnits=new Set();
+  G.curroExtendedShot=false; G.morientesSilentElim=false; G.hectorBlindCell=null;
+  G.koldoActive=false; G.olayaKilledThisRound=false;
+  G.revealedCells=new Set(); G.selectedUnit=null; G.shootingUnit=null;
+  // Push state — rival receives via onStateReceived with prevSide=the side that just played
+  pushState();
+  // Show our board + waiting overlay
+  renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
+  const rivalLabel=G.currentSide==='atk'?'ATACANTE':'DEFENSOR';
+  showWaiting('TURNO DEL '+rivalLabel, 'El '+rivalLabel.toLowerCase()+' está jugando su turno.');
+};
+
+window.startNextTurn=function(){ if(ONLINE.enabled) return; startNextTurn(); };
+
+const _origOnGameClick=onGameClick;
+window.onGameClick=function(e){
+  if(ONLINE.enabled&&!isMyTurn()){toast('⚠ No es tu turno');return;}
+  _origOnGameClick(e);
+  if(ONLINE.enabled) pushState();
+};
+
+const _origMoveUnit=moveUnit;
+window.moveUnit=function(uid,r,c){_origMoveUnit(uid,r,c);if(ONLINE.enabled&&isMyTurn())pushState();};
+
+const _origShootTarget=shootTarget;
+window.shootTarget=function(tObj){_origShootTarget(tObj);if(ONLINE.enabled&&isMyTurn())pushState();};
+
+const _origExecuteAbility=executeAbility;
+window.executeAbility=function(uid){_origExecuteAbility(uid);if(ONLINE.enabled&&isMyTurn())pushState();};
+
+const _origShowModal=showModal;
+window.showModal=function(title,body,btns){
+  if(ONLINE.enabled&&(title==='FIN DE TURNO'||title.includes('CAMBIO DE DISPOSITIVO')||title.includes('CONSTRUCCIÓN COMPLETA')||title.includes('MAPA GENERADO'))) return;
+  _origShowModal(title,body,btns);
+};
+
+const _origUpdateTurnBanner=updateTurnBanner;
+window.updateTurnBanner=function(){
+  if(!ONLINE.enabled){_origUpdateTurnBanner();return;}
+  const isMe=G.currentSide===ONLINE.myRole;
+  const myLabel=ONLINE.myRole==='atk'?'⚔ ATACANTE':'🛡 DEFENSOR';
+  document.getElementById('turn-banner').innerHTML=
+    '<span class="turn-player '+ONLINE.myRole+'" style="font-size:.8rem;">'+myLabel+'</span>'+
+    '<span style="font-family:Share Tech Mono,monospace;font-size:.75rem;color:'+(isMe?'var(--accent-green)':'var(--text-dim)')+';margin:0 8px;">'+(isMe?'TU TURNO':'TURNO RIVAL')+'</span>'+
+    (isMe?'<button onclick="advancePhase()" class="btn-primary" style="padding:8px 20px;font-size:.8rem;">AVANZAR ▶</button>':'')+
+    '<span class="turn-round">RONDA '+G.round+'</span>';
+};
+
+function isMyTurn(){return !ONLINE.enabled||G.currentSide===ONLINE.myRole;}
+
+function renderSpawnScreen(){
+  const side=G.spawnPhase;
+  const badge=document.getElementById('spawn-turn-badge');
+  badge.innerHTML=side==='atk'?'<span class="role-badge atk">⚔ ATACANTE — elige casillas externas</span>':'<span class="role-badge def">🛡 DEFENSOR — elige casillas en la sala de la bomba</span>';
+  const help=document.getElementById('spawn-help');
+  const unitIds=side==='atk'?G.atkPick:G.defPick;
+  const placed=G.spawnPlacements[side];
+  const remaining=unitIds.filter(id=>!placed[id]);
+  help.textContent=remaining.length>0?'Unidad a colocar: '+UNIT_DEFS[remaining[0]].name+' ('+(Object.keys(placed).length+1)+'/'+unitIds.length+')':'Todas las unidades colocadas';
+  const btn=document.getElementById('spawn-confirm');
+  const allPlaced=Object.keys(placed).length===unitIds.length;
+  const isMySpawnTurn=!ONLINE.enabled||ONLINE.myRole===side;
+  btn.style.display=allPlaced&&isMySpawnTurn?'block':'none';
+  drawSpawnBoard();
+}
+
+function onSpawnClick(e){
+  if(ONLINE.enabled&&ONLINE.myRole!==G.spawnPhase) return;
+  const rect=spCanvas.getBoundingClientRect();
+  const sx=spCanvas.width/rect.width,sy=spCanvas.height/rect.height;
+  const mx=(e.clientX-rect.left)*sx,my=(e.clientY-rect.top)*sy;
+  const side=G.spawnPhase;
+  const placed=G.spawnPlacements[side];
+  const unitIds=side==='atk'?G.atkPick:G.defPick;
+  const remaining=unitIds.filter(id=>!placed[id]);
+  if(remaining.length===0) return;
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++){
+    const {x,y}=spCellTL(r,c);
+    if(mx<x||mx>x+SCS||my<y||my>y+SCS) continue;
+    if(side==='atk'){if(r!==0&&r!==14&&c!==0&&c!==14){toast('⚠ El atacante debe colocar en casillas externas');return;}}
+    else{if(r<5||r>9||c<5||c>9){toast('⚠ El defensor debe colocar dentro de la sala de la bomba');return;}}
+    if(isCentralCell(r,c)){toast('⚠ Casilla central bloqueada');return;}
+    if(Object.values(placed).some(p=>p.row===r&&p.col===c)){toast('⚠ Casilla ocupada');return;}
+    placed[remaining[0]]={row:r,col:c};
+    renderSpawnScreen();
+    return;
+  }
+}
+
+function updateConstructTurnUI(){
+  const isMe=G.wallTurn===ONLINE.myRole;
+  const badge=document.getElementById('construct-turn-badge');
+  if(badge) badge.innerHTML=isMe?(ONLINE.myRole==='atk'?'<span class="role-badge atk">⚔ ATACANTE — coloca una pared (TU TURNO)</span>':'<span class="role-badge def">🛡 DEFENSOR — coloca una pared (TU TURNO)</span>'):(ONLINE.myRole==='atk'?'<span class="role-badge def" style="opacity:.5;">🛡 DEFENSOR está colocando...</span>':'<span class="role-badge atk" style="opacity:.5;">⚔ ATACANTE está colocando...</span>');
+  const helpEl=document.getElementById('construct-help');
+  if(helpEl) helpEl.textContent=isMe?'Haz clic en un SURCO para colocar una pared':'Esperando al rival...';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════
+// Show title screen on load (already shown via HTML)
+</script>
+</body>
+</html>
