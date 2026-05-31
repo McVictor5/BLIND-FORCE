@@ -4128,6 +4128,7 @@ function listenWinner(){
 }
 const _origAdvancePhase=advancePhase;
 window.advancePhase=function(){
+  console.log('advancePhase called: isMyTurn='+isMyTurn()+' currentSide='+G.currentSide+' myRole='+ONLINE.myRole+' phase='+G.gamePhase);
   if(ONLINE.enabled&&!isMyTurn()){toast('⚠ No es tu turno');return;}
   _origAdvancePhase();
   if(ONLINE.enabled) pushState();
