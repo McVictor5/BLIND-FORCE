@@ -653,6 +653,7 @@ body::before {
 
 <!-- ══════════════════════════════ GAME SCREEN ══════════════════════════════ -->
 <div id="screen-game" class="screen" style="flex-direction:column;align-items:center;">
+  <div id="online-room-badge" style="display:none;font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--text-dim);letter-spacing:.15em;margin-bottom:4px;"></div>
   <div id="turn-banner" class="turn-banner" style="max-width:900px;width:100%;"></div>
   <div class="phase-bar" id="phase-bar">
     <div class="phase-step" id="ps-move">MOVIMIENTO</div>
@@ -4077,7 +4078,8 @@ async function setStep(step) {
 // ── Waiting overlay ────────────────────────────────────────────────────────
 function showWaiting(title, msg) {
   document.getElementById('waiting-title').textContent = title;
-  document.getElementById('waiting-msg').innerHTML = (msg||'')+'<br><br><span class="waiting-dot-anim" style="color:var(--accent-green);font-family:Share Tech Mono,monospace;font-size:.8rem;">Esperando</span>';
+  const roomLine = ONLINE.roomId ? `<div style="font-family:Share Tech Mono,monospace;font-size:.68rem;color:var(--text-dim);letter-spacing:.15em;margin-top:10px;">SALA: ${ONLINE.roomId}</div>` : '';
+  document.getElementById('waiting-msg').innerHTML = (msg||'')+'<br><br><span class="waiting-dot-anim" style="color:var(--accent-green);font-family:Share Tech Mono,monospace;font-size:.8rem;">Esperando</span>'+roomLine;
   document.getElementById('waiting-overlay').classList.add('active');
 }
 function hideWaiting() {
@@ -4379,6 +4381,9 @@ async function joinRoom(){
 function startOnlineGame(){
   initState(); setupFixedWalls(); ONLINE.currentStep=null; ONLINE.suppressStateUpdates=false;
   ONLINE.myLastRevealedCells = new Set(); ONLINE.gameOver = false;
+  // Show room code badge in game screen
+  const badge = document.getElementById('online-room-badge');
+  if(badge) { badge.textContent = 'SALA: '+ONLINE.roomId; badge.style.display='block'; }
   startListening(); listenStep(); listenWinner();
   startPick(ONLINE.myRole);
 }
