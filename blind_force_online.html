@@ -277,7 +277,25 @@ body::before {
 .intel-name.dead { text-decoration:line-through; opacity:.5; }
 .intel-ability { color:var(--text-dim); font-size:.75rem; margin-top:2px; line-height:1.4; }
 .intel-ability b { color:var(--accent-yellow); }
-.phase-bar {
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 700px) {
+  #game-layout {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+  #sidebar {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .modal-box { padding: 20px 16px; }
+  .lobby-panels { flex-direction: column !important; }
+  .turn-banner { flex-wrap: wrap; gap: 4px; }
+}
+
+/* ── PHASE BAR ── */
   width:100%; max-width:900px;
   display:flex; align-items:center; gap:0;
   background:var(--panel);
@@ -631,6 +649,36 @@ body::before {
 // CONSTANTS & DEFINITIONS
 // ═══════════════════════════════════════════════════════════════════════════
 const GRID = 15;
+
+// Canvas sizes — recalculated dynamically for mobile
+let GCS = 40, GWS = 6, GOF = 14;  // game canvas
+let CS  = 34, WS  = 8, COF = 20;  // construct canvas
+let SCS = 36, SWS = 6, SOF = 16;  // spawn canvas
+
+function calcSizes() {
+  // Available width: leave room for sidebar (260px) on desktop, full width on mobile
+  const isMobile = window.innerWidth < 700;
+  const sidebarW = isMobile ? 0 : 270;
+  const availW = Math.min(window.innerWidth - sidebarW - 32, window.innerHeight - 160);
+  const maxCanvasSize = Math.max(availW, 240);
+
+  // Game canvas: GRID cells + (GRID+1) surcos
+  // total = GRID*GCS + (GRID+1)*GWS + 2*GOF = maxCanvasSize
+  // Approximate: use fixed ratio GWS = GCS/7, GOF = GCS/3
+  GWS = Math.max(3, Math.floor(maxCanvasSize / (GRID * 7.4)));
+  GOF = Math.max(8, Math.floor(GWS * 2));
+  GCS = Math.max(14, Math.floor((maxCanvasSize - 2*GOF - (GRID+1)*GWS) / GRID));
+
+  // Construct canvas
+  WS  = Math.max(3, Math.floor(GWS * 0.9));
+  COF = Math.max(8, Math.floor(WS * 2.5));
+  CS  = Math.max(12, Math.floor((maxCanvasSize - 2*COF - (GRID+1)*WS) / GRID));
+
+  // Spawn canvas
+  SWS = Math.max(3, Math.floor(GWS * 0.9));
+  SOF = Math.max(8, Math.floor(SWS * 2.5));
+  SCS = Math.max(12, Math.floor((maxCanvasSize - 2*SOF - (GRID+1)*SWS) / GRID));
+}
 const BOMB_MIN = 5, BOMB_MAX = 9; // cols 5-9 (0-indexed), rows 5-9 → 5x5=25 cells
 
 // All available units
@@ -1218,11 +1266,9 @@ function confirmPick() {
 // PHASE 2: CONSTRUCTION
 // ═══════════════════════════════════════════════════════════════════════════
 let cCanvas, cCtx;
-const CS = 34; // cell size for construct
-const WS = 8;  // surco size
-const COF = 20; // canvas offset
 
 function startConstruction() {
+  calcSizes();
   G.wallTurn = 'atk';
   showScreen('construct');
   cCanvas = document.getElementById('construct-canvas');
@@ -1356,11 +1402,9 @@ function placeWall(key) {
 // PHASE 3: SPAWN
 // ═══════════════════════════════════════════════════════════════════════════
 let spCanvas, spCtx;
-const SCS = 36;
-const SWS = 6;
-const SOF = 16;
 
 function startSpawn() {
+  calcSizes();
   G.spawnPhase = 'atk';
   showScreen('spawn');
   spCanvas = document.getElementById('spawn-canvas');
@@ -1541,11 +1585,9 @@ function showCoinFlip() {
 // GAME LOOP
 // ═══════════════════════════════════════════════════════════════════════════
 let gCanvas, gCtx;
-const GCS = 40;
-const GWS = 6;
-const GOF = 14;
 
 function startGameLoop() {
+  calcSizes();
   showScreen('game');
   gCanvas = document.getElementById('game-canvas');
   const total = GRID*GCS+(GRID+1)*GWS;
@@ -3839,6 +3881,7 @@ async function handleStep(step) {
 }
 
 function _initSpawnCanvas(){
+  calcSizes();
   spCanvas=document.getElementById('spawn-canvas');
   const t=GRID*SCS+(GRID+1)*SWS; spCanvas.width=t+SOF*2; spCanvas.height=t+SOF*2;
   spCtx=spCanvas.getContext('2d');
@@ -3846,6 +3889,7 @@ function _initSpawnCanvas(){
 }
 
 function initGameCanvas(){
+  calcSizes();
   gCanvas=document.getElementById('game-canvas');
   const t=GRID*GCS+(GRID+1)*GWS; gCanvas.width=t+GOF*2; gCanvas.height=t+GOF*2;
   gCtx=gCanvas.getContext('2d');
@@ -4280,6 +4324,27 @@ function updateConstructTurnUI(){
 // INIT
 // ═══════════════════════════════════════════════════════════════════════════
 // Show title screen on load (already shown via HTML)
+calcSizes();
+
+// Re-render on resize/orientation change
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    calcSizes();
+    const sid = (document.querySelector('.screen.active')||{}).id||'';
+    if(sid==='screen-construct' && cCanvas) {
+      const t=(GRID*CS+(GRID+1)*WS); cCanvas.width=t+COF*2; cCanvas.height=t+COF*2;
+      renderConstruct();
+    } else if(sid==='screen-spawn' && spCanvas) {
+      const t=GRID*SCS+(GRID+1)*SWS; spCanvas.width=t+SOF*2; spCanvas.height=t+SOF*2;
+      renderSpawnScreen();
+    } else if(sid==='screen-game' && gCanvas) {
+      const t=GRID*GCS+(GRID+1)*GWS; gCanvas.width=t+GOF*2; gCanvas.height=t+GOF*2;
+      renderGame();
+    }
+  }, 200);
+});
 </script>
 </body>
 </html>
