@@ -240,7 +240,38 @@ body::before {
 @keyframes glowPulse { from{box-shadow:0 0 6px rgba(255,51,85,.5);} to{box-shadow:0 0 16px rgba(255,51,85,1);} }
 @keyframes glowPulseBlue { from{box-shadow:0 0 6px rgba(51,153,255,.5);} to{box-shadow:0 0 16px rgba(51,153,255,1);} }
 
-/* ── INTEL PANEL ── */
+/* ── HYPOTHESIS MARKERS ── */
+.marker-panel {
+  background:var(--panel); border:1px solid rgba(0,255,136,.2);
+  margin-top:8px;
+}
+.marker-toggle {
+  width:100%; background:none; border:none;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 14px; cursor:pointer; color:var(--accent-green);
+  font-family:'Share Tech Mono',monospace; font-size:.72rem; letter-spacing:.1em;
+  text-transform:uppercase; transition:color .2s;
+}
+.marker-toggle .arrow { font-size:.6rem; transition:transform .2s; }
+.marker-toggle.open .arrow { transform:rotate(180deg); }
+.marker-body { display:none; padding:8px 14px 12px; }
+.marker-body.open { display:block; }
+.marker-row {
+  display:flex; align-items:center; gap:8px;
+  padding:5px 0; border-bottom:1px solid rgba(255,255,255,.04);
+  font-size:.82rem;
+}
+.marker-row:last-child { border-bottom:none; }
+.marker-dot {
+  width:26px; height:26px; border-radius:3px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(0,255,136,.15); border:1.5px solid var(--accent-green);
+  color:var(--accent-green); font-size:1rem; font-weight:900; cursor:pointer;
+  transition:all .15s;
+}
+.marker-dot:hover { background:rgba(0,255,136,.3); }
+.marker-dot.on-board { background:rgba(0,255,136,.08); border-style:dashed; opacity:.6; }
+.marker-pos { font-family:Share Tech Mono,monospace; font-size:.7rem; color:var(--text-dim); }
 .intel-section {
   background:var(--panel);
   border:1px solid var(--border);
@@ -912,8 +943,93 @@ const UNIT_DEFS = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// GAME STATE
+// HYPOTHESIS MARKERS — local only, never synced to Firebase
 // ═══════════════════════════════════════════════════════════════════════════
+// Each marker: { id:0-3, row:null|number, col:null|number }
+// null = in sidebar (not placed); row/col = on board
+let LOCAL_MARKERS = [
+  {id:0,row:null,col:null},
+  {id:1,row:null,col:null},
+  {id:2,row:null,col:null},
+  {id:3,row:null,col:null},
+];
+let LOCAL_MARKER_SELECTING = null; // id of marker being placed (null = none)
+
+function initMarkers() {
+  // Keep existing positions on new turn (persists between movement phases)
+  // Only call this at game start to reset
+  LOCAL_MARKERS = [{id:0,row:null,col:null},{id:1,row:null,col:null},
+                   {id:2,row:null,col:null},{id:3,row:null,col:null}];
+  LOCAL_MARKER_SELECTING = null;
+}
+
+function markerSidebarHTML(phase) {
+  if(phase !== 'movement') return '';
+  const open = document.getElementById('marker-body') &&
+    document.getElementById('marker-body').classList.contains('open') ? 'open' : '';
+  let html = `<div class="marker-panel">
+    <button class="marker-toggle ${open}" onclick="toggleMarkerPanel()">
+      <span>🔍 MARCADORES HIPÓTESIS (${LOCAL_MARKERS.filter(m=>m.row!==null).length}/4 en tablero)</span>
+      <span class="arrow">▼</span>
+    </button>
+    <div class="marker-body ${open}" id="marker-body">`;
+  LOCAL_MARKERS.forEach(m=>{
+    const onBoard = m.row !== null;
+    const isSelecting = LOCAL_MARKER_SELECTING === m.id;
+    html += `<div class="marker-row">
+      <div class="marker-dot ${onBoard?'on-board':''} ${isSelecting?'glow-atk':''}"
+        onclick="clickMarkerInSidebar(${m.id})"
+        title="${onBoard?'Clic para retirar del tablero':'Clic para colocar en tablero'}">+</div>
+      <div style="flex:1;font-size:.78rem;color:var(--text-dim);">
+        ${isSelecting ? '<span style="color:var(--accent-green)">Elige una casilla...</span>' :
+          onBoard ? `En (${m.col+1},${m.row+1})` : 'Sin colocar'}
+      </div>
+      ${onBoard?`<button onclick="removeMarker(${m.id})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.75rem;padding:2px 4px;" title="Retirar">✕</button>`:''}
+    </div>`;
+  });
+  html += `</div></div>`;
+  return html;
+}
+
+function toggleMarkerPanel() {
+  const body = document.getElementById('marker-body');
+  const btn = body ? body.previousElementSibling : null;
+  if(!body) return;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  if(btn) btn.classList.toggle('open', !isOpen);
+}
+
+function clickMarkerInSidebar(id) {
+  const m = LOCAL_MARKERS[id];
+  if(m.row !== null) {
+    // On board — remove it
+    removeMarker(id);
+    return;
+  }
+  // Not on board — start placement mode
+  LOCAL_MARKER_SELECTING = (LOCAL_MARKER_SELECTING === id) ? null : id;
+  renderGame(); updateSidebar();
+}
+
+function removeMarker(id) {
+  LOCAL_MARKERS[id].row = null;
+  LOCAL_MARKERS[id].col = null;
+  if(LOCAL_MARKER_SELECTING === id) LOCAL_MARKER_SELECTING = null;
+  renderGame(); updateSidebar();
+}
+
+function placeMarkerOnBoard(r, c) {
+  if(LOCAL_MARKER_SELECTING === null) return false;
+  const id = LOCAL_MARKER_SELECTING;
+  // Remove any other marker on that cell
+  LOCAL_MARKERS.forEach(m=>{ if(m.row===r&&m.col===c) { m.row=null; m.col=null; } });
+  LOCAL_MARKERS[id].row = r;
+  LOCAL_MARKERS[id].col = c;
+  LOCAL_MARKER_SELECTING = null;
+  renderGame(); updateSidebar();
+  return true;
+}
 let G = {};
 
 function initState() {
@@ -1571,6 +1687,7 @@ function startGameLoop() {
   gCanvas.height = total+GOF*2;
   gCtx = gCanvas.getContext('2d');
   gCanvas.addEventListener('click', onGameClick);
+  initMarkers();
   G.gamePhase = 'movement';
   G.movedUnits = new Set();
   G.shotFired = null;
@@ -1729,7 +1846,43 @@ function renderGame() {
     }
   });
 
-  // Highlight selected unit valid moves
+  // Hypothesis markers — only visible to local player in movement phase
+  if(phase==='movement' && G.units.length>0) {
+    LOCAL_MARKERS.forEach(m=>{
+      if(m.row===null) return;
+      const {x,y}=gCellTL(m.row,m.col);
+      // Background
+      ctx.fillStyle='rgba(0,255,136,.12)';
+      ctx.fillRect(x+1,y+1,GCS-2,GCS-2);
+      ctx.strokeStyle='rgba(0,255,136,.7)';
+      ctx.lineWidth=1.5;
+      ctx.strokeRect(x+1,y+1,GCS-2,GCS-2);
+      // + symbol
+      ctx.fillStyle='rgba(0,255,136,.9)';
+      ctx.font=`bold ${Math.floor(GCS*.55)}px Share Tech Mono,monospace`;
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillText('+', x+GCS/2, y+GCS/2+1);
+      // Marker number
+      ctx.font=`${Math.floor(GCS*.22)}px Share Tech Mono,monospace`;
+      ctx.fillStyle='rgba(0,255,136,.6)';
+      ctx.textAlign='right';
+      ctx.textBaseline='top';
+      ctx.fillText(m.id+1, x+GCS-3, y+2);
+    });
+    // Highlight available cells when placing
+    if(LOCAL_MARKER_SELECTING !== null) {
+      for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++) {
+        if(isCentralCell(r,c)) continue;
+        const {x,y}=gCellTL(r,c);
+        ctx.fillStyle='rgba(0,255,136,.06)';
+        ctx.fillRect(x,y,GCS,GCS);
+        ctx.strokeStyle='rgba(0,255,136,.2)';
+        ctx.lineWidth=1;
+        ctx.strokeRect(x,y,GCS,GCS);
+      }
+    }
+  }
   if(phase==='movement' && G.selectedUnit) {
     if(G.selectedUnit==='esteban_drone') {
       const drone=G.devices.find(d=>d.type==='esteban'&&d.alive);
@@ -2497,6 +2650,7 @@ function endGame(winner, reason) {
 // ═══════════════════════════════════════════════════════════════════════════
 function advancePhase() {
   if(G.abilityMode) { toast('⚠ Finaliza primero la habilidad activa'); return; }
+  LOCAL_MARKER_SELECTING = null; // cancel any pending marker placement
   const phase = G.gamePhase;
   if(phase==='movement') {
     computeVision();
@@ -2678,6 +2832,10 @@ function onGameClick(e) {
   const phase=G.gamePhase, side=G.currentSide; // always use currentSide for interaction logic
 
   if(phase==='movement') {
+    // Hypothesis marker placement takes priority when selecting
+    if(LOCAL_MARKER_SELECTING !== null) {
+      if(!isCentralCell(cr,cc)) { placeMarkerOnBoard(cr,cc); return; }
+    }
     // Esteban drone: if drone is selected, try to move it
     if(G.selectedUnit==='esteban_drone') {
       const drone=G.devices.find(d=>d.type==='esteban'&&d.alive);
@@ -3435,6 +3593,9 @@ function updateSidebar() {
     html += `<div class="intel-section"><button class="intel-toggle" onclick="toggleIntel('${enemyId}')">
       <span>${enemyLabel} (0)</span><span class="arrow">▼</span></button></div>`;
   }
+
+  // ── HYPOTHESIS MARKERS (movement phase only) ──
+  html += markerSidebarHTML(phase);
 
   sb.innerHTML=html;
 }
