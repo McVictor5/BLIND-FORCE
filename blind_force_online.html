@@ -327,8 +327,9 @@ body::before {
 }
 
 /* ── PHASE BAR ── */
+.phase-bar {
   width:100%; max-width:900px;
-  display:flex; align-items:center; gap:0;
+  display:flex; flex-direction:row; align-items:center; gap:0;
   background:var(--panel);
   border:1px solid var(--border);
   overflow:hidden; margin-bottom:12px;
@@ -2835,6 +2836,12 @@ function onGameClick(e) {
     // Hypothesis marker placement takes priority when selecting
     if(LOCAL_MARKER_SELECTING !== null) {
       if(!isCentralCell(cr,cc)) { placeMarkerOnBoard(cr,cc); return; }
+    }
+    // Click on a placed marker on the board → return it to sidebar
+    const clickedMarker = LOCAL_MARKERS.find(m=>m.row===cr&&m.col===cc);
+    if(clickedMarker) {
+      removeMarker(clickedMarker.id);
+      return;
     }
     // Esteban drone: if drone is selected, try to move it
     if(G.selectedUnit==='esteban_drone') {
