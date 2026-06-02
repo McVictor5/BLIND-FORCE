@@ -560,7 +560,7 @@ body::before {
     <span class="phase-title">CONSTRUCCIÓN DE PAREDES</span>
   </div>
   <div id="construct-turn-badge" style="margin-bottom:10px;text-align:center;"></div>
-  <div class="wall-info">Paredes colocadas: <b id="walls-placed">0</b> / 70 &nbsp;|&nbsp; Turno: <b id="wall-turn-label">—</b></div>
+  <div class="wall-info">Paredes colocadas: <b id="walls-placed">0</b> / 24 &nbsp;|&nbsp; Turno: <b id="wall-turn-label">—</b></div>
   <div style="margin:14px auto; position:relative;">
     <canvas id="construct-canvas" style="cursor:pointer;display:block;"></canvas>
   </div>
@@ -1036,28 +1036,35 @@ function startGame() {
 // ═══════════════════════════════════════════════════════════════════════════
 function setupFixedWalls() {
   const fw = G.fixedWalls;
-  // Central cell (7,7): surcos on all 4 sides
-  // top surco = h_6_7 (between row6 and row7 at col7)? 
-  // We define: h_r_c = horizontal wall BELOW cell(r,c), i.e. between row r and r+1, col c
-  // v_r_c = vertical wall RIGHT of cell(r,c), i.e. between col c and c+1, row r
-  // Central cell top: h_6_7 (below row6 = above row7)
-  fw.add('h_6_7'); // top of cell(7,7)
-  fw.add('h_7_7'); // bottom of cell(7,7)
-  fw.add('v_7_6'); // left of cell(7,7)
-  fw.add('v_7_7'); // right of cell(7,7)
 
-  // Bomb zone: rows 5-9, cols 5-9
-  // Perimeter walls with openings at center of each cardinal side
-  // North side: above row 5 = h_4_c for c in 5..9, opening at col 7
+  fw.add('h_6_7'); fw.add('h_7_7');
+  fw.add('v_7_6'); fw.add('v_7_7');
+
   for(let c=5;c<=9;c++) if(c!==7) fw.add(`h_4_${c}`);
-  // South side: below row 9 = h_9_c for c in 5..9, opening at col 7
   for(let c=5;c<=9;c++) if(c!==7) fw.add(`h_9_${c}`);
-  // West side: left of col 5 = v_r_4 for r in 5..9, opening at row 7
   for(let r=5;r<=9;r++) if(r!==7) fw.add(`v_${r}_4`);
-  // East side: right of col 9 = v_r_9 for r in 5..9, opening at row 7
   for(let r=5;r<=9;r++) if(r!==7) fw.add(`v_${r}_9`);
 
-  // Copy to walls
+  function pickTwoDoors(min, max) {
+    const range = [];
+    for(let i=min;i<=max;i++) range.push(i);
+    const i1 = Math.floor(Math.random()*range.length);
+    const d1 = range[i1];
+    const valid = range.filter(v=>Math.abs(v-d1)>=3);
+    const d2 = valid[Math.floor(Math.random()*valid.length)];
+    return new Set([d1, d2||d1+3]);
+  }
+
+  const northDoors = pickTwoDoors(1,13);
+  const southDoors = pickTwoDoors(1,13);
+  const westDoors  = pickTwoDoors(1,13);
+  const eastDoors  = pickTwoDoors(1,13);
+
+  for(let c=1;c<=13;c++) if(!northDoors.has(c)) fw.add(`h_0_${c}`);
+  for(let c=1;c<=13;c++) if(!southDoors.has(c)) fw.add(`h_13_${c}`);
+  for(let r=1;r<=13;r++) if(!westDoors.has(r)) fw.add(`v_${r}_0`);
+  for(let r=1;r<=13;r++) if(!eastDoors.has(r)) fw.add(`v_${r}_13`);
+
   fw.forEach(w => G.walls.add(w));
 }
 
@@ -1088,7 +1095,7 @@ function showInstructions() {
 
   ${s('⚙ Fases de una partida',
     `<b>1. Selección:</b> cada jugador elige 4 fichas de personaje de las disponibles para su bando (atacante o defensor).<br>
-    <b>2. Construcción:</b> se colocan 70 paredes alternando turnos. Puedes usar el botón de mapa aleatorio.<br>
+    <b>2. Construcción:</b> se colocan 24 paredes alternando turnos. Puedes usar el botón de mapa aleatorio.<br>
     <b>3. Despliegue:</b> el atacante coloca sus fichas en casillas externas del tablero; el defensor en casillas de la sala de la bomba.<br>
     <b>4. Lanzamiento:</b> una moneda al aire decide quién empieza.<br>
     <b>5. Rondas:</b> el jugador activo ejecuta sus fases y entrega el dispositivo al rival.`)}
@@ -1290,8 +1297,18 @@ function renderConstruct() {
     : '<span class="role-badge def">🛡 DEFENSOR — coloca una pared</span>';
 }
 
+function isOuterRingSurco(key) {
+  if(key.startsWith('h_')) {
+    const parts=key.split('_'); const r=parseInt(parts[1]),c=parseInt(parts[2]);
+    return (r===0||r===13)&&c>=1&&c<=13;
+  } else {
+    const parts=key.split('_'); const r=parseInt(parts[1]),c=parseInt(parts[2]);
+    return (c===0||c===13)&&r>=1&&r<=13;
+  }
+}
+
 function onConstructClick(e) {
-  if(G.wallsPlaced>=70) return;
+  if(G.wallsPlaced>=24) return;
   const rect = cCanvas.getBoundingClientRect();
   const scaleX = cCanvas.width/rect.width;
   const scaleY = cCanvas.height/rect.height;
@@ -1304,6 +1321,7 @@ function onConstructClick(e) {
     const wy = y+CS;
     const key = `h_${r}_${c}`;
     if(G.fixedWalls.has(key)||G.walls.has(key)) continue;
+    if(isOuterRingSurco(key)) continue;
     if(mx>=x&&mx<=x+CS&&my>=wy&&my<=wy+WS) {
       placeWall(key); return;
     }
@@ -1314,6 +1332,7 @@ function onConstructClick(e) {
     const wx = x+CS;
     const key = `v_${r}_${c}`;
     if(G.fixedWalls.has(key)||G.walls.has(key)) continue;
+    if(isOuterRingSurco(key)) continue;
     if(mx>=wx&&mx<=wx+WS&&my>=y&&my<=y+CS) {
       placeWall(key); return;
     }
@@ -1325,9 +1344,9 @@ function placeWall(key) {
   G.wallsPlaced++;
   G.wallTurn = G.wallTurn==='atk' ? 'def' : 'atk';
   renderConstruct();
-  if(G.wallsPlaced>=70) {
+  if(G.wallsPlaced>=24) {
     setTimeout(()=>{
-      showModal('CONSTRUCCIÓN COMPLETA','Todas las <b>70 paredes</b> han sido colocadas. La fase de despliegue comenzará ahora.',
+      showModal('CONSTRUCCIÓN COMPLETA','Todas las <b>24 paredes</b> han sido colocadas. La fase de despliegue comenzará ahora.',
         [{label:'CONTINUAR', action:startSpawn}]);
     }, 300);
   }
@@ -3490,68 +3509,11 @@ function generateRandomMap() {
   G.walls = new Set(G.fixedWalls);
   G.wallsPlaced = 0;
 
-  const candidate = [];
+  // The outer ring is already set by setupFixedWalls — do NOT add any ring walls here.
+  // Only place interior walls (between ring and bomb zone, excluding fixed walls).
 
-  // ── 1. OUTER RING (13×13, rows 1-13, cols 1-13) ──────────────────────────
-  // 4-cell-wide corridor between ring and bomb zone (bomb zone: rows 5-9, cols 5-9)
-  // Ring surcos:
-  //   North edge: h_0_c  for c in 1..13  (below row 0 = above row 1)
-  //   South edge: h_13_c for c in 1..13  (below row 13)
-  //   West edge:  v_r_0  for r in 1..13  (right of col 0 = left of col 1)
-  //   East edge:  v_r_13 for r in 1..13  (right of col 13)
-  // Each side has 13 surcos. Pick 2 random openings per side, not at corners.
-
-  function pickTwoOpenings(len) {
-    const pool = [];
-    for(let i=1;i<len-1;i++) pool.push(i);
-    for(let i=pool.length-1;i>0;i--) {
-      const j=Math.floor(Math.random()*(i+1));
-      [pool[i],pool[j]]=[pool[j],pool[i]];
-    }
-    let a=pool[0], b=pool[1];
-    let tries=0;
-    while(Math.abs(a-b)<2 && tries<50) {
-      for(let i=pool.length-1;i>0;i--) {
-        const j=Math.floor(Math.random()*(i+1));
-        [pool[i],pool[j]]=[pool[j],pool[i]];
-      }
-      a=pool[0]; b=pool[1]; tries++;
-    }
-    return new Set([a,b]);
-  }
-
-  // North side: h_0_c, c from 1 to 13 → 13 surcos
-  const northOpen = pickTwoOpenings(13);
-  for(let i=0;i<13;i++) {
-    const c=1+i, key=`h_0_${c}`;
-    if(!northOpen.has(i) && !G.walls.has(key)) candidate.push({key, ring:true});
-  }
-  // South side: h_13_c, c from 1 to 13
-  const southOpen = pickTwoOpenings(13);
-  for(let i=0;i<13;i++) {
-    const c=1+i, key=`h_13_${c}`;
-    if(!southOpen.has(i) && !G.walls.has(key)) candidate.push({key, ring:true});
-  }
-  // West side: v_r_0, r from 1 to 13
-  const westOpen = pickTwoOpenings(13);
-  for(let i=0;i<13;i++) {
-    const r=1+i, key=`v_${r}_0`;
-    if(!westOpen.has(i) && !G.walls.has(key)) candidate.push({key, ring:true});
-  }
-  // East side: v_r_13, r from 1 to 13
-  const eastOpen = pickTwoOpenings(13);
-  for(let i=0;i<13;i++) {
-    const r=1+i, key=`v_${r}_13`;
-    if(!eastOpen.has(i) && !G.walls.has(key)) candidate.push({key, ring:true});
-  }
-
-  // Place all ring walls first
-  candidate.filter(c=>c.ring).forEach(c=>{ G.walls.add(c.key); G.wallsPlaced++; });
-
-  // ── 2. INTERIOR SCATTER (remaining up to 65) ─────────────────────────────
-  // Interior = between ring (rows 1-13) and bomb zone, excluding ring and fixed walls
-  const needed = 70 - G.wallsPlaced;
-
+  // ── INTERIOR SCATTER ─────────────────────────────────────────────────────
+  const needed = 24;
   const interiorPool = [];
 
   // Helper: returns true if a surco is inside or on the boundary of the bomb zone interior
@@ -3578,10 +3540,22 @@ function generateRandomMap() {
     return key==='h_4_7'||key==='h_9_7'||key==='v_7_4'||key==='v_7_9';
   }
 
+  // Helper: returns true if a surco is on the outer ring (regardless of whether it's a door)
+  function isOuterRingSurco(key) {
+    if(key.startsWith('h_')) {
+      const parts=key.split('_'); const r=parseInt(parts[1]),c=parseInt(parts[2]);
+      return (r===0||r===13)&&c>=1&&c<=13;
+    } else {
+      const parts=key.split('_'); const r=parseInt(parts[1]),c=parseInt(parts[2]);
+      return (c===0||c===13)&&r>=1&&r<=13;
+    }
+  }
+
   // Horizontal surcos inside the ring: h_r_c with r in 1..12, c in 1..13
   for(let r=1;r<=12;r++) for(let c=1;c<=13;c++) {
     const key=`h_${r}_${c}`;
     if(G.walls.has(key)) continue;
+    if(isOuterRingSurco(key)) continue;
     if(surcoInsideBombZone(key)) continue;
     if(isBombZoneDoor(key)) continue;
     interiorPool.push(key);
@@ -3590,6 +3564,7 @@ function generateRandomMap() {
   for(let r=1;r<=13;r++) for(let c=1;c<=12;c++) {
     const key=`v_${r}_${c}`;
     if(G.walls.has(key)) continue;
+    if(isOuterRingSurco(key)) continue;
     if(surcoInsideBombZone(key)) continue;
     if(isBombZoneDoor(key)) continue;
     interiorPool.push(key);
@@ -3619,9 +3594,9 @@ function generateRandomMap() {
   document.getElementById('construct-help').textContent =
     `Mapa generado (${G.wallsPlaced} paredes). Puedes seguir añadiendo manualmente o continuar.`;
 
-  if(G.wallsPlaced>=70) {
+  if(G.wallsPlaced>=24) {
     setTimeout(()=>{
-      showModal('MAPA GENERADO','Se han colocado <b>70 paredes</b> automáticamente. Puedes continuar al despliegue.',
+      showModal('MAPA GENERADO','Se han colocado <b>24 paredes</b> automáticamente. Puedes continuar al despliegue.',
         [{label:'CONTINUAR', action:startSpawn}]);
     }, 400);
   }
@@ -4065,7 +4040,7 @@ window.placeWall=function(key){
   if(ONLINE.enabled&&G.wallTurn!==ONLINE.myRole){toast('⚠ No es tu turno');return;}
   _origPlaceWall(key);
   if(!ONLINE.enabled) return;
-  if(G.wallsPlaced>=70) pushState().then(()=>setStep('spawn_both'));
+  if(G.wallsPlaced>=24) pushState().then(()=>setStep('spawn_both'));
   else{ pushState(); updateConstructTurnUI(); }
 };
 
@@ -4073,7 +4048,7 @@ const _origGenerateRandomMap=generateRandomMap;
 window.generateRandomMap=function(){
   _origGenerateRandomMap();
   if(!ONLINE.enabled) return;
-  if(G.wallsPlaced>=70) pushState().then(()=>setStep('spawn_both'));
+  if(G.wallsPlaced>=24) pushState().then(()=>setStep('spawn_both'));
   else pushState();
 };
 
@@ -4159,9 +4134,10 @@ window.advancePhase=function(){
   if(ONLINE.enabled) pushState();
 };
 
+const _origEndTurn = endTurn;
 window.endTurn=function(){
   if(ONLINE.enabled&&!isMyTurn()) return;
-  if(!ONLINE.enabled){ endTurn(); return; }
+  if(!ONLINE.enabled){ _origEndTurn(); return; }
   const prevSide=G.currentSide;
 
   // Bomb counters & win check
@@ -4214,7 +4190,8 @@ window.endTurn=function(){
   showWaiting('TURNO DEL '+rivalLabel, 'El '+rivalLabel.toLowerCase()+' está jugando su turno.');
 };
 
-window.startNextTurn=function(){ if(ONLINE.enabled) return; startNextTurn(); };
+const _origStartNextTurn = startNextTurn;
+window.startNextTurn=function(){ if(ONLINE.enabled) return; _origStartNextTurn(); };
 
 const _origOnGameClick=onGameClick;
 window.onGameClick=function(e){
