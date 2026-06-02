@@ -560,7 +560,7 @@ body::before {
     <span class="phase-title">CONSTRUCCIÓN DE PAREDES</span>
   </div>
   <div id="construct-turn-badge" style="margin-bottom:10px;text-align:center;"></div>
-  <div class="wall-info">Paredes colocadas: <b id="walls-placed">0</b> / 24 &nbsp;|&nbsp; Turno: <b id="wall-turn-label">—</b></div>
+  <div class="wall-info">Paredes colocadas: <b id="walls-placed">0</b> / 32 &nbsp;|&nbsp; Turno: <b id="wall-turn-label">—</b></div>
   <div style="margin:14px auto; position:relative;">
     <canvas id="construct-canvas" style="cursor:pointer;display:block;"></canvas>
   </div>
@@ -1095,7 +1095,7 @@ function showInstructions() {
 
   ${s('⚙ Fases de una partida',
     `<b>1. Selección:</b> cada jugador elige 4 fichas de personaje de las disponibles para su bando (atacante o defensor).<br>
-    <b>2. Construcción:</b> se colocan 24 paredes alternando turnos. Puedes usar el botón de mapa aleatorio.<br>
+    <b>2. Construcción:</b> se colocan 32 paredes alternando turnos. Puedes usar el botón de mapa aleatorio.<br>
     <b>3. Despliegue:</b> el atacante coloca sus fichas en casillas externas del tablero; el defensor en casillas de la sala de la bomba.<br>
     <b>4. Lanzamiento:</b> una moneda al aire decide quién empieza.<br>
     <b>5. Rondas:</b> el jugador activo ejecuta sus fases y entrega el dispositivo al rival.`)}
@@ -1308,7 +1308,7 @@ function isOuterRingSurco(key) {
 }
 
 function onConstructClick(e) {
-  if(G.wallsPlaced>=24) return;
+  if(G.wallsPlaced>=32) return;
   const rect = cCanvas.getBoundingClientRect();
   const scaleX = cCanvas.width/rect.width;
   const scaleY = cCanvas.height/rect.height;
@@ -1344,9 +1344,9 @@ function placeWall(key) {
   G.wallsPlaced++;
   G.wallTurn = G.wallTurn==='atk' ? 'def' : 'atk';
   renderConstruct();
-  if(G.wallsPlaced>=24) {
+  if(G.wallsPlaced>=32) {
     setTimeout(()=>{
-      showModal('CONSTRUCCIÓN COMPLETA','Todas las <b>24 paredes</b> han sido colocadas. La fase de despliegue comenzará ahora.',
+      showModal('CONSTRUCCIÓN COMPLETA','Todas las <b>32 paredes</b> han sido colocadas. La fase de despliegue comenzará ahora.',
         [{label:'CONTINUAR', action:startSpawn}]);
     }, 300);
   }
@@ -3513,7 +3513,7 @@ function generateRandomMap() {
   // Only place interior walls (between ring and bomb zone, excluding fixed walls).
 
   // ── INTERIOR SCATTER ─────────────────────────────────────────────────────
-  const needed = 24;
+  const needed = 32;
   const interiorPool = [];
 
   // Helper: returns true if a surco is inside or on the boundary of the bomb zone interior
@@ -3594,7 +3594,7 @@ function generateRandomMap() {
   document.getElementById('construct-help').textContent =
     `Mapa generado (${G.wallsPlaced} paredes). Puedes seguir añadiendo manualmente o continuar.`;
 
-  if(G.wallsPlaced>=24) {
+  if(G.wallsPlaced>=32) {
     setTimeout(()=>{
       showModal('MAPA GENERADO','Se han colocado <b>24 paredes</b> automáticamente. Puedes continuar al despliegue.',
         [{label:'CONTINUAR', action:startSpawn}]);
@@ -4040,7 +4040,7 @@ window.placeWall=function(key){
   if(ONLINE.enabled&&G.wallTurn!==ONLINE.myRole){toast('⚠ No es tu turno');return;}
   _origPlaceWall(key);
   if(!ONLINE.enabled) return;
-  if(G.wallsPlaced>=24) pushState().then(()=>setStep('spawn_both'));
+  if(G.wallsPlaced>=32) pushState().then(()=>setStep('spawn_both'));
   else{ pushState(); updateConstructTurnUI(); }
 };
 
@@ -4048,7 +4048,7 @@ const _origGenerateRandomMap=generateRandomMap;
 window.generateRandomMap=function(){
   _origGenerateRandomMap();
   if(!ONLINE.enabled) return;
-  if(G.wallsPlaced>=24) pushState().then(()=>setStep('spawn_both'));
+  if(G.wallsPlaced>=32) pushState().then(()=>setStep('spawn_both'));
   else pushState();
 };
 
