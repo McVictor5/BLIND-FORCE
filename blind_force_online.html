@@ -240,7 +240,25 @@ body::before {
 @keyframes glowPulse { from{box-shadow:0 0 6px rgba(255,51,85,.5);} to{box-shadow:0 0 16px rgba(255,51,85,1);} }
 @keyframes glowPulseBlue { from{box-shadow:0 0 6px rgba(51,153,255,.5);} to{box-shadow:0 0 16px rgba(51,153,255,1);} }
 
-/* ── HYPOTHESIS MARKERS ── */
+/* ── REPLAY VIEWER ── */
+#screen-replay {
+  background: radial-gradient(ellipse at center, #0d1520 0%, #050810 100%);
+  flex-direction:column; gap:10px; padding:16px;
+}
+.replay-header {
+  font-family:'Share Tech Mono',monospace; font-size:.78rem;
+  color:var(--accent-yellow); letter-spacing:.1em; text-align:center;
+  min-height:20px;
+}
+.replay-nav {
+  display:flex; align-items:center; gap:12px; justify-content:center;
+  flex-wrap:wrap;
+}
+.replay-nav .btn-primary { padding:8px 18px; font-size:.78rem; }
+.replay-counter {
+  font-family:'Orbitron',monospace; font-size:.85rem; color:var(--text-dim);
+  min-width:80px; text-align:center;
+}
 .marker-panel {
   background:var(--panel); border:1px solid rgba(0,255,136,.2);
   margin-top:8px;
@@ -654,11 +672,27 @@ body::before {
 <!-- ══════════════════════════════ WINNER SCREEN ══════════════════════════════ -->
 <div id="screen-winner" class="screen">
   <div id="winner-text" class="winner-text"></div>
+  <div id="winner-result" style="font-family:'Orbitron',monospace;font-size:1.6rem;font-weight:700;letter-spacing:.2em;margin:10px 0 4px;"></div>
   <div id="winner-reason" class="winner-reason"></div>
-  <button class="btn-primary" onclick="location.reload()">↩ NUEVA PARTIDA</button>
+  <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center;">
+    <button class="btn-primary" onclick="openReplay()">📽 RESUMEN</button>
+    <button class="btn-primary" onclick="location.reload()">↩ NUEVA PARTIDA</button>
+  </div>
 </div>
 
-<!-- ══════════════════════════════ MODALS ══════════════════════════════ -->
+<!-- ══════════════════════════════ REPLAY SCREEN ══════════════════════════════ -->
+<div id="screen-replay" class="screen">
+  <div class="replay-header" id="replay-label"></div>
+  <canvas id="replay-canvas"></canvas>
+  <div class="replay-nav">
+    <button class="btn-primary" onclick="replayStep(-1)">◀ ANTERIOR</button>
+    <span class="replay-counter" id="replay-counter"></span>
+    <button class="btn-primary" onclick="replayStep(1)">SIGUIENTE ▶</button>
+  </div>
+  <button class="btn-secondary" onclick="exitReplay()" style="margin-top:6px;">↩ VOLVER AL RESULTADO</button>
+</div>
+
+
 <div id="waiting-overlay">
   <div class="waiting-box">
     <div class="waiting-title" id="waiting-title">ESPERANDO</div>
@@ -944,7 +978,146 @@ const UNIT_DEFS = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// HYPOTHESIS MARKERS — local only, never synced to Firebase
+// REPLAY SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════
+let REPLAY = {
+  snapshots: [],   // local accumulation during game
+  loaded: [],      // loaded from Firebase for viewing
+  index: 0,
+  canvas: null,
+  ctx: null,
+};
+
+function saveReplaySnapshot(phase) {
+  if(!ONLINE.enabled) return; // only in online mode
+  if(ONLINE.myRole !== G.currentSide) return; // only active player saves
+  const snap = {
+    round: G.round,
+    side: G.currentSide,
+    phase: phase,
+    label: 'Ronda '+G.round+' — '+(G.currentSide==='atk'?'ATACANTE':'DEFENSOR')+' — '+(phase==='movement'?'Movimiento':'Disparo'),
+    units: JSON.parse(JSON.stringify(G.units||[])),
+    devices: JSON.parse(JSON.stringify(G.devices||[])),
+    walls: [...G.walls],
+    fixedWalls: [...G.fixedWalls],
+  };
+  REPLAY.snapshots.push(snap);
+  // Push to Firebase
+  window._fbSet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/replay'),
+    REPLAY.snapshots.map((s,i)=>({...s, idx:i}))
+  ).catch(e=>console.error('replay push error',e));
+}
+
+async function openReplay() {
+  // Load replay from Firebase
+  try {
+    const snap = await window._fbGet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/replay'));
+    const data = snap.val();
+    if(!data||!data.length) {
+      alert('No hay datos de resumen disponibles.'); return;
+    }
+    REPLAY.loaded = data;
+    REPLAY.index = 0;
+  } catch(e) {
+    alert('Error al cargar el resumen.'); return;
+  }
+  showScreen('replay');
+  document.getElementById('screen-replay').style.cssText='z-index:2000;position:fixed;inset:0;display:flex;';
+  // Init canvas
+  REPLAY.canvas = document.getElementById('replay-canvas');
+  const total = GRID*GCS+(GRID+1)*GWS;
+  REPLAY.canvas.width = total+GOF*2;
+  REPLAY.canvas.height = total+GOF*2;
+  REPLAY.ctx = REPLAY.canvas.getContext('2d');
+  renderReplayFrame();
+}
+
+function exitReplay() {
+  showScreen('winner');
+  document.getElementById('screen-winner').style.cssText='z-index:2000;position:fixed;inset:0;display:flex;';
+}
+
+function replayStep(dir) {
+  REPLAY.index = Math.max(0, Math.min(REPLAY.loaded.length-1, REPLAY.index+dir));
+  renderReplayFrame();
+}
+
+function renderReplayFrame() {
+  const snap = REPLAY.loaded[REPLAY.index];
+  if(!snap) return;
+  const ctx = REPLAY.ctx;
+  const canvas = REPLAY.canvas;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Background
+  ctx.fillStyle='#080c12'; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Draw cells
+  const walls = new Set(snap.walls||[]);
+  const fixedWalls = new Set(snap.fixedWalls||[]);
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++) {
+    const {x,y}=gCellTL(r,c);
+    if(isCentralCell(r,c)) { ctx.fillStyle='#1a0a0a'; ctx.fillRect(x,y,GCS,GCS); continue; }
+    if(inBombZone(r,c)) ctx.fillStyle='rgba(51,153,255,.06)';
+    else ctx.fillStyle='rgba(255,255,255,.02)';
+    ctx.fillRect(x,y,GCS,GCS);
+  }
+
+  // Draw walls
+  for(let r=0;r<GRID-1;r++) for(let c=0;c<GRID;c++) {
+    const key=`h_${r}_${c}`;
+    if(!walls.has(key)) continue;
+    const {x,y}=gCellTL(r,c);
+    ctx.fillStyle = fixedWalls.has(key)?'rgba(100,120,160,.9)':'rgba(200,210,230,.75)';
+    ctx.fillRect(x, y+GCS, GCS, GWS);
+  }
+  for(let r=0;r<GRID;r++) for(let c=0;c<GRID-1;c++) {
+    const key=`v_${r}_${c}`;
+    if(!walls.has(key)) continue;
+    const {x,y}=gCellTL(r,c);
+    ctx.fillStyle = fixedWalls.has(key)?'rgba(100,120,160,.9)':'rgba(200,210,230,.75)';
+    ctx.fillRect(x+GCS, y, GWS, GCS);
+  }
+
+  // Draw devices (all visible)
+  const ATK_DEVS = new Set(['tarantino','francisco','zorro','iarramendi','daniel']);
+  (snap.devices||[]).filter(d=>d.alive).forEach(d=>{
+    const {x,y}=gCellTL(d.row,d.col);
+    const isAtk = ATK_DEVS.has(d.type);
+    ctx.fillStyle=isAtk?'rgba(255,51,85,.3)':'rgba(51,153,255,.3)';
+    ctx.fillRect(x+3,y+3,GCS-6,GCS-6);
+    ctx.strokeStyle=isAtk?'var(--atk)':'var(--def)';
+    ctx.lineWidth=1; ctx.strokeRect(x+3,y+3,GCS-6,GCS-6);
+    ctx.fillStyle=isAtk?'rgba(255,51,85,.9)':'rgba(51,153,255,.9)';
+    ctx.font=`bold ${Math.floor(GCS*.32)}px Share Tech Mono,monospace`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('◆', x+GCS/2, y+GCS/2);
+  });
+
+  // Draw units (all visible — no fog of war in replay)
+  (snap.units||[]).filter(u=>u.alive).forEach(u=>{
+    const {x,y}=gCellTL(u.row,u.col);
+    const isAtk = u.side==='atk';
+    // Unit circle
+    ctx.beginPath();
+    ctx.arc(x+GCS/2, y+GCS/2, GCS*0.38, 0, Math.PI*2);
+    ctx.fillStyle=isAtk?'rgba(255,51,85,.85)':'rgba(51,153,255,.85)';
+    ctx.fill();
+    ctx.strokeStyle=isAtk?'#ff3355':'#3399ff';
+    ctx.lineWidth=1.5; ctx.stroke();
+    // Icon
+    ctx.fillStyle='#fff';
+    ctx.font=`bold ${Math.floor(GCS*.38)}px Orbitron,monospace`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(u.icon, x+GCS/2, y+GCS/2+1);
+  });
+
+  // Label and counter
+  document.getElementById('replay-label').textContent = snap.label||'';
+  document.getElementById('replay-counter').textContent =
+    (REPLAY.index+1)+' / '+REPLAY.loaded.length;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Each marker: { id:0-3, row:null|number, col:null|number }
 // null = in sidebar (not placed); row/col = on board
@@ -2632,18 +2805,26 @@ function checkWinConditions() {
 }
 
 function endGame(winner, reason) {
-  // Close all overlays — winner screen has absolute priority
+  // Close all overlays
   document.getElementById('modal').classList.remove('active');
   const wo = document.getElementById('waiting-overlay');
   if(wo) wo.classList.remove('active');
   document.getElementById('winner-text').textContent = winner==='atk' ? '⚔ ATACANTE GANA' : '🛡 DEFENSOR GANA';
   document.getElementById('winner-text').className = 'winner-text '+winner;
   document.getElementById('winner-reason').textContent = reason;
+  // In online mode show VICTORIA / DERROTA based on player's role
+  const resultEl = document.getElementById('winner-result');
+  if(resultEl) {
+    if(ONLINE.enabled && ONLINE.myRole) {
+      const iWon = winner === ONLINE.myRole;
+      resultEl.textContent = iWon ? '🏆 VICTORIA' : '💀 DERROTA';
+      resultEl.style.color = iWon ? 'var(--accent-green)' : 'rgba(255,51,85,.8)';
+    } else {
+      resultEl.textContent = '';
+    }
+  }
   showScreen('winner');
-  // Force winner screen on top of everything
-  document.getElementById('screen-winner').style.zIndex = '2000';
-  document.getElementById('screen-winner').style.position = 'fixed';
-  document.getElementById('screen-winner').style.inset = '0';
+  document.getElementById('screen-winner').style.cssText='z-index:2000;position:fixed;inset:0;display:flex;';
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2654,6 +2835,7 @@ function advancePhase() {
   LOCAL_MARKER_SELECTING = null; // cancel any pending marker placement
   const phase = G.gamePhase;
   if(phase==='movement') {
+    saveReplaySnapshot('movement');
     computeVision();
     G.gamePhase='vision';
     renderGame();
@@ -2754,6 +2936,7 @@ function endTurn() {
     + unmovedMsg
     + (notifMsg ? `<br><br><b>NOTIFICACIONES:</b><br>${notifMsg}` : '');
 
+  saveReplaySnapshot('shoot');
   showModal('FIN DE TURNO', changeMsg, [{label:'LISTO', action:startNextTurn}]);
 }
 
@@ -3092,7 +3275,11 @@ function handleAbilityClick(r,c,mx,my) {
     if(dr4>2||dc4>2) { toast('⚠ Demasiado lejos (máx. 2 casillas)'); return; }
     const defDevTypes=new Set(['dario','melania','facundo','xinchan','torrente','bisbal','galileo','sarapova','esteban']);
     const d=G.devices.find(dv=>dv.alive&&dv.row===r&&dv.col===c&&defDevTypes.has(dv.type));
-    if(!d) { toast('⚠ No hay dispositivo defensor en esa casilla'); return; }
+    if(!d) {
+      finishAbility(); renderGame();
+      toast('Morientes: no había dispositivo enemigo — habilidad gastada sin efecto');
+      return;
+    }
     d.alive=false;
     finishAbility(); renderGame();
   } else if(mode.type==='wilson_wall'||mode.type==='horacio_wall') {
@@ -4286,14 +4473,7 @@ window.endGame = function(winner, reason) {
   if(ONLINE.enabled){
     window._fbSet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/winner'),{winner,reason});
   }
-  // Show winner screen directly
-  document.getElementById('modal').classList.remove('active');
-  const wo=document.getElementById('waiting-overlay'); if(wo) wo.classList.remove('active');
-  document.getElementById('winner-text').textContent = winner==='atk'?'⚔ ATACANTE GANA':'🛡 DEFENSOR GANA';
-  document.getElementById('winner-text').className = 'winner-text '+winner;
-  document.getElementById('winner-reason').textContent = reason;
-  showScreen('winner');
-  document.getElementById('screen-winner').style.cssText='z-index:2000;position:fixed;inset:0;display:flex;';
+  _origEndGame(winner, reason);
 };
 
 function listenWinner(){
@@ -4302,14 +4482,7 @@ function listenWinner(){
     const data=snap.val();
     if(!data||ONLINE.gameOver) return;
     ONLINE.gameOver=true;
-    // Show winner screen for the waiting player
-    document.getElementById('modal').classList.remove('active');
-    const wo=document.getElementById('waiting-overlay'); if(wo) wo.classList.remove('active');
-    document.getElementById('winner-text').textContent = data.winner==='atk'?'⚔ ATACANTE GANA':'🛡 DEFENSOR GANA';
-    document.getElementById('winner-text').className = 'winner-text '+data.winner;
-    document.getElementById('winner-reason').textContent = data.reason;
-    showScreen('winner');
-    document.getElementById('screen-winner').style.cssText='z-index:2000;position:fixed;inset:0;display:flex;';
+    _origEndGame(data.winner, data.reason);
   });
 }
 const _origAdvancePhase=advancePhase;
@@ -4362,6 +4535,7 @@ window.endTurn=function(){
   G.curroExtendedShot=false; G.morientesSilentElim=false; G.hectorBlindCell=null;
   G.koldoActive=false; G.olayaKilledThisRound=false;
   G.revealedCells=new Set(); G.selectedUnit=null; G.shootingUnit=null;
+  saveReplaySnapshot('shoot');
   G.lastTurnAbilitiesUsed=0; // reset for new turn
 
   pushState();
