@@ -4286,7 +4286,7 @@ function showTurnNotification(rivalSide){
   // Use saved turn data (captured before reset in endTurn)
   const shots = G.lastTurnShots || G.shotsFired || [];
   const unmovedCount = G.lastTurnUnmovedCount || 0;
-  const abilitiesUsed = G.lastTurnAbilitiesUsed || 0;
+  const abilitiesUsed = G.lastTurnAbilitiesUsedForSummary || 0;
 
   let msg = '<b style="color:var(--accent-green)">Turno del '+rivalLabel+' terminado.</b><br><br>';
 
@@ -4321,11 +4321,20 @@ function showTurnNotification(rivalSide){
     if(bu) msg+='<br>⚠ <b>BLOQUEO IVÁN:</b> '+bu.name+' no puede moverse esta ronda.';
   }
 
-  _origShowModal('RESUMEN RONDA '+G.round+' — '+rivalLabel, msg, [{
+  _origShowModal('RESUMEN RONDA '+G.round+' -- '+rivalLabel, msg, [{
     label:'CERRAR Y COMENZAR TURNO',
     action:()=>{
       renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
       setHelp(phaseHelp(G.gamePhase));
+      // Show Jorge reveal modal after closing summary (online equivalent of startNextTurn)
+      if(G.currentSide==='def' && G.jorgeRevealPending) {
+        G.jorgeRevealPending = false;
+        const atkAlive = G.units.filter(u=>u.side==='atk'&&u.alive);
+        let posMsg = '<b>VENGANZA DE JORGE</b><br><br>Posiciones de los atacantes activos:<br><br>';
+        atkAlive.forEach(u=>{ posMsg += '⚔ <b>'+u.name+'</b>: columna '+(u.col+1)+', fila '+(u.row+1)+'<br>'; });
+        if(atkAlive.length===0) posMsg += 'No quedan atacantes vivos.';
+        _origShowModal('🗺 VENGANZA DE JORGE', posMsg, [{label:'ENTENDIDO'}]);
+      }
     }
   }]);
 }
@@ -4571,8 +4580,7 @@ window.endTurn=function(){
   G.lastTurnUnmovedCount=myAliveUnits.filter(u=>!G.movedUnits.has(u.id)).length;
   G.lastTurnSide=prevSide;
   G.lastTurnShots=[...(G.shotsFired||[])];
-  G.lastTurnAbilitiesUsed=G.lastTurnAbilitiesUsed||0;
-  const savedAbilities=G.lastTurnAbilitiesUsed;
+  G.lastTurnAbilitiesUsedForSummary = G.lastTurnAbilitiesUsed||0; // save before reset
 
   // Switch turn
   G.currentSide=G.currentSide==='atk'?'def':'atk';
