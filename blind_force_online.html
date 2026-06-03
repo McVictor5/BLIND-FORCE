@@ -2059,7 +2059,19 @@ function renderGame() {
     }
   }
   if(phase==='movement' && G.selectedUnit) {
-    if(G.selectedUnit==='esteban_drone') {
+    if(G.selectedUnit==='iarramendi_decoy') {
+      const decoy=G.devices.find(d=>d.type==='iarramendi'&&d.alive);
+      if(decoy) {
+        const {x,y}=gCellTL(decoy.row,decoy.col);
+        ctx.fillStyle='rgba(255,153,51,.3)'; ctx.fillRect(x,y,GCS,GCS);
+        ctx.strokeStyle='rgba(255,153,51,.9)'; ctx.lineWidth=2; ctx.strokeRect(x,y,GCS,GCS);
+        getDroneValidMoves(decoy).forEach(({r,c})=>{
+          const {x,y}=gCellTL(r,c);
+          ctx.fillStyle='rgba(0,255,136,.12)'; ctx.fillRect(x,y,GCS,GCS);
+          ctx.strokeStyle='rgba(0,255,136,.4)'; ctx.lineWidth=1.5; ctx.strokeRect(x,y,GCS,GCS);
+        });
+      }
+    } else if(G.selectedUnit==='esteban_drone') {
       const drone=G.devices.find(d=>d.type==='esteban'&&d.alive);
       if(drone) {
         // Highlight drone itself as selected
@@ -2489,13 +2501,30 @@ function canSee(fr,fc,tr,tc) {
     } else {
       // ── Diagonal step ──────────────────────────────────────────────────
       // A diagonal ray crosses two cardinal surcos simultaneously.
-      // It is blocked if EITHER surco has a wall.
-      const hBlocked = cardinalWallBetween(cr,cc,cr,nc); // horizontal surco
-      const vBlocked = cardinalWallBetween(cr,cc,nr,cc); // vertical surco
+      // Blocked if EITHER near surco has a wall.
+      const hBlocked = cardinalWallBetween(cr,cc,cr,nc);
+      const vBlocked = cardinalWallBetween(cr,cc,nr,cc);
       if(hBlocked || vBlocked) return false;
 
-      // If either crossed surco is a flanking aperture the diagonal cannot
-      // pass through it (apertures only allow straight-through perpendicular rays).
+      // Far-side blocking: if there is a wall on the far side of the destination
+      // cell in either component direction of the ray, block it.
+      // This handles cases like: ray goes diagonally into a cell that has a wall
+      // on the far side in the vertical or horizontal component direction.
+      const dr = nr-cr, dc = nc-cc;
+      // Wall on the far vertical side of destination (in the row direction)
+      const hFarV = cardinalWallBetween(nr,nc, nr+dr, nc);
+      // Wall on the far horizontal side of destination (in the col direction)
+      const vFarH = cardinalWallBetween(nr,nc, nr, nc+dc);
+      // Wall on the near side of destination coming from the perpendicular direction
+      const hNearDest = cardinalWallBetween(cr,nc, nr,nc); // wall between intermediate row and dest
+      const vNearDest = cardinalWallBetween(nr,cc, nr,nc); // wall between intermediate col and dest
+      // A single wall on either near side of destination blocks the diagonal
+      if(hNearDest || vNearDest) return false;
+
+      // Corner at destination: both far walls
+      if(hFarV && vFarH) return false;
+
+      // If either crossed surco is a flanking aperture the diagonal cannot pass through.
       if(isFlankingAperture(cr,cc,cr,nc)) return false;
       if(isFlankingAperture(cr,cc,nr,cc)) return false;
     }
@@ -3073,6 +3102,20 @@ function onGameClick(e) {
       removeMarker(clickedMarker.id);
       return;
     }
+    // Iarramendi decoy: if selected, try to move it
+    if(G.selectedUnit==='iarramendi_decoy') {
+      const decoy=G.devices.find(d=>d.type==='iarramendi'&&d.alive);
+      if(decoy) {
+        const valid=getDroneValidMoves(decoy);
+        if(valid.find(m=>m.r===cr&&m.c===cc)) {
+          decoy.row=cr; decoy.col=cc;
+          G.movedUnits.add('iarramendi_decoy');
+          G.selectedUnit=null;
+          renderGame(); return;
+        }
+      }
+      G.selectedUnit=null; renderGame(); return;
+    }
     // Esteban drone: if drone is selected, try to move it
     if(G.selectedUnit==='esteban_drone') {
       const drone=G.devices.find(d=>d.type==='esteban'&&d.alive);
@@ -3101,6 +3144,14 @@ function onGameClick(e) {
       const drone=G.devices.find(d=>d.type==='esteban'&&d.alive&&d.row===cr&&d.col===cc);
       if(drone && !G.movedUnits.has('esteban_drone')) {
         G.selectedUnit='esteban_drone';
+        renderGame(); return;
+      }
+    }
+    // Click on Iarramendi decoy (attacker side only)
+    if(side==='atk') {
+      const decoy=G.devices.find(d=>d.type==='iarramendi'&&d.alive&&d.row===cr&&d.col===cc);
+      if(decoy && !G.movedUnits.has('iarramendi_decoy')) {
+        G.selectedUnit='iarramendi_decoy';
         renderGame(); return;
       }
     }
