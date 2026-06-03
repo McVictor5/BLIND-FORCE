@@ -2226,13 +2226,19 @@ function computeVision() {
   // Catalina: vision without wall obstacles this round
   const catalinaActive = side==='def' && G.catalinaVisionRound===G.round && G.units.find(u=>u.id==='catalina'&&u.alive);
 
+  // If ALL alive units are in bomb zone AND fewer than rival's alive units → radius 2
+  const rivalSide2 = side==='atk'?'def':'atk';
+  const myAliveCount = myUnits.length;
+  const rivalAliveCount = G.units.filter(u=>u.alive&&u.side===rivalSide2).length;
+  const allInBomb = myUnits.length > 0 && myUnits.every(u=>inBombZone(u.row,u.col)) && myAliveCount < rivalAliveCount;
+
   // Build per-unit vision maps so Facundo/Zorro can limit specific units
   const unitVision = new Map(); // unitId -> Set of "r_c" keys
   myUnits.forEach(u => {
     const cells = new Set();
     cells.add(`${u.row}_${u.col}`);
     const inBomb = inBombZone(u.row, u.col);
-    const radius = inBomb ? 1 : 2;
+    const radius = (inBomb && !allInBomb) ? 1 : 2;
     for(let dr=-radius;dr<=radius;dr++) for(let dc=-radius;dc<=radius;dc++) {
       if(dr===0&&dc===0) continue;
       const tr=u.row+dr, tc=u.col+dc;
@@ -2427,6 +2433,30 @@ function canSee(fr,fc,tr,tc) {
     if(onFarSide && straightThrough && (tr!==nr || tc!==nc)) return false;
     // Also block diagonals that cross this door opening
     if(onFarSide && !straightThrough) return false;
+  }
+  // ────────────────────────────────────────────────────────────────────────
+
+  // ── Corner-blocking pre-check ─────────────────────────────────────────────
+  // If source has two perpendicular adjacent walls forming a corner,
+  // block vision in the diagonal bisecting that corner.
+  // Corners: NW(up+left), NE(up+right), SW(down+left), SE(down+right)
+  // For each corner, check if both walls exist; if so, block that diagonal direction.
+  const corners = [
+    { walls: [[-1,0,'h'],[0,-1,'v']], diag: [-1,-1] }, // NW: wall above + wall left → block up-left
+    { walls: [[-1,0,'h'],[0, 0,'v']], diag: [-1, 1] }, // NE: wall above + wall right → block up-right
+    { walls: [[ 0,0,'h'],[0,-1,'v']], diag: [ 1,-1] }, // SW: wall below + wall left → block down-left
+    { walls: [[ 0,0,'h'],[0, 0,'v']], diag: [ 1, 1] }, // SE: wall below + wall right → block down-right
+  ];
+  for(const corner of corners) {
+    const [w1, w2] = corner.walls;
+    // Build wall keys: h_r_c = below row r at col c; v_r_c = right of col c at row r
+    const key1 = w1[2]==='h' ? `h_${fr+w1[0]}_${fc+w1[1]}` : `v_${fr+w1[0]}_${fc+w1[1]}`;
+    const key2 = w2[2]==='h' ? `h_${fr+w2[0]}_${fc+w2[1]}` : `v_${fr+w2[0]}_${fc+w2[1]}`;
+    if(G.walls.has(key1) && G.walls.has(key2)) {
+      // Both walls exist — block the bisecting diagonal direction
+      const [ddr, ddc] = corner.diag;
+      if(Math.sign(tr-fr)===ddr && Math.sign(tc-fc)===ddc) return false;
+    }
   }
   // ────────────────────────────────────────────────────────────────────────
 
@@ -2833,7 +2863,7 @@ function endGame(winner, reason) {
 // ═══════════════════════════════════════════════════════════════════════════
 function advancePhase() {
   if(G.abilityMode) { toast('⚠ Finaliza primero la habilidad activa'); return; }
-  LOCAL_MARKER_SELECTING = null; // cancel any pending marker placement
+  LOCAL_MARKER_SELECTING = null;
   const phase = G.gamePhase;
   if(phase==='movement') {
     saveReplaySnapshot('movement');
@@ -2898,12 +2928,7 @@ function endTurn() {
     notifMsg += G.pendingNotifs.join('<br>')+'\n';
     G.pendingNotifs=[];
   }
-  if(G.jorgeRevealPending) {
-    const atkPos = G.units.filter(u=>u.side==='atk'&&u.alive)
-      .map(u=>`${u.name}: (${u.row+1},${u.col+1})`).join(', ');
-    notifMsg += `🗺 Posiciones atacantes: ${atkPos}<br>`;
-    G.jorgeRevealPending=false;
-  }
+  // jorgeRevealPending is handled as a separate modal at start of next defender turn
 
   // Device delayed notifications (tarantino/xinchan notif at start of next own turn)
   // Store them
@@ -2933,8 +2958,16 @@ function endTurn() {
     unmovedMsg = `<br><span style="color:var(--accent-yellow);font-family:Share Tech Mono,monospace;font-size:.82rem;">⚠ Fichas sin mover este turno: ${unmovedCount}</span>`;
   }
 
+  // Count abilities used this turn
+  const abilitiesUsed = G.lastTurnAbilitiesUsed || 0;
+  let abilitiesMsg = '';
+  if(abilitiesUsed > 0) {
+    abilitiesMsg = `<br><span style="color:var(--accent-yellow);font-family:Share Tech Mono,monospace;font-size:.82rem;">⚡ Habilidades usadas este turno: ${abilitiesUsed}</span>`;
+  }
+
   const changeMsg = `<b>CAMBIO DE DISPOSITIVO</b><br>Entrega el dispositivo al ${nextSide==='atk'?'ATACANTE':'DEFENSOR'}.`
     + unmovedMsg
+    + abilitiesMsg
     + (notifMsg ? `<br><br><b>NOTIFICACIONES:</b><br>${notifMsg}` : '');
 
   saveReplaySnapshot('shoot');
@@ -2960,6 +2993,7 @@ function startNextTurn() {
     G.movedUnits.add(G.ivanBlockedUnit);
   }  G.shotFired=null;  G.shotsFired=[];
   G.shotUnits=new Set();
+  G.lastTurnAbilitiesUsed = 0; // reset at start of movement phase
   G.curroExtendedShot=false;
   G.morientesSilentElim=false;
   G.hectorBlindCell=null;
@@ -2981,6 +3015,18 @@ function startNextTurn() {
     showModal('⚠ BLOQUEO — IVÁN',
       'La ficha <b>'+name+'</b> no puede moverse esta ronda por efecto de la habilidad del atacante Iván.',
       [{label:'ENTENDIDO'}]);
+  }
+
+  // Jorge reveal: show attacker positions at start of this defender turn
+  if(G.currentSide==='def' && G.jorgeRevealPending) {
+    G.jorgeRevealPending = false;
+    const atkAlive = G.units.filter(u=>u.side==='atk'&&u.alive);
+    let posMsg = '<b>VENGANZA DE JORGE</b><br><br>Posiciones de los atacantes activos:<br><br>';
+    atkAlive.forEach(u=>{
+      posMsg += `⚔ <b>${u.name}</b>: columna ${u.col+1}, fila ${u.row+1}<br>`;
+    });
+    if(atkAlive.length===0) posMsg += 'No quedan atacantes vivos.';
+    showModal('🗺 VENGANZA DE JORGE', posMsg, [{label:'ENTENDIDO'}]);
   }
 }
 
@@ -3205,14 +3251,14 @@ function handleAbilityClick(r,c,mx,my) {
     const wk=firstAdjacentWallKey(r,c);
     G.devices.push({type:'francisco',unitId:'francisco',row:r,col:c,alive:true,wallKey:wk});
     G.franciscoSensor={row:r,col:c,wallKey:wk};
-    finishAbility(); computeVision(); renderGame();
+    finishAbility(); renderGame();
   } else if(mode.type==='melania_sensor') {
     if(isCentralCell(r,c)) { toast('⚠ Casilla central bloqueada'); return; }
     if(!hasAdjacentWall(r,c)) { toast('⚠ La casilla debe tener una pared en un surco adyacente'); return; }
     const wk=firstAdjacentWallKey(r,c);
     G.devices.push({type:'melania',unitId:'melania',row:r,col:c,alive:true,wallKey:wk});
     G.melaniaSensor={row:r,col:c,wallKey:wk};
-    finishAbility(); computeVision(); renderGame();
+    finishAbility(); renderGame();
   } else if(mode.type==='facundo_device') {
     if(inBombZone(r,c)||isCentralCell(r,c)) { toast('⚠ No puede ser dentro de la sala de bomba'); return; }
     const doors=getDoorSurcos();
@@ -4540,8 +4586,8 @@ window.endTurn=function(){
   G.curroExtendedShot=false; G.morientesSilentElim=false; G.hectorBlindCell=null;
   G.koldoActive=false; G.olayaKilledThisRound=false;
   G.revealedCells=new Set(); G.selectedUnit=null; G.shootingUnit=null;
-  saveReplaySnapshot('shoot');
   G.lastTurnAbilitiesUsed=0; // reset for new turn
+  saveReplaySnapshot('shoot');
 
   pushState();
   // Save a snapshot of what the player saw at end of their turn
