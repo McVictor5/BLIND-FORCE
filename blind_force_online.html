@@ -969,8 +969,8 @@ const UNIT_DEFS = {
     abilityPhase:'movement',
     abilityOnce:true,
   },
-  ivan: {
-    id:'ivan', name:'Iván', side:'atk', icon:'I',
+  uche: {
+    id:'uche', name:'Uche', side:'atk', icon:'U',
     abilityName:'BLOQUEO',
     abilityDesc:'Una ficha defensora elegida aleatoriamente no podrá moverse en la siguiente ronda defensora. Al inicio de esa ronda se notifica al defensor cuál es la ficha bloqueada.',
     abilityPhase:'vision',
@@ -1289,9 +1289,9 @@ function initState() {
     // Last move origin for Vladimir: defLastMoveFrom[unitId] = {row, col, round}
     defLastMoveFrom: {},
     bulletMarkers: [], // [{row,col}] shown during rival's next turn
-    ivanBlockedUnit: null,
-    ivanBlockRound: -1,
-    ivanBlockPending: false,
+    ucheBlockedUnit: null,
+    ucheBlockRound: -1,
+    ucheBlockPending: false,
     // Units seen by each side at any point: seenByAtk/seenByDef = Set of unitIds
     seenByAtk: new Set(),
     seenByDef: new Set(),
@@ -1397,35 +1397,43 @@ function showInstructions() {
 
   const body = `
   ${s('🎯 Objetivo',
-    `Dos jugadores comparten el mismo dispositivo turnándose. El ${b('atacante')} gana si elimina todas las fichas defensoras, o si una de sus fichas permanece ${b('5 rondas consecutivas')} dentro de la sala de la bomba (las 25 casillas centrales) sin defensores dentro. El ${b('defensor')} gana si elimina todas las fichas atacantes.`)}
+    `Dos jugadores se enfrentan: ${b('atacante')} contra ${b('defensor')}. El atacante gana si ${b('elimina todas las fichas defensoras')}, o si una de sus fichas permanece ${b('5 rondas consecutivas')} dentro de la sala de la bomba sin que haya defensores dentro al finalizar cada ronda. El defensor gana si ${b('elimina todas las fichas atacantes')}.`)}
 
   ${s('📐 El tablero',
-    `Cuadrícula de ${b('15×15 casillas')}. La ${b('sala de la bomba')} son las 25 casillas centrales (5×5), accesible por 4 entradas cardinales. La casilla del centro absoluto está permanentemente bloqueada. Entre casillas hay ${b('surcos')} donde se colocan paredes.`)}
+    `Cuadrícula de ${b('15×15 casillas')}. Hay dos zonas especiales:<br>
+    — La ${b('sala de la bomba')}: las 25 casillas centrales (5×5), rodeadas de paredes fijas con una entrada en el centro de cada lado. La casilla del centro absoluto está bloqueada permanentemente.<br>
+    — El ${b('anillo exterior')}: un cuadrado de paredes fijas a 4 casillas de distancia de la sala de la bomba, con ${b('2 puertas aleatorias por lado')} que cambian en cada partida.<br>
+    Entre casillas hay ${b('surcos')}, que son los espacios donde se colocan las paredes.`)}
 
   ${s('⚙ Fases de una partida',
-    `<b>1. Selección:</b> cada jugador elige 4 fichas de personaje de las disponibles para su bando (atacante o defensor).<br>
-    <b>2. Construcción:</b> se colocan 32 paredes alternando turnos. Puedes usar el botón de mapa aleatorio.<br>
-    <b>3. Despliegue:</b> el atacante coloca sus fichas en casillas externas del tablero; el defensor en casillas de la sala de la bomba.<br>
-    <b>4. Lanzamiento:</b> una moneda al aire decide quién empieza.<br>
-    <b>5. Rondas:</b> el jugador activo ejecuta sus fases y entrega el dispositivo al rival.`)}
+    `${b('1. Selección:')} cada jugador elige simultáneamente 4 fichas de personaje de las disponibles para su bando. Puedes ver las fichas rivales con el botón "Ver fichas rivales".<br>
+    ${b('2. Construcción:')} se colocan ${b('32 paredes')} en total alternando turnos (16 por jugador). Hay un botón de mapa aleatorio.<br>
+    ${b('3. Despliegue:')} cada jugador coloca simultáneamente sus 4 fichas: el atacante en las casillas del borde exterior, el defensor en la sala de la bomba.<br>
+    ${b('4. Moneda:')} se lanza una moneda al aire para decidir quién empieza.<br>
+    ${b('5. Rondas:')} cada jugador juega su turno completo y pasa al rival.`)}
 
   ${s('🔄 Fases de cada ronda',
-    `<b>Movimiento:</b> cada ficha se mueve hasta 1 casilla (respetando paredes). Las fichas rivales no son visibles.<br>
-    <b>Visión:</b> se revelan casillas en un radio de 2 desde cada ficha (1 dentro de la sala de la bomba). Las paredes y las "puertas" (surcos flanqueados por paredes) limitan la visión. Aquí se activan las habilidades de fase visión.<br>
-    <b>Disparo:</b> si una ficha rival fue revelada y está a distancia 1 en horizontal/vertical (o diagonal dentro de la sala), puedes eliminarla. Cada ficha puede disparar como máximo una vez por ronda. No es obligatorio disparar.<br>
-    <b>Cambio:</b> pantalla negra de cambio de dispositivo. Se notifican disparos, habilidades usadas y fichas sin mover.`)}
+    `${b('Movimiento:')} cada ficha se mueve hasta 1 casilla en cualquier dirección (incluyendo diagonales), respetando paredes. No se puede cruzar en diagonal por una esquina de dos paredes perpendiculares. Las fichas rivales no son visibles salvo las que hayas desvelado antes.<br><br>
+    ${b('Visión:')} cada ficha desvela casillas a su alrededor. El radio normal es de ${b('2 casillas')}. Dentro de la sala de la bomba el radio es ${b('1 casilla')}, excepto si ${b('todas tus fichas están en la sala y tienes menos fichas que el rival')}, en cuyo caso el radio vuelve a ser 2. Las paredes bloquean la visión. Una casilla en esquina (dos paredes perpendiculares) no permite ver al otro lado de esa esquina en diagonal.<br><br>
+    ${b('Surcos-puerta:')} un hueco entre dos paredes paralelas actúa como rendija — solo permite ver la casilla directamente enfrente, no en diagonal.<br><br>
+    ${b('Disparo:')} si durante la visión has desvelado una ficha rival a distancia 1 (horizontal o vertical, o diagonal dentro de la sala), puedes dispararla para eliminarla. Una ficha puede disparar una vez por ronda. No es obligatorio.<br><br>
+    ${b('Fin de turno:')} aparece un resumen con los disparos realizados, fichas sin mover y habilidades usadas por el rival.`)}
 
-  ${s('🧱 Paredes y visión',
-    `Las paredes bloquean el movimiento y la visión. Un ${b('surco-puerta')} (surco sin pared flanqueado por dos paredes paralelas) actúa como rendija: solo permite ver la casilla directamente al otro lado en línea recta, no en diagonal.`)}
+  ${s('🧱 Paredes y dispositivos',
+    `Las paredes fijas (más oscuras) no se pueden eliminar. Las paredes colocadas en construcción son removibles por algunas habilidades. Además de las fichas de personaje, existen ${b('fichas de dispositivo')}: trampas, sensores y señuelos que cada bando puede desplegar con sus habilidades. Los dispositivos propios son siempre visibles para ti; los rivales solo son visibles si los desvelaste en la fase de visión.`)}
 
   ${s('⚡ Habilidades',
-    `Cada ficha tiene una habilidad de uso único (salvo excepciones). Cuando es accionable en la fase actual, su botón se ilumina en el panel lateral. Al pulsarlo aparece una ventana con la descripción y la opción de activar o cancelar.`)}
+    `Cada ficha tiene una habilidad especial. En el panel lateral verás tus fichas y sus habilidades — el botón se ilumina cuando puedes usarla en la fase actual. La mayoría son de ${b('uso único')}. En el desplegable "Fichas enemigas vistas" puedes consultar las habilidades de las fichas rivales que ya hayas desvelado.`)}
 
   ${s('💣 Contador de bomba',
-    `Cuando una ficha atacante entra en la sala de la bomba, aparece un contador en el lateral. El contador sube al final de cada ronda atacante si no hay defensores en la sala. Si hay un defensor dentro, el contador se congela. Si llega a 5, el atacante gana.`)}
+    `Cuando una ficha atacante está en la sala de la bomba al finalizar una ronda atacante sin defensores dentro, su contador sube 1. Si llega a 5, el atacante gana. Si hay un defensor en la sala al finalizar la ronda, el contador se congela.`)}
 
   ${s('🔍 Niebla de guerra',
-    `Fuera de la fase de visión, las fichas rivales son invisibles. Lo que ves es solo lo que tus fichas revelaron en la última fase de visión. La ventana de cambio de turno es completamente opaca para proteger esta información.`)}`;
+    `Fuera de la fase de visión las fichas rivales son invisibles, solo ves lo que desvelaste en tu última fase de visión. Puedes usar los ${b('marcadores de hipótesis')} (fichas verdes "+" en el panel lateral durante la fase de movimiento) para marcar en el tablero dónde crees que está el rival — son solo para ti, el rival no los ve.`)}
+
+  ${s('📱 Modos de juego',
+    `${b('Modo local:')} dos jugadores en el mismo dispositivo, con pantalla negra de cambio de turno para proteger la información.<br>
+    ${b('Modo online:')} cada jugador en su propio dispositivo. Se crea una sala y se comparte el código de 4 letras con el rival. Durante el turno rival verás una ventana de espera y al recuperar el turno recibirás el resumen de lo que ha pasado.`)}`;
 
   showModal('📖 INSTRUCCIONES — BLIND-FORCE', body, [{label:'ENTENDIDO'}]);
 }
@@ -2506,23 +2514,15 @@ function canSee(fr,fc,tr,tc) {
       const vBlocked = cardinalWallBetween(cr,cc,nr,cc);
       if(hBlocked || vBlocked) return false;
 
-      // Far-side blocking: if there is a wall on the far side of the destination
-      // cell in either component direction of the ray, block it.
-      // This handles cases like: ray goes diagonally into a cell that has a wall
-      // on the far side in the vertical or horizontal component direction.
+      // Far-side blocking: a wall on the near entry side of the destination
+      // (not the destination itself) blocks the diagonal.
+      // hNearDest: wall between (cr,nc) and (nr,nc) — vertical entry to dest
+      // vNearDest: wall between (nr,cc) and (nr,nc) — horizontal entry to dest
       const dr = nr-cr, dc = nc-cc;
-      // Wall on the far vertical side of destination (in the row direction)
-      const hFarV = cardinalWallBetween(nr,nc, nr+dr, nc);
-      // Wall on the far horizontal side of destination (in the col direction)
-      const vFarH = cardinalWallBetween(nr,nc, nr, nc+dc);
-      // Wall on the near side of destination coming from the perpendicular direction
-      const hNearDest = cardinalWallBetween(cr,nc, nr,nc); // wall between intermediate row and dest
-      const vNearDest = cardinalWallBetween(nr,cc, nr,nc); // wall between intermediate col and dest
-      // A single wall on either near side of destination blocks the diagonal
+      const hNearDest = cardinalWallBetween(cr,nc, nr,nc);
+      const vNearDest = cardinalWallBetween(nr,cc, nr,nc);
+      // A wall on the near entry side blocks the diagonal
       if(hNearDest || vNearDest) return false;
-
-      // Corner at destination: both far walls
-      if(hFarV && vFarH) return false;
 
       // If either crossed surco is a flanking aperture the diagonal cannot pass through.
       if(isFlankingAperture(cr,cc,cr,nc)) return false;
@@ -2586,6 +2586,8 @@ function getValidMoves(u) {
     } else {
       if(cardinalWallBetween(u.row,u.col,u.row,nc)) return;
       if(cardinalWallBetween(u.row,u.col,nr,u.col)) return;
+      // Corner blocking: if the far corner walls (meeting at the diagonal crossing point) exist, block
+      if(cardinalWallBetween(u.row,nc,nr,nc) && cardinalWallBetween(nr,u.col,nr,nc)) return;
     }
     if(G.units.some(o=>o.alive&&o.side===u.side&&o.row===nr&&o.col===nc)) return;
     if(u.side==='atk' && G.devices.some(d=>d.type==='galileo'&&d.alive&&d.row===nr&&d.col===nc)) return;
@@ -2609,6 +2611,7 @@ function getValidMoves(u) {
           } else {
             if(cardinalWallBetween(cr,cc,cr,nc)) return;
             if(cardinalWallBetween(cr,cc,nr,cc)) return;
+            if(cardinalWallBetween(cr,nc,nr,nc) && cardinalWallBetween(nr,cc,nr,nc)) return;
           }
           if(G.units.some(o=>o.alive&&o.side===u.side&&o.row===nr&&o.col===nc)) return;
           if(u.side==='atk' && G.devices.some(d=>d.type==='galileo'&&d.alive&&d.row===nr&&d.col===nc)) return;
@@ -2636,6 +2639,7 @@ function getDroneValidMoves(drone) {
     } else {
       if(cardinalWallBetween(drone.row,drone.col,drone.row,nc)) return;
       if(cardinalWallBetween(drone.row,drone.col,nr,drone.col)) return;
+      if(cardinalWallBetween(drone.row,nc,nr,nc) && cardinalWallBetween(nr,drone.col,nr,nc)) return;
     }
     moves.push({r:nr,c:nc});
   });
@@ -3011,15 +3015,15 @@ function startNextTurn() {
   G.bulletMarkers = G.pendingBulletMarkers || [];
   G.pendingBulletMarkers = [];
   // Ivan block: activate for this defender round if pending
-  if(G.currentSide==='def' && G.ivanBlockPending && G.ivanBlockedUnit) {
-    G.ivanBlockRound = G.round;
-    G.ivanBlockPending = false;
+  if(G.currentSide==='def' && G.ucheBlockPending && G.ucheBlockedUnit) {
+    G.ucheBlockRound = G.round;
+    G.ucheBlockPending = false;
   }
   G.gamePhase='movement';
   G.movedUnits=new Set();
   // Pre-mark Ivan-blocked unit so it can't be selected for movement
-  if(G.currentSide==='def' && G.ivanBlockRound===G.round && G.ivanBlockedUnit) {
-    G.movedUnits.add(G.ivanBlockedUnit);
+  if(G.currentSide==='def' && G.ucheBlockRound===G.round && G.ucheBlockedUnit) {
+    G.movedUnits.add(G.ucheBlockedUnit);
   }  G.shotFired=null;  G.shotsFired=[];
   G.shotUnits=new Set();
   G.lastTurnAbilitiesUsed = 0; // reset at start of movement phase
@@ -3038,11 +3042,11 @@ function startNextTurn() {
   setHelp('Selecciona una unidad y muévela (máx. 1 casilla). AVANZA cuando termines.');
 
   // Ivan block: notify defender at start of their turn
-  if(G.currentSide==='def' && G.ivanBlockRound===G.round && G.ivanBlockedUnit) {
-    const blockedUnit = getUnit(G.ivanBlockedUnit);
-    const name = blockedUnit ? blockedUnit.name : G.ivanBlockedUnit;
-    showModal('⚠ BLOQUEO — IVÁN',
-      'La ficha <b>'+name+'</b> no puede moverse esta ronda por efecto de la habilidad del atacante Iván.',
+  if(G.currentSide==='def' && G.ucheBlockRound===G.round && G.ucheBlockedUnit) {
+    const blockedUnit = getUnit(G.ucheBlockedUnit);
+    const name = blockedUnit ? blockedUnit.name : G.ucheBlockedUnit;
+    showModal('⚠ BLOQUEO — UCHE',
+      'La ficha <b>'+name+'</b> no puede moverse esta ronda por efecto de la habilidad del atacante Uche.',
       [{label:'ENTENDIDO'}]);
   }
 
@@ -3759,16 +3763,16 @@ function executeAbility(uid) {
       toast('✓ Olaya: ímpetu activo — si eliminas una ficha defensora hoy ganarás radio 2 la próxima ronda');
       updateSidebar();
       break;
-    case 'ivan': {
+    case 'uche': {
       const defAlive = G.units.filter(du=>du.side==='def'&&du.alive);
       if(defAlive.length===0) { toast('No hay fichas defensoras en juego'); u.abilityUsed=false; break; }
       const picked = defAlive[Math.floor(Math.random()*defAlive.length)];
-      G.ivanBlockedUnit = picked.id;
+      G.ucheBlockedUnit = picked.id;
       // Block applies on the next defender round
       // We'll check at startNextTurn when side switches to def
-      G.ivanBlockRound = -1; // will be set when def turn starts
-      G.ivanBlockPending = true;
-      toast('✓ Iván: bloqueo aplicado — una ficha defensora no podrá moverse la próxima ronda');
+      G.ucheBlockRound = -1; // will be set when def turn starts
+      G.ucheBlockPending = true;
+      toast('✓ Uche: bloqueo aplicado — una ficha defensora no podrá moverse la próxima ronda');
       updateSidebar();
       break;
     }
@@ -4367,9 +4371,9 @@ function showTurnNotification(rivalSide){
   }
 
   // Ivan block warning for this round
-  if(G.currentSide==='def'&&G.ivanBlockRound===G.round&&G.ivanBlockedUnit){
-    const bu=getUnit(G.ivanBlockedUnit);
-    if(bu) msg+='<br>⚠ <b>BLOQUEO IVÁN:</b> '+bu.name+' no puede moverse esta ronda.';
+  if(G.currentSide==='def'&&G.ucheBlockRound===G.round&&G.ucheBlockedUnit){
+    const bu=getUnit(G.ucheBlockedUnit);
+    if(bu) msg+='<br>⚠ <b>BLOQUEO UCHE:</b> '+bu.name+' no puede moverse esta ronda.';
   }
 
   _origShowModal('RESUMEN RONDA '+G.round+' -- '+rivalLabel, msg, [{
@@ -4636,11 +4640,11 @@ window.endTurn=function(){
   // Switch turn
   G.currentSide=G.currentSide==='atk'?'def':'atk';
   if(G.currentSide==='atk') G.round++;
-  if(G.currentSide==='def'&&G.ivanBlockPending&&G.ivanBlockedUnit){ G.ivanBlockRound=G.round; G.ivanBlockPending=false; }
+  if(G.currentSide==='def'&&G.ucheBlockPending&&G.ucheBlockedUnit){ G.ucheBlockRound=G.round; G.ucheBlockPending=false; }
   G.gamePhase='movement';
   G.bulletMarkers=G.pendingBulletMarkers||[]; G.pendingBulletMarkers=[];
   G.movedUnits=new Set();
-  if(G.currentSide==='def'&&G.ivanBlockRound===G.round&&G.ivanBlockedUnit) G.movedUnits.add(G.ivanBlockedUnit);
+  if(G.currentSide==='def'&&G.ucheBlockRound===G.round&&G.ucheBlockedUnit) G.movedUnits.add(G.ucheBlockedUnit);
   G.shotFired=null; G.shotsFired=[]; G.shotUnits=new Set();
   G.curroExtendedShot=false; G.morientesSilentElim=false; G.hectorBlindCell=null;
   G.koldoActive=false; G.olayaKilledThisRound=false;
