@@ -1624,6 +1624,64 @@ function isOuterRingSurco(key) {
   }
 }
 
+function isSurcoPuerta(key) {
+  if(G.walls.has(key)||G.fixedWalls.has(key)) return false;
+
+  // Helper: does a wall exist (either in walls or fixedWalls)?
+  const hasWall = k => G.walls.has(k)||G.fixedWalls.has(k);
+
+  if(key.startsWith('h_')) {
+    const parts=key.split('_'); const r=parseInt(parts[1]),c=parseInt(parts[2]);
+    // (A) flanked by parallel horizontal walls on left/right
+    if(hasWall(`h_${r}_${c-1}`) && hasWall(`h_${r}_${c+1}`)) return true;
+    // (B) flanked by perpendicular vertical walls on the upper cell (r,c) left+right
+    if(hasWall(`v_${r}_${c-1}`) && hasWall(`v_${r}_${c}`)) return true;
+    // (B) flanked by perpendicular vertical walls on the lower cell (r+1,c) left+right
+    if(hasWall(`v_${r+1}_${c-1}`) && hasWall(`v_${r+1}_${c}`)) return true;
+    // (C) collinear sequence mixing h and v for horizontal surcos:
+    // h_r_c sits on the boundary between row r and r+1, at col c.
+    // The surco to its left at the left endpoint could be v_{r}_{c-1} (going upward from that point)
+    // or v_{r+1}_{c-1} (going downward). Similarly on the right: v_{r}_{c} or v_{r+1}_{c}.
+    // Left endpoint: v_{r}_{c-1} left + h_{r}_{c+1} right
+    if(hasWall(`v_${r}_${c-1}`) && hasWall(`h_${r}_${c+1}`)) return true;
+    // Left endpoint: v_{r+1}_{c-1} left + h_{r}_{c+1} right
+    if(hasWall(`v_${r+1}_${c-1}`) && hasWall(`h_${r}_${c+1}`)) return true;
+    // Right endpoint: h_{r}_{c-1} left + v_{r}_{c} right
+    if(hasWall(`h_${r}_${c-1}`) && hasWall(`v_${r}_${c}`)) return true;
+    // Right endpoint: h_{r}_{c-1} left + v_{r+1}_{c} right
+    if(hasWall(`h_${r}_${c-1}`) && hasWall(`v_${r+1}_${c}`)) return true;
+    // Both endpoints mixed: v left + v right
+    if(hasWall(`v_${r}_${c-1}`) && hasWall(`v_${r}_${c}`)) return true;
+    if(hasWall(`v_${r+1}_${c-1}`) && hasWall(`v_${r+1}_${c}`)) return true;
+    return false;
+  } else {
+    const parts=key.split('_'); const r=parseInt(parts[1]),c=parseInt(parts[2]);
+    // (A) flanked by parallel vertical walls above/below
+    if(hasWall(`v_${r-1}_${c}`) && hasWall(`v_${r+1}_${c}`)) return true;
+    // (B) flanked by perpendicular horizontal walls on left cell (r,c) top+bottom
+    if(hasWall(`h_${r-1}_${c}`) && hasWall(`h_${r}_${c}`)) return true;
+    // (B) flanked by perpendicular horizontal walls on right cell (r,c+1) top+bottom
+    if(hasWall(`h_${r-1}_${c+1}`) && hasWall(`h_${r}_${c+1}`)) return true;
+    // (C) collinear sequence mixing h and v: the surco "above" v_r_c in a vertical line
+    // could be h_{r-1}_c (horizontal surco above) and below could be h_{r}_c or v_{r+1}_c.
+    // "Above" means: the wall just above this surco in the same column boundary.
+    // v_r_c sits on the boundary between col c and c+1, between rows r and r+1.
+    // The surco directly above it in the same column boundary is v_{r-1}_c.
+    // The surco directly below is v_{r+1}_c — already covered by (A).
+    // But the surco above could also be h_{r-1}_c (a horizontal surco ending at the same point).
+    // Specifically: h_{r-1}_c is the horizontal surco at row r-1, col c — this sits between
+    // (r-1,c) and (r,c), ending at the boundary point that v_r_c starts from (top-left of the gap).
+    // These form a collinear vertical sequence through the grid point at row r, between col c and c+1.
+    // Check: h_{r-1}_c above AND v_{r+1}_c below
+    if(hasWall(`h_${r-1}_${c}`) && hasWall(`v_${r+1}_${c}`)) return true;
+    // Check: v_{r-1}_c above AND h_{r}_c below
+    if(hasWall(`v_${r-1}_${c}`) && hasWall(`h_${r}_${c}`)) return true;
+    // Check: h_{r-1}_c above AND h_{r}_c below
+    if(hasWall(`h_${r-1}_${c}`) && hasWall(`h_${r}_${c}`)) return true;
+    return false;
+  }
+}
+
 function onConstructClick(e) {
   if(G.wallsPlaced>=32) return;
   const rect = cCanvas.getBoundingClientRect();
@@ -1639,6 +1697,7 @@ function onConstructClick(e) {
     const key = `h_${r}_${c}`;
     if(G.fixedWalls.has(key)||G.walls.has(key)) continue;
     if(isOuterRingSurco(key)) continue;
+    if(isSurcoPuerta(key)) continue;
     if(mx>=x&&mx<=x+CS&&my>=wy&&my<=wy+WS) {
       placeWall(key); return;
     }
@@ -1650,6 +1709,7 @@ function onConstructClick(e) {
     const key = `v_${r}_${c}`;
     if(G.fixedWalls.has(key)||G.walls.has(key)) continue;
     if(isOuterRingSurco(key)) continue;
+    if(isSurcoPuerta(key)) continue;
     if(mx>=wx&&mx<=wx+WS&&my>=y&&my<=y+CS) {
       placeWall(key); return;
     }
@@ -2003,7 +2063,8 @@ function renderGame() {
   G.units.filter(u=>u.alive).forEach(u=>{
     const isMine = u.side===side;
     const key=`${u.row}_${u.col}`;
-    const visible = isMine || G.revealedCells.has(key);
+    const jorgeVisible = G.jorgeRevealPending && side==='def' && phase==='movement' && u.side==='atk';
+    const visible = isMine || G.revealedCells.has(key) || jorgeVisible;
     // Check invisible
     const isInvis = u.side!==side && isUnitInvisibleTo(u, side);
     if(!visible || isInvis) return;
@@ -2900,6 +2961,7 @@ function advancePhase() {
   const phase = G.gamePhase;
   if(phase==='movement') {
     saveReplaySnapshot('movement');
+    G.jorgeRevealPending = false; // jorge reveal only active during movement phase
     computeVision();
     G.gamePhase='vision';
     renderGame();
@@ -3050,16 +3112,9 @@ function startNextTurn() {
       [{label:'ENTENDIDO'}]);
   }
 
-  // Jorge reveal: show attacker positions at start of this defender turn
+  // Jorge reveal: handled in computeVision during vision phase
   if(G.currentSide==='def' && G.jorgeRevealPending) {
-    G.jorgeRevealPending = false;
-    const atkAlive = G.units.filter(u=>u.side==='atk'&&u.alive);
-    let posMsg = '<b>VENGANZA DE JORGE</b><br><br>Posiciones de los atacantes activos:<br><br>';
-    atkAlive.forEach(u=>{
-      posMsg += `⚔ <b>${u.name}</b>: columna ${u.col+1}, fila ${u.row+1}<br>`;
-    });
-    if(atkAlive.length===0) posMsg += 'No quedan atacantes vivos.';
-    showModal('🗺 VENGANZA DE JORGE', posMsg, [{label:'ENTENDIDO'}]);
+    toast('⚔ VENGANZA DE JORGE: las fichas atacantes serán visibles esta fase de visión');
   }
 }
 
@@ -4033,6 +4088,7 @@ function generateRandomMap() {
     if(isOuterRingSurco(key)) continue;
     if(surcoInsideBombZone(key)) continue;
     if(isBombZoneDoor(key)) continue;
+    if(isSurcoPuerta(key)) continue;
     interiorPool.push(key);
   }
   // Vertical surcos inside the ring: v_r_c with r in 1..13, c in 1..12
@@ -4042,6 +4098,7 @@ function generateRandomMap() {
     if(isOuterRingSurco(key)) continue;
     if(surcoInsideBombZone(key)) continue;
     if(isBombZoneDoor(key)) continue;
+    if(isSurcoPuerta(key)) continue;
     interiorPool.push(key);
   }
 
@@ -4381,14 +4438,9 @@ function showTurnNotification(rivalSide){
     action:()=>{
       renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
       setHelp(phaseHelp(G.gamePhase));
-      // Show Jorge reveal modal after closing summary (online equivalent of startNextTurn)
+      // Jorge reveal: handled in computeVision
       if(G.currentSide==='def' && G.jorgeRevealPending) {
-        G.jorgeRevealPending = false;
-        const atkAlive = G.units.filter(u=>u.side==='atk'&&u.alive);
-        let posMsg = '<b>VENGANZA DE JORGE</b><br><br>Posiciones de los atacantes activos:<br><br>';
-        atkAlive.forEach(u=>{ posMsg += '⚔ <b>'+u.name+'</b>: columna '+(u.col+1)+', fila '+(u.row+1)+'<br>'; });
-        if(atkAlive.length===0) posMsg += 'No quedan atacantes vivos.';
-        _origShowModal('🗺 VENGANZA DE JORGE', posMsg, [{label:'ENTENDIDO'}]);
+        toast('⚔ VENGANZA DE JORGE: las fichas atacantes serán visibles esta fase de visión');
       }
     }
   }]);
