@@ -713,7 +713,7 @@ body::before {
   </div>
   <div id="pick-role-badge" style="margin-bottom:16px;"></div>
   <div id="pick-instructions" class="sel-count" style="margin-bottom:18px;text-align:center;"></div>
-  <div id="card-grid" class="card-grid"></div>
+  <div id="card-grid" style="width:100%;max-width:820px;display:flex;flex-direction:column;align-items:center;"></div>
   <div id="pick-count" class="sel-count" style="margin-top:16px;text-align:center;"></div>
   <div style="display:flex;gap:12px;margin-top:20px;align-items:center;flex-wrap:wrap;justify-content:center;">
     <button class="btn-primary" id="pick-confirm" style="display:none;" onclick="confirmPick()">CONFIRMAR SELECCIÓN</button>
@@ -1580,6 +1580,28 @@ function startPick(side) {
   renderPickScreen();
 }
 
+const PICK_CATEGORIES = {
+  atk: [
+    { id:'reconocimiento', label:'Reconocimiento', icon:'🔍', ids:['bertin','francisco','soriano','koldo','vladimir'] },
+    { id:'interferencia',  label:'Interferencia',  icon:'⚡', ids:['austin','zorro','morientes','uche'] },
+    { id:'combate',        label:'Combate',        icon:'🎯', ids:['curro','tarantino','hector'] },
+    { id:'control',        label:'Control',        icon:'🔒', ids:['guridi','wilson'] },
+    { id:'movilidad',      label:'Movilidad especial', icon:'💨', ids:['daniel','olaya','iarramendi'] },
+    { id:'sigilo',         label:'Sigilo',         icon:'🌑', ids:['norberto'] },
+  ],
+  def: [
+    { id:'reconocimiento', label:'Reconocimiento', icon:'🔍', ids:['dario','catalina','melania','esteban','perico'] },
+    { id:'interferencia',  label:'Interferencia',  icon:'⚡', ids:['facundo','torrente','bisbal'] },
+    { id:'combate',        label:'Combate',        icon:'🎯', ids:['xinchan','lucero','kevin','rocinante'] },
+    { id:'control',        label:'Control',        icon:'🔒', ids:['asencio','horacio','galileo'] },
+    { id:'movilidad',      label:'Movilidad especial', icon:'💨', ids:['sarapova'] },
+    { id:'jorge',          label:'Habilidad única', icon:'⚰', ids:['jorge'] },
+  ],
+};
+
+// Track open/closed state of each category
+const _pickCatOpen = {};
+
 function renderPickScreen() {
   const side = pickSide;
   const badge = document.getElementById('pick-role-badge');
@@ -1587,27 +1609,54 @@ function renderPickScreen() {
     ? '<span class="role-badge atk">⚔ ATACANTE</span>'
     : '<span class="role-badge def">🛡 DEFENSOR</span>';
   const inst = document.getElementById('pick-instructions');
-  inst.textContent = `Selecciona 4 unidades para tu equipo`;
-  const pool = Object.values(UNIT_DEFS).filter(u => u.side===side);
+  inst.textContent = 'Selecciona 4 unidades para tu equipo';
   const chosen = side==='atk' ? G.atkPick : G.defPick;
   const grid = document.getElementById('card-grid');
-  grid.innerHTML='';
-  pool.forEach(u => {
-    const sel = chosen.includes(u.id);
-    const card = document.createElement('div');
-    card.className = `unit-card ${sel?'selected '+side:''}`;
-    card.innerHTML = `
-      <div class="unit-icon ${side}">${u.icon}</div>
-      <div class="unit-name">${u.name}</div>
-      <div class="unit-ability"><b>${u.abilityName}:</b> ${u.abilityDesc}</div>
-    `;
-    card.onclick = () => togglePick(u.id, side);
-    grid.appendChild(card);
-  });
+  const cats = PICK_CATEGORIES[side];
+
+  // Build grouped HTML
+  grid.innerHTML = cats.map(cat => {
+    const isOpen = _pickCatOpen[side+'_'+cat.id] === true; // closed by default
+    const units = cat.ids.map(id=>UNIT_DEFS[id]).filter(Boolean);
+    const selCount = units.filter(u=>chosen.includes(u.id)).length;
+    const cardsHTML = units.map(u => {
+      const sel = chosen.includes(u.id);
+      const color = side==='atk' ? 'var(--atk)' : 'var(--def)';
+      const bgSel = side==='atk' ? 'rgba(200,69,58,.08)' : 'rgba(58,114,160,.08)';
+      return `<div class="unit-card ${sel?'selected '+side:''}" onclick="togglePick('${u.id}','${side}')"
+        style="${sel?`border-color:${color};background:${bgSel};`:''}">
+        <div class="unit-icon ${side}">${u.icon}</div>
+        <div class="unit-name">${u.name}</div>
+        <div class="unit-ability"><b>${u.abilityName}:</b> ${u.abilityDesc}</div>
+      </div>`;
+    }).join('');
+    return `
+      <div style="width:100%;max-width:820px;margin-bottom:10px;">
+        <button onclick="togglePickCat('${side}','${cat.id}')"
+          style="width:100%;background:var(--panel);border:1px solid var(--border);padding:11px 16px;
+          display:flex;align-items:center;gap:10px;cursor:pointer;text-align:left;transition:background .15s;"
+          onmouseover="this.style.background='#2a2720'" onmouseout="this.style.background='var(--panel)'">
+          <span style="font-size:1rem;">${cat.icon}</span>
+          <span style="font-family:Orbitron,monospace;font-size:.7rem;letter-spacing:.12em;color:var(--text);text-transform:uppercase;flex:1;">${cat.label}</span>
+          ${selCount>0?`<span style="font-size:.68rem;color:var(--accent-yellow);font-weight:600;">${selCount} seleccionada${selCount>1?'s':''}</span>`:''}
+          <span style="color:var(--text-dim);font-size:.7rem;transition:transform .2s;${isOpen?'transform:rotate(180deg)':''}">▼</span>
+        </button>
+        <div id="pickcat_${side}_${cat.id}" style="display:${isOpen?'grid':'none'};grid-template-columns:repeat(2,1fr);gap:10px;padding:10px;background:rgba(0,0,0,.15);border:1px solid var(--border);border-top:none;">
+          ${cardsHTML}
+        </div>
+      </div>`;
+  }).join('');
+
   const cnt = document.getElementById('pick-count');
   cnt.textContent = `Seleccionadas: ${chosen.length} / 4`;
   const btn = document.getElementById('pick-confirm');
   btn.style.display = chosen.length===4 ? 'block' : 'none';
+}
+
+function togglePickCat(side, catId) {
+  const key = side+'_'+catId;
+  _pickCatOpen[key] = _pickCatOpen[key] === true ? false : true;
+  renderPickScreen();
 }
 
 function togglePick(uid, side) {
