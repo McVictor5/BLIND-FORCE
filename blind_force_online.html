@@ -503,6 +503,7 @@ body::before {
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, get, onValue, off, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   window._fbLoaded = true;
   window._fbApp = initializeApp({
     apiKey: "AIzaSyCllUigZn5mMB2deMk-Dn1KHHGTN2OLPYY",
@@ -520,6 +521,18 @@ body::before {
   window._fbOnValue = onValue;
   window._fbOff = off;
   window._fbUpdate = update;
+  // Auth
+  window._auth = getAuth(window._fbApp);
+  window._fbCreateUser = createUserWithEmailAndPassword;
+  window._fbSignIn = signInWithEmailAndPassword;
+  window._fbSignOut = signOut;
+  window._fbOnAuthStateChanged = onAuthStateChanged;
+  window._fbUpdateProfile = updateProfile;
+  // Listen for auth state
+  onAuthStateChanged(window._auth, user => {
+    window._currentUser = user || null;
+    if(window._onAuthReady) window._onAuthReady(user);
+  });
 </script>
 </head>
 <body>
@@ -528,10 +541,97 @@ body::before {
 <div id="screen-title" class="screen active">
   <div class="title-glow">BLIND-FORCE</div>
   <div class="title-sub">TACTICAL BOARD WARFARE</div>
+  <div id="title-user-bar" style="display:none;margin-bottom:16px;font-size:.78rem;color:var(--text-dim);letter-spacing:.08em;text-align:center;">
+    <span id="title-username" style="color:var(--text);font-weight:600;"></span>
+    <button onclick="doSignOut()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.72rem;margin-left:10px;text-decoration:underline;">Cerrar sesión</button>
+  </div>
   <button class="btn-primary" onclick="startGame()">▶ LOCAL (mismo dispositivo)</button>
   <button class="btn-primary" onclick="showScreen('lobby')" style="margin-top:12px;border-color:var(--accent-blue);color:var(--accent-blue);">🌐 ONLINE (dos dispositivos)</button>
-  <button class="btn-secondary" onclick="showInstructions()" style="margin-top:14px;border-color:rgba(255,255,255,.25);font-size:.9rem;">📖 INSTRUCCIONES</button>
+  <button class="btn-primary" id="btn-stats" onclick="openStats()" style="margin-top:12px;border-color:var(--accent-yellow);color:var(--accent-yellow);display:none;">📊 MIS ESTADÍSTICAS</button>
+  <button class="btn-secondary" onclick="showScreen('screen-auth')" id="btn-login" style="margin-top:14px;">👤 INICIAR SESIÓN / REGISTRARSE</button>
+  <button class="btn-secondary" onclick="showInstructions()" style="margin-top:8px;border-color:rgba(255,255,255,.25);font-size:.9rem;">📖 INSTRUCCIONES</button>
 </div>
+
+<!-- ══════════════════════════════ AUTH SCREEN ══════════════════════════════ -->
+<div id="screen-auth" class="screen" style="flex-direction:column;gap:0;padding:0;background:var(--bg);">
+  <div style="width:100%;max-width:420px;margin:auto;padding:40px 24px;">
+    <div style="font-family:Orbitron,monospace;font-size:1.4rem;font-weight:700;color:var(--text);text-align:center;margin-bottom:4px;">BLIND-FORCE</div>
+    <div style="text-align:center;color:var(--text-dim);font-size:.72rem;letter-spacing:.2em;margin-bottom:32px;">CUENTA DE JUGADOR</div>
+
+    <!-- Tabs -->
+    <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:24px;">
+      <button id="auth-tab-login" onclick="switchAuthTab('login')"
+        style="flex:1;background:none;border:none;padding:10px;cursor:pointer;font-family:Rajdhani,sans-serif;font-size:.85rem;font-weight:600;letter-spacing:.1em;color:var(--text);border-bottom:2px solid var(--accent-green);transition:all .2s;">
+        INICIAR SESIÓN
+      </button>
+      <button id="auth-tab-register" onclick="switchAuthTab('register')"
+        style="flex:1;background:none;border:none;padding:10px;cursor:pointer;font-family:Rajdhani,sans-serif;font-size:.85rem;font-weight:600;letter-spacing:.1em;color:var(--text-dim);border-bottom:2px solid transparent;transition:all .2s;">
+        REGISTRARSE
+      </button>
+    </div>
+
+    <!-- Login form -->
+    <div id="auth-form-login">
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:.7rem;letter-spacing:.12em;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;">Nombre de jugador</label>
+        <input id="login-username" type="text" placeholder="Tu nombre de jugador"
+          style="width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:10px 12px;font-family:Rajdhani,sans-serif;font-size:.9rem;outline:none;transition:border .2s;"
+          onfocus="this.style.borderColor='var(--accent-green)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="display:block;font-size:.7rem;letter-spacing:.12em;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;">Contraseña</label>
+        <input id="login-password" type="password" placeholder="••••••••"
+          style="width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:10px 12px;font-family:Rajdhani,sans-serif;font-size:.9rem;outline:none;transition:border .2s;"
+          onfocus="this.style.borderColor='var(--accent-green)'" onblur="this.style.borderColor='var(--border)'"
+          onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div id="login-error" style="color:var(--accent-red);font-size:.78rem;margin-bottom:12px;min-height:16px;"></div>
+      <button onclick="doLogin()" class="btn-primary" style="width:100%;">ENTRAR</button>
+    </div>
+
+    <!-- Register form -->
+    <div id="auth-form-register" style="display:none;">
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:.7rem;letter-spacing:.12em;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;">Nombre de jugador</label>
+        <input id="reg-name" type="text" placeholder="Tu nombre en el juego"
+          style="width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:10px 12px;font-family:Rajdhani,sans-serif;font-size:.9rem;outline:none;transition:border .2s;"
+          onfocus="this.style.borderColor='var(--accent-green)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:.7rem;letter-spacing:.12em;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;">Email</label>
+        <input id="reg-email" type="email" placeholder="tu@email.com"
+          style="width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:10px 12px;font-family:Rajdhani,sans-serif;font-size:.9rem;outline:none;transition:border .2s;"
+          onfocus="this.style.borderColor='var(--accent-green)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="display:block;font-size:.7rem;letter-spacing:.12em;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;">Contraseña (mín. 6 caracteres)</label>
+        <input id="reg-password" type="password" placeholder="••••••••"
+          style="width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:10px 12px;font-family:Rajdhani,sans-serif;font-size:.9rem;outline:none;transition:border .2s;"
+          onfocus="this.style.borderColor='var(--accent-green)'" onblur="this.style.borderColor='var(--border)'"
+          onkeydown="if(event.key==='Enter')doRegister()">
+      </div>
+      <div id="reg-error" style="color:var(--accent-red);font-size:.78rem;margin-bottom:12px;min-height:16px;"></div>
+      <button onclick="doRegister()" class="btn-primary" style="width:100%;">CREAR CUENTA</button>
+    </div>
+
+    <button onclick="showScreen('screen-title')" class="btn-secondary" style="width:100%;margin-top:14px;">← VOLVER</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════ STATS SCREEN ══════════════════════════════ -->
+<div id="screen-stats" class="screen" style="flex-direction:column;align-items:center;padding:20px 16px;background:var(--bg);gap:0;">
+  <div style="width:100%;max-width:860px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-family:Orbitron,monospace;font-size:1.1rem;font-weight:700;color:var(--text);letter-spacing:.1em;">ESTADÍSTICAS</div>
+        <div id="stats-username-label" style="font-size:.72rem;color:var(--text-dim);letter-spacing:.1em;margin-top:3px;"></div>
+      </div>
+      <button onclick="showScreen('screen-title')" class="btn-secondary" style="font-size:.75rem;">← VOLVER</button>
+    </div>
+    <div id="stats-content" style="color:var(--text-dim);font-size:.85rem;">Cargando...</div>
+  </div>
+</div>
+
 
 
 <!-- ══════════════════════════════ LOBBY SCREEN ══════════════════════════════ -->
@@ -4510,8 +4610,10 @@ function genRoomCode(){ return Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWX
 async function createRoom(){
   const status=document.getElementById('create-status'); status.textContent='Creando sala...';
   const code=genRoomCode();
+  const myName = window._currentUser ? (window._currentUser.displayName||window._currentUser.email) : 'Jugador';
   try{
     await window._fbSet(window._fbRef(window._db,'rooms/'+code),{created:Date.now(),host:ONLINE.createRole,guest:null,state:null,step:null,picks:null,coinWinner:null});
+    await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/playerNames/'+ONLINE.createRole), myName);
     ONLINE.roomId=code; ONLINE.myRole=ONLINE.createRole; ONLINE.enabled=true; ONLINE.currentStep=null;
     status.textContent='';
     document.getElementById('room-code-display').style.display='block';
@@ -4530,11 +4632,13 @@ async function joinRoom(){
   const status=document.getElementById('join-status');
   if(code.length!==4){status.textContent='⚠ Código de 4 caracteres';return;}
   status.textContent='Buscando sala...';
+  const myName = window._currentUser ? (window._currentUser.displayName||window._currentUser.email) : 'Jugador';
   try{
     const snap=await window._fbGet(window._fbRef(window._db,'rooms/'+code));
     if(!snap.exists()){status.textContent='⚠ Sala no encontrada';return;}
     ONLINE.roomId=code; ONLINE.myRole=snap.val().host==='atk'?'def':'atk'; ONLINE.enabled=true; ONLINE.currentStep=null;
     await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/guest'),ONLINE.myRole);
+    await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/playerNames/'+ONLINE.myRole), myName);
     status.textContent='✓ Conectado como '+(ONLINE.myRole==='atk'?'ATACANTE':'DEFENSOR');
     setTimeout(startOnlineGame,600);
   }catch(e){status.textContent='Error: '+e.message; ONLINE.enabled=false;}
@@ -4543,6 +4647,7 @@ async function joinRoom(){
 function startOnlineGame(){
   initState(); setupFixedWalls(); ONLINE.currentStep=null; ONLINE.suppressStateUpdates=false;
   ONLINE.myLastRevealedCells = new Set(); ONLINE.gameOver = false;
+  ONLINE.gameStartTs = Date.now();
   // Show room code badge in game screen
   const badge = document.getElementById('online-room-badge');
   if(badge) { badge.textContent = 'SALA: '+ONLINE.roomId; badge.style.display='block'; }
@@ -4639,6 +4744,7 @@ window.endGame = function(winner, reason) {
   ONLINE.gameOver = true;
   if(ONLINE.enabled){
     window._fbSet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/winner'),{winner,reason});
+    saveOnlineGameResult(winner);
   }
   _origEndGame(winner, reason);
 };
@@ -4806,6 +4912,228 @@ function updateConstructTurnUI(){
 // INIT
 // ═══════════════════════════════════════════════════════════════════════════
 // Show title screen on load (already shown via HTML)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AUTH SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════
+window._onAuthReady = function(user) {
+  const btnLogin = document.getElementById('btn-login');
+  const btnStats = document.getElementById('btn-stats');
+  const userBar  = document.getElementById('title-user-bar');
+  const uname    = document.getElementById('title-username');
+  if(!btnLogin) return;
+  if(user) {
+    btnLogin.style.display = 'none';
+    btnStats.style.display = 'block';
+    userBar.style.display  = 'block';
+    uname.textContent      = user.displayName || user.email;
+  } else {
+    btnLogin.style.display = 'block';
+    btnStats.style.display = 'none';
+    userBar.style.display  = 'none';
+  }
+};
+
+function switchAuthTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('auth-form-login').style.display    = isLogin ? 'block' : 'none';
+  document.getElementById('auth-form-register').style.display = isLogin ? 'none'  : 'block';
+  document.getElementById('auth-tab-login').style.color       = isLogin ? 'var(--text)' : 'var(--text-dim)';
+  document.getElementById('auth-tab-register').style.color    = isLogin ? 'var(--text-dim)' : 'var(--text)';
+  document.getElementById('auth-tab-login').style.borderBottomColor    = isLogin ? 'var(--accent-green)' : 'transparent';
+  document.getElementById('auth-tab-register').style.borderBottomColor = isLogin ? 'transparent' : 'var(--accent-green)';
+}
+
+function authErrorMsg(code) {
+  const map = {
+    'auth/email-already-in-use':'Ese email ya tiene una cuenta.',
+    'auth/invalid-email':'Email no válido.',
+    'auth/weak-password':'La contraseña debe tener al menos 6 caracteres.',
+    'auth/user-not-found':'No existe cuenta con ese email.',
+    'auth/wrong-password':'Contraseña incorrecta.',
+    'auth/invalid-credential':'Email o contraseña incorrectos.',
+    'auth/too-many-requests':'Demasiados intentos. Intenta más tarde.',
+  };
+  return map[code] || 'Error: ' + code;
+}
+
+async function doLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const pass     = document.getElementById('login-password').value;
+  const errEl    = document.getElementById('login-error');
+  errEl.textContent = '';
+  if(!username||!pass){errEl.textContent='Rellena todos los campos.';return;}
+  errEl.textContent = 'Buscando cuenta...';
+  try {
+    // Look up email from username in the usernames index
+    const snap = await window._fbGet(window._fbRef(window._db,'usernames/'+username.toLowerCase()));
+    if(!snap.exists()){errEl.textContent='No existe ningún jugador con ese nombre.';return;}
+    const email = snap.val();
+    errEl.textContent = '';
+    await window._fbSignIn(window._auth, email, pass);
+    showScreen('screen-title');
+  } catch(e) { errEl.textContent = authErrorMsg(e.code); }
+}
+
+async function doRegister() {
+  const name  = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass  = document.getElementById('reg-password').value;
+  const errEl = document.getElementById('reg-error');
+  errEl.textContent = '';
+  if(!name||!email||!pass){errEl.textContent='Rellena todos los campos.';return;}
+  // Check username not taken
+  try {
+    const snapU = await window._fbGet(window._fbRef(window._db,'usernames/'+name.toLowerCase()));
+    if(snapU.exists()){errEl.textContent='Ese nombre de jugador ya está en uso.';return;}
+  } catch(e){ errEl.textContent='Error al verificar el nombre.';return; }
+  try {
+    const cred = await window._fbCreateUser(window._auth, email, pass);
+    await window._fbUpdateProfile(cred.user, {displayName: name});
+    // Save username → email index
+    await window._fbSet(window._fbRef(window._db,'usernames/'+name.toLowerCase()), email);
+    // Save user profile and empty stats
+    await window._fbSet(window._fbRef(window._db,'users/'+cred.user.uid+'/profile'),{name,email,createdAt:Date.now()});
+    await window._fbSet(window._fbRef(window._db,'users/'+cred.user.uid+'/stats'),{wins:0,losses:0,currentStreak:0,maxStreak:0,winsAtk:0,lossesAtk:0,winsDef:0,lossesDef:0});
+    showScreen('screen-title');
+  } catch(e) { errEl.textContent = authErrorMsg(e.code); }
+}
+
+async function doSignOut() {
+  await window._fbSignOut(window._auth);
+  showScreen('screen-title');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STATS SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════
+async function saveGameResult(result) {
+  const user = window._currentUser;
+  if(!user) return;
+  const uid = user.uid;
+  try {
+    const snap = await window._fbGet(window._fbRef(window._db,'users/'+uid+'/stats'));
+    const s = snap.val()||{wins:0,losses:0,currentStreak:0,maxStreak:0,winsAtk:0,lossesAtk:0,winsDef:0,lossesDef:0};
+    if(result.won){
+      s.wins++; s.currentStreak++;
+      if(s.currentStreak>s.maxStreak) s.maxStreak=s.currentStreak;
+      if(result.myRole==='atk') s.winsAtk++; else s.winsDef++;
+    } else {
+      s.losses++; s.currentStreak=0;
+      if(result.myRole==='atk') s.lossesAtk++; else s.lossesDef++;
+    }
+    if(!s.charUsage) s.charUsage={};
+    (result.myPick||[]).forEach(cid=>{
+      if(!s.charUsage[cid]) s.charUsage[cid]={games:0,wins:0};
+      s.charUsage[cid].games++;
+      if(result.won) s.charUsage[cid].wins++;
+    });
+    await window._fbSet(window._fbRef(window._db,'users/'+uid+'/stats'),s);
+    await window._fbSet(window._fbRef(window._db,'users/'+uid+'/history/'+Date.now()),{
+      ts:Date.now(), won:result.won, myRole:result.myRole,
+      rival:result.rivalName||'Desconocido', rounds:result.rounds||0,
+      duration:result.duration||0, picks:result.myPick||[],
+    });
+  } catch(e){console.error('saveGameResult',e);}
+}
+
+function saveOnlineGameResult(winner) {
+  const user = window._currentUser;
+  if(!user||!ONLINE.enabled||!ONLINE.myRole) return;
+  const won = winner===ONLINE.myRole;
+  const rivalRole = ONLINE.myRole==='atk'?'def':'atk';
+  window._fbGet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/playerNames/'+rivalRole))
+    .then(snap=>{
+      saveGameResult({won, myRole:ONLINE.myRole, rivalName:snap.val()||'Desconocido',
+        rounds:G.round, myPick:ONLINE.myRole==='atk'?G.atkPick:G.defPick,
+        duration:Date.now()-(ONLINE.gameStartTs||Date.now())});
+    }).catch(()=>{
+      saveGameResult({won, myRole:ONLINE.myRole, rivalName:'Desconocido',
+        rounds:G.round, myPick:ONLINE.myRole==='atk'?G.atkPick:G.defPick, duration:0});
+    });
+}
+
+async function openStats() {
+  const user = window._currentUser;
+  if(!user){showScreen('screen-auth');return;}
+  showScreen('screen-stats');
+  document.getElementById('stats-username-label').textContent=(user.displayName||user.email).toUpperCase();
+  document.getElementById('stats-content').innerHTML='<div style="color:var(--text-dim);padding:20px 0;">Cargando...</div>';
+  try {
+    const [snapS,snapH]=await Promise.all([
+      window._fbGet(window._fbRef(window._db,'users/'+user.uid+'/stats')),
+      window._fbGet(window._fbRef(window._db,'users/'+user.uid+'/history')),
+    ]);
+    const s=snapS.val()||{};
+    const history=Object.values(snapH.val()||{}).sort((a,b)=>b.ts-a.ts);
+    const total=(s.wins||0)+(s.losses||0);
+    const winPct=total?Math.round((s.wins||0)/total*100):0;
+    const atkG=(s.winsAtk||0)+(s.lossesAtk||0), defG=(s.winsDef||0)+(s.lossesDef||0);
+    const atkPct=atkG?Math.round((s.winsAtk||0)/atkG*100):0;
+    const defPct=defG?Math.round((s.winsDef||0)/defG*100):0;
+    const charArr=Object.entries(s.charUsage||{}).map(([id,v])=>({
+      id, games:v.games||0, wins:v.wins||0,
+      pct:v.games?Math.round((v.wins||0)/v.games*100):0,
+      side:UNIT_DEFS[id]?UNIT_DEFS[id].side:'?',
+      name:UNIT_DEFS[id]?UNIT_DEFS[id].name:id,
+      icon:UNIT_DEFS[id]?UNIT_DEFS[id].icon:'?',
+    }));
+    const atkC=charArr.filter(c=>c.side==='atk').sort((a,b)=>b.games-a.games).slice(0,4);
+    const defC=charArr.filter(c=>c.side==='def').sort((a,b)=>b.games-a.games).slice(0,4);
+    const atkB=charArr.filter(c=>c.side==='atk'&&c.games>=2).sort((a,b)=>b.pct-a.pct).slice(0,4);
+    const defB=charArr.filter(c=>c.side==='def'&&c.games>=2).sort((a,b)=>b.pct-a.pct).slice(0,4);
+
+    const sec=(t,body)=>`<div style="background:var(--panel);border:1px solid var(--border);padding:16px 18px;margin-bottom:10px;">
+      <div style="font-family:Orbitron,monospace;font-size:.62rem;color:var(--accent-yellow);letter-spacing:.14em;margin-bottom:12px;text-transform:uppercase;">${t}</div>${body}</div>`;
+    const row=(label,value,color='var(--text)')=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:.82rem;">
+      <span style="color:var(--text-dim);">${label}</span><span style="color:${color};font-weight:600;">${value}</span></div>`;
+    const cRow=c=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:.8rem;border-bottom:1px solid var(--border);">
+      <div style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;background:rgba(255,255,255,.06);">${c.icon}</div>
+      <span style="flex:1;color:var(--text);">${c.name}</span>
+      <span style="color:var(--text-dim);font-size:.7rem;">${c.games} partidas</span>
+      <span style="color:var(--accent-green);font-size:.7rem;min-width:38px;text-align:right;">${c.pct}% V</span></div>`;
+    const noData='<div style="color:var(--text-dim);font-size:.78rem;padding:6px 0;">Sin datos suficientes</div>';
+    const fmtDur=ms=>{if(!ms)return '--';const m=Math.floor(ms/60000),s2=Math.floor((ms%60000)/1000);return m+'m '+s2+'s';};
+    const histHTML=history.slice(0,15).map(h=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:.78rem;flex-wrap:wrap;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${h.won?'var(--accent-green)':'var(--accent-red)'};flex-shrink:0;display:inline-block;"></span>
+        <span style="color:${h.won?'var(--accent-green)':'var(--accent-red)'};font-weight:700;min-width:56px;">${h.won?'VICTORIA':'DERROTA'}</span>
+        <span style="color:var(--text-dim);">${h.myRole==='atk'?'⚔':'🛡'} vs <b style="color:var(--text);">${h.rival}</b></span>
+        <span style="color:var(--text-dim);margin-left:auto;">${h.rounds||0} rondas · ${fmtDur(h.duration)}</span>
+        <span style="color:var(--text-dim);font-size:.68rem;width:100%;">${new Date(h.ts).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}</span>
+      </div>`).join('');
+
+    document.getElementById('stats-content').innerHTML=
+      sec('RESUMEN GENERAL',
+        row('Partidas jugadas',total)+
+        row('Victorias',s.wins||0,'var(--accent-green)')+
+        row('Derrotas',s.losses||0,'var(--accent-red)')+
+        row('Ratio de victorias',winPct+'%',winPct>=50?'var(--accent-green)':'var(--accent-red)')+
+        row('Racha actual',s.currentStreak||0,'var(--accent-yellow)')+
+        row('Racha maxima registrada',s.maxStreak||0,'var(--accent-yellow)'))+
+      sec('POR BANDO',
+        row('Atacante — partidas',atkG)+
+        row('Atacante — victorias',(s.winsAtk||0)+' ('+atkPct+'%)','var(--atk)')+
+        row('Defensor — partidas',defG)+
+        row('Defensor — victorias',(s.winsDef||0)+' ('+defPct+'%)','var(--def)'))+
+      sec('PERSONAJES MAS USADOS',
+        '<div style="font-size:.68rem;color:var(--text-dim);margin-bottom:4px;letter-spacing:.1em;">ATACANTES</div>'+
+        (atkC.length?atkC.map(cRow).join(''):noData)+
+        '<div style="font-size:.68rem;color:var(--text-dim);margin:10px 0 4px;letter-spacing:.1em;">DEFENSORES</div>'+
+        (defC.length?defC.map(cRow).join(''):noData))+
+      sec('MEJORES PERSONAJES (min. 2 partidas)',
+        '<div style="font-size:.68rem;color:var(--text-dim);margin-bottom:4px;letter-spacing:.1em;">ATACANTES</div>'+
+        (atkB.length?atkB.map(cRow).join(''):noData)+
+        '<div style="font-size:.68rem;color:var(--text-dim);margin:10px 0 4px;letter-spacing:.1em;">DEFENSORES</div>'+
+        (defB.length?defB.map(cRow).join(''):noData))+
+      sec('HISTORIAL (ultimas 15 partidas)',
+        history.length?histHTML:noData);
+  } catch(e){
+    document.getElementById('stats-content').innerHTML='<div style="color:var(--accent-red);">Error al cargar estadísticas.</div>';
+    console.error(e);
+  }
+}
+
 </script>
 </body>
 </html>
