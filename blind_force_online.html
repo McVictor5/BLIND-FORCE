@@ -548,7 +548,7 @@ body::before {
   <button class="btn-primary" onclick="startGame()">▶ LOCAL (mismo dispositivo)</button>
   <button class="btn-primary" onclick="showScreen('lobby')" style="margin-top:12px;border-color:var(--accent-blue);color:var(--accent-blue);">🌐 ONLINE (dos dispositivos)</button>
   <button class="btn-primary" id="btn-stats" onclick="openStats()" style="margin-top:12px;border-color:var(--accent-yellow);color:var(--accent-yellow);display:none;">📊 MIS ESTADÍSTICAS</button>
-  <button class="btn-secondary" onclick="showScreen('screen-auth')" id="btn-login" style="margin-top:14px;">👤 INICIAR SESIÓN / REGISTRARSE</button>
+  <button class="btn-secondary" onclick="showScreen('auth')" id="btn-login" style="margin-top:14px;">👤 INICIAR SESIÓN / REGISTRARSE</button>
   <button class="btn-secondary" onclick="showInstructions()" style="margin-top:8px;border-color:rgba(255,255,255,.25);font-size:.9rem;">📖 INSTRUCCIONES</button>
 </div>
 
@@ -614,7 +614,7 @@ body::before {
       <button onclick="doRegister()" class="btn-primary" style="width:100%;">CREAR CUENTA</button>
     </div>
 
-    <button onclick="showScreen('screen-title')" class="btn-secondary" style="width:100%;margin-top:14px;">← VOLVER</button>
+    <button onclick="showScreen('title')" class="btn-secondary" style="width:100%;margin-top:14px;">← VOLVER</button>
   </div>
 </div>
 
@@ -626,7 +626,7 @@ body::before {
         <div style="font-family:Orbitron,monospace;font-size:1.1rem;font-weight:700;color:var(--text);letter-spacing:.1em;">ESTADÍSTICAS</div>
         <div id="stats-username-label" style="font-size:.72rem;color:var(--text-dim);letter-spacing:.1em;margin-top:3px;"></div>
       </div>
-      <button onclick="showScreen('screen-title')" class="btn-secondary" style="font-size:.75rem;">← VOLVER</button>
+      <button onclick="showScreen('title')" class="btn-secondary" style="font-size:.75rem;">← VOLVER</button>
     </div>
     <div id="stats-content" style="color:var(--text-dim);font-size:.85rem;">Cargando...</div>
   </div>
@@ -4971,7 +4971,7 @@ async function doLogin() {
     const email = snap.val();
     errEl.textContent = '';
     await window._fbSignIn(window._auth, email, pass);
-    showScreen('screen-title');
+    showScreen('title');
   } catch(e) { errEl.textContent = authErrorMsg(e.code); }
 }
 
@@ -4995,13 +4995,13 @@ async function doRegister() {
     // Save user profile and empty stats
     await window._fbSet(window._fbRef(window._db,'users/'+cred.user.uid+'/profile'),{name,email,createdAt:Date.now()});
     await window._fbSet(window._fbRef(window._db,'users/'+cred.user.uid+'/stats'),{wins:0,losses:0,currentStreak:0,maxStreak:0,winsAtk:0,lossesAtk:0,winsDef:0,lossesDef:0});
-    showScreen('screen-title');
+    showScreen('title');
   } catch(e) { errEl.textContent = authErrorMsg(e.code); }
 }
 
 async function doSignOut() {
   await window._fbSignOut(window._auth);
-  showScreen('screen-title');
+  showScreen('title');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -5055,8 +5055,8 @@ function saveOnlineGameResult(winner) {
 
 async function openStats() {
   const user = window._currentUser;
-  if(!user){showScreen('screen-auth');return;}
-  showScreen('screen-stats');
+  if(!user){showScreen('auth');return;}
+  showScreen('stats');
   document.getElementById('stats-username-label').textContent=(user.displayName||user.email).toUpperCase();
   document.getElementById('stats-content').innerHTML='<div style="color:var(--text-dim);padding:20px 0;">Cargando...</div>';
   try {
