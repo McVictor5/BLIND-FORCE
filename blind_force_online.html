@@ -5193,6 +5193,7 @@ async function startMatchmaking() {
 
     const rival = others.sort((a,b)=>a.ts-b.ts)[0];
     const iAmHost = user.uid < rival.uid;
+    console.log('[MM] Found rival:', rival.uid, '| iAmHost:', iAmHost, '| myUID:', user.uid);
 
     // Stop listening immediately to prevent re-entry
     MM.active = false;
@@ -5201,7 +5202,6 @@ async function startMatchmaking() {
     await window._fbSet(window._fbRef(window._db,'matchmaking/queue/'+user.uid), null);
 
     if(!iAmHost) {
-      // Guest: start listening for room signal FIRST, then signal we're ready
       document.getElementById('mm-status').textContent = '✓ Rival encontrado. Conectando...';
       listenForMMRoom(user.uid, myName);
       return;
@@ -5243,14 +5243,16 @@ async function startMatchmaking() {
 }
 
 function listenForMMRoom(uid, myName) {
+  console.log('[MM] listenForMMRoom started for uid:', uid);
   const ref = window._fbRef(window._db,'matchmaking/rooms/'+uid);
   window._fbOnValue(ref, async snap=>{
+    console.log('[MM] listenForMMRoom fired, exists:', snap.exists(), snap.val());
     if(!snap.exists()) return;
     const data = snap.val();
     window._fbOff(ref);
-    // Clean up signal
     await window._fbSet(ref, null);
     const code = data.roomCode;
+    console.log('[MM] Guest joining room:', code, 'as:', data.role);
     ONLINE.roomId=code; ONLINE.myRole=data.role; ONLINE.enabled=true; ONLINE.currentStep=null;
     await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/guest'), data.role);
     await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/playerNames/'+data.role), myName);
