@@ -5078,38 +5078,36 @@ async function startMatchmaking() {
       e.uid !== user.uid && (Date.now()-e.ts)<90000
     );
     const total = Object.keys(queue).length;
-    document.getElementById('mm-players').textContent =
-      total+' jugador'+(total!==1?'es':'')+' en cola';
+    if(document.getElementById('mm-players'))
+      document.getElementById('mm-players').textContent =
+        total+' jugador'+(total!==1?'es':'')+' en cola';
 
     if(others.length===0) return;
 
-    // Found a rival — pair with the one who waited longest
     const rival = others.sort((a,b)=>a.ts-b.ts)[0];
-
-    // Determine who creates the room: lower UID = host (avoids double creation)
-    // Roles assigned randomly each match
     const iAmHost = user.uid < rival.uid;
-    const roles = Math.random()<0.5 ? {host:'atk',guest:'def'} : {host:'def',guest:'atk'};
-    MM.myRole = iAmHost ? roles.host : roles.guest;
-    const rivalRole = MM.myRole==='atk' ? 'def' : 'atk';
+
+    // Stop listening immediately to prevent re-entry
+    MM.active = false;
+    window._fbOff(MM.queueListener);
+    clearInterval(MM.timerInterval);
+    await window._fbSet(window._fbRef(window._db,'matchmaking/queue/'+user.uid), null);
 
     if(!iAmHost) {
-      // I'm the guest — wait for host to create room and signal me
+      // Guest: start listening for room signal FIRST, then signal we're ready
       document.getElementById('mm-status').textContent = '✓ Rival encontrado. Conectando...';
-      MM.active = false;
-      window._fbOff(MM.queueListener);
-      clearInterval(MM.timerInterval);
-      await window._fbSet(window._fbRef(window._db,'matchmaking/queue/'+user.uid), null);
       listenForMMRoom(user.uid, myName);
       return;
     }
 
-    // I'm the host — create the room
-    MM.active = false;
-    window._fbOff(MM.queueListener);
-    clearInterval(MM.timerInterval);
+    // Host: assign random roles and create room
+    const roles = Math.random()<0.5 ? {host:'atk',guest:'def'} : {host:'def',guest:'atk'};
+    MM.myRole = roles.host;
+    const rivalRole = roles.guest;
 
-    await window._fbSet(window._fbRef(window._db,'matchmaking/queue/'+user.uid), null);
+    document.getElementById('mm-status').textContent = '✓ Rival encontrado. Creando sala...';
+
+    // Remove rival from queue too
     await window._fbSet(window._fbRef(window._db,'matchmaking/queue/'+rival.uid), null);
 
     const code = genRoomCode();
@@ -5124,7 +5122,7 @@ async function startMatchmaking() {
       roomCode: code, role: rivalRole, rivalName: myName
     });
 
-    document.getElementById('mm-status').textContent = '✓ Rival encontrado. Iniciando sala...';
+    document.getElementById('mm-status').textContent = '✓ Sala creada. Esperando al rival...';
 
     ONLINE.roomId=code; ONLINE.myRole=MM.myRole; ONLINE.enabled=true; ONLINE.currentStep=null;
 
