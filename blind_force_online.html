@@ -548,7 +548,8 @@ body::before {
   <button class="btn-primary" onclick="startGame()">▶ LOCAL (mismo dispositivo)</button>
   <button class="btn-primary" onclick="showScreen('lobby')" style="margin-top:12px;border-color:var(--accent-blue);color:var(--accent-blue);">🌐 ONLINE (dos dispositivos)</button>
   <button class="btn-primary" id="btn-stats" onclick="openStats()" style="margin-top:12px;border-color:var(--accent-yellow);color:var(--accent-yellow);display:none;">📊 MIS ESTADÍSTICAS</button>
-  <button class="btn-secondary" onclick="showScreen('auth')" id="btn-login" style="margin-top:14px;">👤 INICIAR SESIÓN / REGISTRARSE</button>
+  <button class="btn-secondary" onclick="openRanking()" style="margin-top:8px;">🏆 RANKING</button>
+  <button class="btn-secondary" onclick="showScreen('auth')" id="btn-login" style="margin-top:8px;">👤 INICIAR SESIÓN / REGISTRARSE</button>
   <button class="btn-secondary" onclick="showInstructions()" style="margin-top:8px;border-color:rgba(255,255,255,.25);font-size:.9rem;">📖 INSTRUCCIONES</button>
 </div>
 
@@ -793,6 +794,39 @@ body::before {
   <button class="btn-secondary" onclick="exitReplay()" style="margin-top:6px;">↩ VOLVER AL RESULTADO</button>
 </div>
 
+
+<!-- ══════════════════════════════ RANKING SCREEN ══════════════════════════════ -->
+<div id="screen-ranking" class="screen" style="flex-direction:column;align-items:center;padding:20px 16px;background:var(--bg);gap:0;">
+  <div style="width:100%;max-width:680px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+      <div style="font-family:Orbitron,monospace;font-size:1.1rem;font-weight:700;color:var(--text);letter-spacing:.1em;">🏆 RANKING GLOBAL</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select id="ranking-sort" onchange="renderRanking()" style="background:var(--panel);border:1px solid var(--border);color:var(--text);padding:6px 10px;font-family:Inter,sans-serif;font-size:.75rem;cursor:pointer;outline:none;">
+          <option value="wins">Por victorias</option>
+          <option value="ratio">Por ratio de victorias</option>
+          <option value="streak">Por racha máxima</option>
+          <option value="games">Por partidas jugadas</option>
+        </select>
+        <button onclick="showScreen('title')" class="btn-secondary" style="font-size:.75rem;">← VOLVER</button>
+      </div>
+    </div>
+    <div id="ranking-content" style="color:var(--text-dim);font-size:.85rem;">Cargando...</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════ PLAYER STATS SCREEN ══════════════════════════════ -->
+<div id="screen-playerstats" class="screen" style="flex-direction:column;align-items:center;padding:20px 16px;background:var(--bg);gap:0;">
+  <div style="width:100%;max-width:860px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-family:Orbitron,monospace;font-size:1.1rem;font-weight:700;color:var(--text);letter-spacing:.1em;">ESTADÍSTICAS</div>
+        <div id="playerstats-username-label" style="font-size:.72rem;color:var(--text-dim);letter-spacing:.1em;margin-top:3px;"></div>
+      </div>
+      <button onclick="showScreen('ranking')" class="btn-secondary" style="font-size:.75rem;">← RANKING</button>
+    </div>
+    <div id="playerstats-content" style="color:var(--text-dim);font-size:.85rem;">Cargando...</div>
+  </div>
+</div>
 
 <div id="waiting-overlay">
   <div class="waiting-box">
@@ -4963,8 +4997,122 @@ function updateConstructTurnUI(){
 // Show title screen on load (already shown via HTML)
 
 // ═══════════════════════════════════════════════════════════════════════════
-// AUTH SYSTEM
+// RANKING SYSTEM
 // ═══════════════════════════════════════════════════════════════════════════
+let _rankingData = []; // cached ranking entries
+
+async function openRanking() {
+  showScreen('ranking');
+  document.getElementById('ranking-content').innerHTML = '<div style="padding:20px 0;color:var(--text-dim);">Cargando...</div>';
+  try {
+    const snap = await window._fbGet(window._fbRef(window._db,'ranking'));
+    const data = snap.val() || {};
+    _rankingData = Object.entries(data).map(([uid,v])=>({uid,...v}));
+    renderRanking();
+  } catch(e) {
+    document.getElementById('ranking-content').innerHTML = '<div style="color:var(--accent-red);">Error al cargar el ranking.</div>';
+  }
+}
+
+function renderRanking() {
+  const sort = document.getElementById('ranking-sort')?.value || 'wins';
+  const sorted = [..._rankingData].sort((a,b) => {
+    if(sort==='wins')   return (b.wins||0)-(a.wins||0);
+    if(sort==='ratio')  return (b.ratio||0)-(a.ratio||0);
+    if(sort==='streak') return (b.maxStreak||0)-(a.maxStreak||0);
+    if(sort==='games')  return (b.games||0)-(a.games||0);
+    return 0;
+  });
+
+  if(sorted.length===0) {
+    document.getElementById('ranking-content').innerHTML =
+      '<div style="color:var(--text-dim);padding:20px 0;">Aun no hay jugadores en el ranking.</div>';
+    return;
+  }
+
+  const medals = ['🥇','🥈','🥉'];
+  const myUid = window._currentUser?.uid;
+
+  const rows = sorted.map((p,i) => {
+    const isMe = p.uid === myUid;
+    const medal = i < 3 ? medals[i] : `<span style="color:var(--text-dim);font-size:.8rem;">${i+1}</span>`;
+    return `<div onclick="openPlayerStats('${p.uid}','${p.name}')"
+      style="display:flex;align-items:center;gap:12px;padding:10px 14px;
+      background:${isMe?'rgba(200,168,75,.06)':'var(--panel)'};
+      border:1px solid ${isMe?'rgba(200,168,75,.3)':'var(--border)'};
+      margin-bottom:6px;cursor:pointer;transition:background .15s;"
+      onmouseover="this.style.background='rgba(255,255,255,.04)'"
+      onmouseout="this.style.background='${isMe?'rgba(200,168,75,.06)':'var(--panel)'}'">
+      <div style="width:28px;text-align:center;flex-shrink:0;">${medal}</div>
+      <div style="flex:1;">
+        <span style="font-weight:600;color:${isMe?'var(--accent-yellow)':'var(--text)'};">${p.name}</span>
+        ${isMe?'<span style="font-size:.65rem;color:var(--accent-yellow);margin-left:6px;">(tú)</span>':''}
+      </div>
+      <div style="display:flex;gap:16px;font-size:.78rem;flex-shrink:0;">
+        <span style="color:var(--accent-green);" title="Victorias">⚔ ${p.wins||0}V</span>
+        <span style="color:var(--text-dim);" title="Partidas">${p.games||0} partidas</span>
+        <span style="color:var(--accent-yellow);" title="Ratio">${p.ratio||0}%</span>
+        <span style="color:var(--text-dim);" title="Racha maxima">🔥${p.maxStreak||0}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('ranking-content').innerHTML =
+    `<div style="font-size:.68rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:10px;text-align:right;">
+      Clic en un jugador para ver sus estadísticas
+    </div>` + rows;
+}
+
+async function openPlayerStats(uid, name) {
+  showScreen('playerstats');
+  document.getElementById('playerstats-username-label').textContent = name.toUpperCase();
+  document.getElementById('playerstats-content').innerHTML = '<div style="color:var(--text-dim);padding:20px 0;">Cargando...</div>';
+  try {
+    const [snapS, snapH] = await Promise.all([
+      window._fbGet(window._fbRef(window._db,'users/'+uid+'/stats')),
+      window._fbGet(window._fbRef(window._db,'users/'+uid+'/history')),
+    ]);
+    const s = snapS.val() || {};
+    const history = Object.values(snapH.val()||{}).sort((a,b)=>b.ts-a.ts);
+    // Reuse the stats rendering from openStats but without charUsage detail
+    const total=(s.wins||0)+(s.losses||0);
+    const winPct=total?Math.round((s.wins||0)/total*100):0;
+    const atkG=(s.winsAtk||0)+(s.lossesAtk||0), defG=(s.winsDef||0)+(s.lossesDef||0);
+    const atkPct=atkG?Math.round((s.winsAtk||0)/atkG*100):0;
+    const defPct=defG?Math.round((s.winsDef||0)/defG*100):0;
+
+    const sec=(t,body)=>`<div style="background:var(--panel);border:1px solid var(--border);padding:16px 18px;margin-bottom:10px;">
+      <div style="font-family:Orbitron,monospace;font-size:.62rem;color:var(--accent-yellow);letter-spacing:.14em;margin-bottom:12px;text-transform:uppercase;">${t}</div>${body}</div>`;
+    const row=(label,value,color='var(--text)')=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:.82rem;">
+      <span style="color:var(--text-dim);">${label}</span><span style="color:${color};font-weight:600;">${value}</span></div>`;
+    const fmtDur=ms=>{if(!ms)return '--';const m=Math.floor(ms/60000),s2=Math.floor((ms%60000)/1000);return m+'m '+s2+'s';};
+    const histHTML=history.slice(0,15).map(h=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:.78rem;flex-wrap:wrap;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${h.won?'var(--accent-green)':'var(--accent-red)'};flex-shrink:0;display:inline-block;"></span>
+        <span style="color:${h.won?'var(--accent-green)':'var(--accent-red)'};font-weight:700;min-width:56px;">${h.won?'VICTORIA':'DERROTA'}</span>
+        <span style="color:var(--text-dim);">${h.myRole==='atk'?'⚔':'🛡'} vs <b style="color:var(--text);">${h.rival}</b></span>
+        <span style="color:var(--text-dim);margin-left:auto;">${h.rounds||0} rondas · ${fmtDur(h.duration)}</span>
+        <span style="color:var(--text-dim);font-size:.68rem;width:100%;">${new Date(h.ts).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}</span>
+      </div>`).join('');
+
+    document.getElementById('playerstats-content').innerHTML =
+      sec('RESUMEN GENERAL',
+        row('Partidas jugadas',total)+
+        row('Victorias',s.wins||0,'var(--accent-green)')+
+        row('Derrotas',s.losses||0,'var(--accent-red)')+
+        row('Ratio de victorias',winPct+'%',winPct>=50?'var(--accent-green)':'var(--accent-red)')+
+        row('Racha actual',s.currentStreak||0,'var(--accent-yellow)')+
+        row('Racha maxima registrada',s.maxStreak||0,'var(--accent-yellow)'))+
+      sec('POR BANDO',
+        row('Atacante — victorias',(s.winsAtk||0)+' ('+atkPct+'%)','var(--atk)')+
+        row('Defensor — victorias',(s.winsDef||0)+' ('+defPct+'%)','var(--def)'))+
+      sec('HISTORIAL (ultimas 15 partidas)',
+        history.length?histHTML:'<div style="color:var(--text-dim);font-size:.78rem;">Sin partidas registradas.</div>');
+  } catch(e) {
+    document.getElementById('playerstats-content').innerHTML='<div style="color:var(--accent-red);">Error al cargar estadísticas.</div>';
+    console.error(e);
+  }
+}
 window._onAuthReady = function(user) {
   const btnLogin = document.getElementById('btn-login');
   const btnStats = document.getElementById('btn-stats');
@@ -5078,6 +5226,14 @@ async function saveGameResult(result) {
       if(result.won) s.charUsage[cid].wins++;
     });
     await window._fbSet(window._fbRef(window._db,'users/'+uid+'/stats'),s);
+    // Update public ranking node
+    const pname = window._currentUser?.displayName || 'Jugador';
+    const totalG = (s.wins||0)+(s.losses||0);
+    await window._fbSet(window._fbRef(window._db,'ranking/'+uid),{
+      name: pname, wins:s.wins||0, losses:s.losses||0, games:totalG,
+      ratio: totalG ? Math.round((s.wins||0)/totalG*100) : 0,
+      maxStreak:s.maxStreak||0, currentStreak:s.currentStreak||0,
+    });
     await window._fbSet(window._fbRef(window._db,'users/'+uid+'/history/'+Date.now()),{
       ts:Date.now(), won:result.won, myRole:result.myRole,
       rival:result.rivalName||'Desconocido', rounds:result.rounds||0,
