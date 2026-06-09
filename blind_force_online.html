@@ -4795,7 +4795,17 @@ function checkBothPicksDone(){
     if(!picks||!picks.atk||!picks.def||picks.atk.length<4||picks.def.length<4) return;
     window._fbOff(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/picks'));
     G.atkPick=picks.atk; G.defPick=picks.def;
-    if(ONLINE.myRole==='atk') pushState().then(()=>setStep('construction'));
+    // Only attacker pushes state and sets step to avoid race condition
+    if(ONLINE.myRole==='atk') {
+      pushState().then(()=>setStep('construction'));
+    } else {
+      // Defender: also set step in case attacker's setStep was missed
+      setTimeout(()=>{
+        window._fbGet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/step')).then(s=>{
+          if(s.val()!=='construction') setStep('construction');
+        });
+      }, 2000);
+    }
   });
 }
 
