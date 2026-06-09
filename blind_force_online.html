@@ -5032,116 +5032,133 @@ const MM = {
   active: false,
   timerInterval: null,
   startTime: null,
-  queueRef: null,
-  myEntryRef: null,
-  listenRef: null,
+  queueListener: null,
+  myUid: null,
+  myRole: null,
 };
 
 async function startMatchmaking() {
   const user = window._currentUser;
   if(!user) {
-    showModal('Cuenta requerida', 'Necesitas iniciar sesión para usar el matchmaking.', [{label:'INICIAR SESIÓN', action:()=>showScreen('auth')},{label:'CANCELAR'}]);
+    showModal('Cuenta requerida','Necesitas iniciar sesión para usar el matchmaking.',[
+      {label:'INICIAR SESIÓN', action:()=>showScreen('auth')},{label:'CANCELAR'}]);
     return;
   }
   showScreen('matchmaking');
   MM.active = true;
   MM.startTime = Date.now();
+  MM.myUid = user.uid;
 
-  // Update timer display
+  // Timer display
   MM.timerInterval = setInterval(()=>{
-    const s = Math.floor((Date.now()-MM.startTime)/1000);
-    const m = Math.floor(s/60), sec = s%60;
-    document.getElementById('mm-timer').textContent = m+':'+(sec<10?'0':'')+sec;
-  }, 1000);
+    const s=Math.floor((Date.now()-MM.startTime)/1000);
+    const m=Math.floor(s/60), sec=s%60;
+    document.getElementById('mm-timer').textContent=m+':'+(sec<10?'0':'')+sec;
+    // Auto-cancel after 3 minutes
+    if(s>=180) cancelMatchmaking();
+  },1000);
 
-  // Assign random role
-  const myRole = Math.random()<0.5 ? 'atk' : 'def';
-  const rivalRole = myRole==='atk' ? 'def' : 'atk';
+  // Assign role based on UID parity for determinism after match
+  // But write to queue first, role will be determined after pairing
   const myName = user.displayName || user.email;
 
-  // Write myself to the queue
-  MM.myEntryRef = window._fbRef(window._db, 'matchmaking/'+user.uid);
-  const entry = { uid: user.uid, name: myName, role: myRole, ts: Date.now() };
-  await window._fbSet(MM.myEntryRef, entry);
+  // Write to queue
+  await window._fbSet(window._fbRef(window._db,'matchmaking/queue/'+user.uid),{
+    uid: user.uid, name: myName, ts: Date.now()
+  });
 
-  // Remove from queue on disconnect
-  window._fbRef(window._db, 'matchmaking/'+user.uid).onDisconnect?.().remove();
+  document.getElementById('mm-status').textContent = 'En cola, buscando rival...';
 
-  document.getElementById('mm-status').textContent = 'En cola como '+(myRole==='atk'?'⚔ ATACANTE':'🛡 DEFENSOR')+'...';
-
-  // Listen for a rival in the queue with the opposite role
-  MM.queueRef = window._fbRef(window._db, 'matchmaking');
-  window._fbOnValue(MM.queueRef, async snap => {
+  // Listen to queue for any other player
+  MM.queueListener = window._fbRef(window._db,'matchmaking/queue');
+  window._fbOnValue(MM.queueListener, async snap=>{
     if(!MM.active) return;
-    const queue = snap.val() || {};
-    const entries = Object.values(queue).filter(e =>
-      e.uid !== user.uid && e.role === rivalRole && (Date.now()-e.ts) < 60000
+    const queue = snap.val()||{};
+    const others = Object.values(queue).filter(e=>
+      e.uid !== user.uid && (Date.now()-e.ts)<90000
     );
-    if(entries.length === 0) {
-      const total = Object.values(queue).length;
-      document.getElementById('mm-players').textContent = total + ' jugador'+(total!==1?'es':'')+' en cola';
+    const total = Object.keys(queue).length;
+    document.getElementById('mm-players').textContent =
+      total+' jugador'+(total!==1?'es':'')+' en cola';
+
+    if(others.length===0) return;
+
+    // Found a rival — pair with the one who waited longest
+    const rival = others.sort((a,b)=>a.ts-b.ts)[0];
+
+    // Determine who creates the room: lower UID = host (avoids double creation)
+    // Roles assigned randomly each match
+    const iAmHost = user.uid < rival.uid;
+    const roles = Math.random()<0.5 ? {host:'atk',guest:'def'} : {host:'def',guest:'atk'};
+    MM.myRole = iAmHost ? roles.host : roles.guest;
+    const rivalRole = MM.myRole==='atk' ? 'def' : 'atk';
+
+    if(!iAmHost) {
+      // I'm the guest — wait for host to create room and signal me
+      document.getElementById('mm-status').textContent = '✓ Rival encontrado. Conectando...';
+      MM.active = false;
+      window._fbOff(MM.queueListener);
+      clearInterval(MM.timerInterval);
+      await window._fbSet(window._fbRef(window._db,'matchmaking/queue/'+user.uid), null);
+      listenForMMRoom(user.uid, myName);
       return;
     }
-    // Found a rival — the player with the earlier timestamp creates the room
-    const rival = entries.sort((a,b)=>a.ts-b.ts)[0];
-    const iAmHost = entry.ts <= rival.ts;
 
-    if(!MM.active) return;
+    // I'm the host — create the room
     MM.active = false;
-    window._fbOff(MM.queueRef);
+    window._fbOff(MM.queueListener);
     clearInterval(MM.timerInterval);
 
-    // Remove both from queue
-    await window._fbSet(MM.myEntryRef, null);
+    await window._fbSet(window._fbRef(window._db,'matchmaking/queue/'+user.uid), null);
+    await window._fbSet(window._fbRef(window._db,'matchmaking/queue/'+rival.uid), null);
 
-    if(iAmHost) {
-      // I create the room
-      const code = genRoomCode();
-      await window._fbSet(window._fbRef(window._db,'rooms/'+code),{
-        created:Date.now(), host:myRole, guest:null, state:null, step:null, picks:null, coinWinner:null
-      });
-      await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/playerNames/'+myRole), myName);
-      // Signal rival to join this room
-      await window._fbSet(window._fbRef(window._db,'matchmaking/match/'+rival.uid), {roomCode:code, role:rivalRole});
-      ONLINE.roomId=code; ONLINE.myRole=myRole; ONLINE.enabled=true; ONLINE.currentStep=null;
-      // Wait for rival to join
-      document.getElementById('mm-status').textContent = '✓ Rival encontrado. Iniciando...';
-      window._fbOnValue(window._fbRef(window._db,'rooms/'+code+'/guest'), s=>{
-        if(!s.val()) return;
-        window._fbOff(window._fbRef(window._db,'rooms/'+code+'/guest'));
-        setTimeout(startOnlineGame, 400);
-      });
-    } else {
-      // Rival is host — wait for match signal with room code
-      document.getElementById('mm-status').textContent = '✓ Rival encontrado. Conectando...';
-      listenForMatchSignal(user.uid, myName);
-    }
+    const code = genRoomCode();
+    await window._fbSet(window._fbRef(window._db,'rooms/'+code),{
+      created:Date.now(), host:MM.myRole, guest:null, state:null,
+      step:null, picks:null, coinWinner:null
+    });
+    await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/playerNames/'+MM.myRole), myName);
+
+    // Signal guest with room code and their role
+    await window._fbSet(window._fbRef(window._db,'matchmaking/rooms/'+rival.uid),{
+      roomCode: code, role: rivalRole, rivalName: myName
+    });
+
+    document.getElementById('mm-status').textContent = '✓ Rival encontrado. Iniciando sala...';
+
+    ONLINE.roomId=code; ONLINE.myRole=MM.myRole; ONLINE.enabled=true; ONLINE.currentStep=null;
+
+    // Wait for guest to join
+    window._fbOnValue(window._fbRef(window._db,'rooms/'+code+'/guest'), s=>{
+      if(!s.val()) return;
+      window._fbOff(window._fbRef(window._db,'rooms/'+code+'/guest'));
+      setTimeout(startOnlineGame, 300);
+    });
   });
 }
 
-function listenForMatchSignal(uid, myName) {
-  const matchRef = window._fbRef(window._db,'matchmaking/match/'+uid);
-  window._fbOnValue(matchRef, async snap=>{
+function listenForMMRoom(uid, myName) {
+  const ref = window._fbRef(window._db,'matchmaking/rooms/'+uid);
+  window._fbOnValue(ref, async snap=>{
     if(!snap.exists()) return;
     const data = snap.val();
-    window._fbOff(matchRef);
-    await window._fbSet(matchRef, null);
-    // Join the room
+    window._fbOff(ref);
+    // Clean up signal
+    await window._fbSet(ref, null);
     const code = data.roomCode;
-    const myRole = data.role;
-    ONLINE.roomId=code; ONLINE.myRole=myRole; ONLINE.enabled=true; ONLINE.currentStep=null;
-    await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/guest'), myRole);
-    await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/playerNames/'+myRole), myName);
-    setTimeout(startOnlineGame, 400);
+    ONLINE.roomId=code; ONLINE.myRole=data.role; ONLINE.enabled=true; ONLINE.currentStep=null;
+    await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/guest'), data.role);
+    await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/playerNames/'+data.role), myName);
+    setTimeout(startOnlineGame, 300);
   });
 }
 
 async function cancelMatchmaking() {
   MM.active = false;
   clearInterval(MM.timerInterval);
-  if(MM.queueRef) window._fbOff(MM.queueRef);
+  if(MM.queueListener) window._fbOff(MM.queueListener);
   const user = window._currentUser;
-  if(user && MM.myEntryRef) await window._fbSet(MM.myEntryRef, null);
+  if(user) await window._fbSet(window._fbRef(window._db,'matchmaking/queue/'+user.uid), null);
   showScreen('lobby');
 }
 
