@@ -4790,6 +4790,7 @@ function buildUnitsLocally(){
 
 const _origEndGame = endGame;
 window.endGame = function(winner, reason) {
+  if(ONLINE.gameOver) return; // already handled
   ONLINE.gameOver = true;
   if(ONLINE.enabled){
     window._fbSet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/winner'),{winner,reason});
@@ -4803,8 +4804,7 @@ function listenWinner(){
   window._fbOnValue(ref, snap=>{
     const data=snap.val();
     if(!data||ONLINE.gameOver) return;
-    ONLINE.gameOver=true;
-    _origEndGame(data.winner, data.reason);
+    window.endGame(data.winner, data.reason);
   });
 }
 const _origAdvancePhase=advancePhase;
