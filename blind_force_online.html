@@ -3168,6 +3168,12 @@ function endGame(winner, reason) {
   document.getElementById('modal').classList.remove('active');
   const wo = document.getElementById('waiting-overlay');
   if(wo) wo.classList.remove('active');
+  // Stop reconnection system
+  if(typeof RECONNECT!=='undefined') {
+    if(RECONNECT.countdownInterval){clearInterval(RECONNECT.countdownInterval);RECONNECT.countdownInterval=null;}
+    if(RECONNECT.presenceListener){window._fbOff(RECONNECT.presenceListener);RECONNECT.presenceListener=null;}
+  }
+  clearSavedRoom();
   document.getElementById('winner-text').textContent = winner==='atk' ? '⚔ ATACANTE GANA' : '🛡 DEFENSOR GANA';
   document.getElementById('winner-text').className = 'winner-text '+winner;
   document.getElementById('winner-reason').textContent = reason;
@@ -4710,11 +4716,12 @@ function buildUnitsAndStart_online(){
         console.log('spawns='+JSON.stringify(G.spawnPlacements));
         if(G.units.length>0) console.log('first unit='+JSON.stringify(G.units[0]));
         startGameLoop();
+        setupPresence();
+        listenPresence();
         if(isMe){
           setHelp(phaseHelp('movement'));
           pushState();
         } else {
-          // Save snapshot of empty board (no reveals yet at game start)
           ONLINE.myLastRevealedCells = new Set();
           const savedRev2 = G.revealedCells;
           G.revealedCells = ONLINE.myLastRevealedCells;
@@ -4787,6 +4794,7 @@ function startOnlineGame(){
   startListening(); listenStep(); listenWinner();
   initChat();
   startPick(ONLINE.myRole);
+  saveActiveRoom();
 }
 
 function checkBothPicksDone(){
@@ -5058,8 +5066,166 @@ function updateConstructTurnUI(){
 // Show title screen on load (already shown via HTML)
 
 // ═══════════════════════════════════════════════════════════════════════════
-// CHAT SYSTEM
+// RECONNECTION SYSTEM
 // ═══════════════════════════════════════════════════════════════════════════
+const RECONNECT = {
+  countdownInterval: null,
+  presenceListener: null,
+};
+const ABANDON_TIMEOUT = 60; // seconds before declaring winner
+
+function setupPresence() {
+  if(!ONLINE.enabled||!ONLINE.roomId) return;
+  const presRef = window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/presence/'+ONLINE.myRole);
+  const discRef = window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/disconnectedAt/'+ONLINE.myRole);
+  // Set presence to true
+  window._fbSet(presRef, true);
+  // On disconnect: remove presence and write timestamp
+  presRef.onDisconnect().remove();
+  discRef.onDisconnect().set(Date.now());
+  // Mark game as started
+  window._fbSet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/gameStarted'), true);
+}
+
+function listenPresence() {
+  if(!ONLINE.enabled||!ONLINE.roomId) return;
+  const rivalRole = ONLINE.myRole==='atk'?'def':'atk';
+  const presRef = window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/presence/'+rivalRole);
+  const discRef = window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/disconnectedAt/'+rivalRole);
+
+  RECONNECT.presenceListener = presRef;
+  window._fbOnValue(presRef, snap=>{
+    if(ONLINE.gameOver) return;
+    if(snap.val()===true) {
+      // Rival reconnected — cancel any countdown
+      if(RECONNECT.countdownInterval) {
+        clearInterval(RECONNECT.countdownInterval);
+        RECONNECT.countdownInterval = null;
+        hideWaiting();
+        // Clear disconnectedAt
+        window._fbSet(discRef, null);
+        toast('✓ El rival se ha reconectado');
+      }
+    } else {
+      // Rival disconnected — start countdown
+      if(RECONNECT.countdownInterval) return; // already counting
+      if(ONLINE.gameOver) return;
+      // Only start countdown if game has started (not during lobby)
+      window._fbGet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/gameStarted')).then(s=>{
+        if(!s.val()) return;
+        startAbandonCountdown(rivalRole);
+      });
+    }
+  });
+}
+
+function startAbandonCountdown(rivalRole) {
+  let remaining = ABANDON_TIMEOUT;
+  const rivalLabel = rivalRole==='atk'?'ATACANTE':'DEFENSOR';
+
+  // Show waiting overlay with countdown
+  showWaiting('⚠ RIVAL DESCONECTADO',
+    `El ${rivalLabel.toLowerCase()} ha perdido la conexión.<br>Si no vuelve en <b id="reconnect-timer">${remaining}</b> segundos, ganarás automáticamente.`);
+
+  RECONNECT.countdownInterval = setInterval(()=>{
+    remaining--;
+    const el = document.getElementById('reconnect-timer');
+    if(el) el.textContent = remaining;
+    if(remaining<=0) {
+      clearInterval(RECONNECT.countdownInterval);
+      RECONNECT.countdownInterval = null;
+      if(!ONLINE.gameOver) {
+        // Declare winner
+        hideWaiting();
+        window.endGame(ONLINE.myRole, 'El rival abandonó la partida');
+      }
+    }
+  }, 1000);
+}
+
+async function tryReconnect() {
+  // Called on page load — check if there's an active game to rejoin
+  const user = window._currentUser;
+  if(!user) return;
+
+  // Look for active rooms where this user was a player
+  // We store the active room in localStorage as a hint
+  const savedRoom = localStorage.getItem('bf_active_room');
+  const savedRole = localStorage.getItem('bf_active_role');
+  if(!savedRoom||!savedRole) return;
+
+  try {
+    const snap = await window._fbGet(window._fbRef(window._db,'rooms/'+savedRoom));
+    if(!snap.exists()) { clearSavedRoom(); return; }
+    const room = snap.val();
+
+    // Check game is still active (no winner yet)
+    if(room.winner) { clearSavedRoom(); return; }
+    // Check game had started
+    if(!room.gameStarted) { clearSavedRoom(); return; }
+    // Check disconnectedAt exists (we were disconnected)
+    const discTs = room.disconnectedAt?.[savedRole];
+    if(!discTs) return; // we weren't disconnected, no need to reconnect
+
+    // Offer to reconnect
+    showModal('🔄 PARTIDA EN CURSO',
+      'Tienes una partida en curso en la sala <b>'+savedRoom+'</b>.<br>¿Quieres reconectarte?',
+      [
+        {label:'RECONECTARME', action:()=>doReconnect(savedRoom, savedRole)},
+        {label:'ABANDONAR', action:()=>{
+          window.endGame(savedRole==='atk'?'def':'atk', 'Abandono');
+          clearSavedRoom();
+        }}
+      ]
+    );
+  } catch(e) { clearSavedRoom(); }
+}
+
+async function doReconnect(roomCode, role) {
+  ONLINE.roomId = roomCode;
+  ONLINE.myRole = role;
+  ONLINE.enabled = true;
+  ONLINE.gameOver = false;
+  ONLINE.gameStartTs = Date.now();
+
+  // Restore presence
+  const presRef = window._fbRef(window._db,'rooms/'+roomCode+'/presence/'+role);
+  const discRef = window._fbRef(window._db,'rooms/'+roomCode+'/disconnectedAt/'+role);
+  await window._fbSet(presRef, true);
+  await window._fbSet(discRef, null);
+  presRef.onDisconnect().remove();
+
+  // Load state and resume
+  const snap = await window._fbGet(window._fbRef(window._db,'rooms/'+roomCode+'/state'));
+  if(snap.val()) {
+    G = deserializeG(snap.val());
+  }
+
+  const badge = document.getElementById('online-room-badge');
+  if(badge) { badge.textContent = 'SALA: '+roomCode; badge.style.display='block'; }
+
+  startListening(); listenStep(); listenWinner(); listenPresence(); initChat();
+
+  startGameLoop();
+  if(G.currentSide !== ONLINE.myRole) {
+    const rl = ONLINE.myRole==='atk'?'DEFENSOR':'ATACANTE';
+    showWaiting('TURNO DEL '+rl, 'El '+rl.toLowerCase()+' está jugando su turno.');
+  }
+  toast('✓ Reconectado a la partida');
+}
+
+function saveActiveRoom() {
+  if(ONLINE.enabled&&ONLINE.roomId) {
+    localStorage.setItem('bf_active_room', ONLINE.roomId);
+    localStorage.setItem('bf_active_role', ONLINE.myRole);
+  }
+}
+
+function clearSavedRoom() {
+  localStorage.removeItem('bf_active_room');
+  localStorage.removeItem('bf_active_role');
+}
+
 const CHAT_MESSAGES = [
   '👋 ¡Buena suerte!',
   '👏 ¡Buena jugada!',
@@ -5394,6 +5560,8 @@ window._onAuthReady = function(user) {
     btnStats.style.display = 'block';
     userBar.style.display  = 'block';
     uname.textContent      = user.displayName || user.email;
+    // Check for active game to reconnect to
+    setTimeout(tryReconnect, 500);
   } else {
     btnLogin.style.display = 'block';
     btnStats.style.display = 'none';
