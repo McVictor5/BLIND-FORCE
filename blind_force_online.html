@@ -640,6 +640,19 @@ body::before {
   <div class="title-glow" style="font-size:clamp(1.4rem,3.5vw,2.5rem);margin-bottom:0;">BLIND-FORCE</div>
   <div class="title-sub" style="margin-bottom:0;">ONLINE</div>
 
+  <!-- Matchmaking -->
+  <div style="width:100%;max-width:860px;background:rgba(74,124,89,.06);border:1px solid rgba(74,124,89,.3);padding:18px 22px;text-align:center;">
+    <div style="font-family:Orbitron,monospace;font-size:.75rem;font-weight:700;color:var(--accent-green);letter-spacing:.2em;margin-bottom:6px;">⚡ BUSCAR PARTIDA AUTOMÁTICAMENTE</div>
+    <div style="font-size:.76rem;color:var(--text-dim);margin-bottom:12px;">El sistema te empareja con otro jugador disponible. El rol se asigna aleatoriamente.</div>
+    <button onclick="startMatchmaking()"
+      style="padding:10px 32px;background:rgba(74,124,89,.15);border:1px solid var(--accent-green);color:var(--accent-green);font-family:Orbitron,monospace;font-size:.75rem;font-weight:700;letter-spacing:.15em;cursor:pointer;transition:all .2s;"
+      onmouseover="this.style.background='rgba(74,124,89,.3)'" onmouseout="this.style.background='rgba(74,124,89,.15)'">
+      BUSCAR RIVAL
+    </button>
+  </div>
+
+  <div style="font-size:.68rem;color:var(--text-dim);letter-spacing:.1em;text-align:center;">-- O CREA / ÚNETE A UNA SALA MANUAL --</div>
+
   <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;width:100%;max-width:860px;">
 
     <!-- CREATE -->
@@ -704,6 +717,22 @@ body::before {
   </div>
 
   <button onclick="showScreen('title')" style="background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--text-dim);font-family:Rajdhani,sans-serif;font-size:.9rem;font-weight:600;padding:9px 24px;cursor:pointer;letter-spacing:.1em;transition:all .2s;" onmouseover="this.style.borderColor='rgba(255,255,255,.4)';this.style.color='var(--text)'" onmouseout="this.style.borderColor='rgba(255,255,255,.15)';this.style.color='var(--text-dim)'">↩ VOLVER</button>
+</div>
+
+<!-- ══════════════════════════════ MATCHMAKING SCREEN ══════════════════════════════ -->
+<div id="screen-matchmaking" class="screen" style="flex-direction:column;align-items:center;justify-content:center;gap:24px;background:#0e0d0c;">
+  <div style="font-family:Orbitron,monospace;font-size:1.1rem;font-weight:700;color:var(--text);letter-spacing:.1em;">🔍 BUSCANDO PARTIDA</div>
+  <div style="text-align:center;">
+    <div id="mm-status" style="font-family:Inter,sans-serif;font-size:.85rem;color:var(--text-dim);margin-bottom:8px;">Buscando rival...</div>
+    <div id="mm-timer" style="font-family:Orbitron,monospace;font-size:2rem;color:var(--accent-yellow);letter-spacing:.2em;">0:00</div>
+    <div id="mm-players" style="font-size:.78rem;color:var(--text-dim);margin-top:8px;"></div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <div style="width:8px;height:8px;border-radius:50%;background:var(--accent-green);animation:pulse .6s ease-in-out infinite alternate;"></div>
+    <div style="width:8px;height:8px;border-radius:50%;background:var(--accent-green);animation:pulse .6s ease-in-out .2s infinite alternate;"></div>
+    <div style="width:8px;height:8px;border-radius:50%;background:var(--accent-green);animation:pulse .6s ease-in-out .4s infinite alternate;"></div>
+  </div>
+  <button onclick="cancelMatchmaking()" class="btn-secondary">✕ CANCELAR</button>
 </div>
 
 <!-- ══════════════════════════════ PICK SCREEN ══════════════════════════════ -->
@@ -4997,8 +5026,125 @@ function updateConstructTurnUI(){
 // Show title screen on load (already shown via HTML)
 
 // ═══════════════════════════════════════════════════════════════════════════
-// RANKING SYSTEM
+// MATCHMAKING SYSTEM
 // ═══════════════════════════════════════════════════════════════════════════
+const MM = {
+  active: false,
+  timerInterval: null,
+  startTime: null,
+  queueRef: null,
+  myEntryRef: null,
+  listenRef: null,
+};
+
+async function startMatchmaking() {
+  const user = window._currentUser;
+  if(!user) {
+    showModal('Cuenta requerida', 'Necesitas iniciar sesión para usar el matchmaking.', [{label:'INICIAR SESIÓN', action:()=>showScreen('auth')},{label:'CANCELAR'}]);
+    return;
+  }
+  showScreen('matchmaking');
+  MM.active = true;
+  MM.startTime = Date.now();
+
+  // Update timer display
+  MM.timerInterval = setInterval(()=>{
+    const s = Math.floor((Date.now()-MM.startTime)/1000);
+    const m = Math.floor(s/60), sec = s%60;
+    document.getElementById('mm-timer').textContent = m+':'+(sec<10?'0':'')+sec;
+  }, 1000);
+
+  // Assign random role
+  const myRole = Math.random()<0.5 ? 'atk' : 'def';
+  const rivalRole = myRole==='atk' ? 'def' : 'atk';
+  const myName = user.displayName || user.email;
+
+  // Write myself to the queue
+  MM.myEntryRef = window._fbRef(window._db, 'matchmaking/'+user.uid);
+  const entry = { uid: user.uid, name: myName, role: myRole, ts: Date.now() };
+  await window._fbSet(MM.myEntryRef, entry);
+
+  // Remove from queue on disconnect
+  window._fbRef(window._db, 'matchmaking/'+user.uid).onDisconnect?.().remove();
+
+  document.getElementById('mm-status').textContent = 'En cola como '+(myRole==='atk'?'⚔ ATACANTE':'🛡 DEFENSOR')+'...';
+
+  // Listen for a rival in the queue with the opposite role
+  MM.queueRef = window._fbRef(window._db, 'matchmaking');
+  window._fbOnValue(MM.queueRef, async snap => {
+    if(!MM.active) return;
+    const queue = snap.val() || {};
+    const entries = Object.values(queue).filter(e =>
+      e.uid !== user.uid && e.role === rivalRole && (Date.now()-e.ts) < 60000
+    );
+    if(entries.length === 0) {
+      const total = Object.values(queue).length;
+      document.getElementById('mm-players').textContent = total + ' jugador'+(total!==1?'es':'')+' en cola';
+      return;
+    }
+    // Found a rival — the player with the earlier timestamp creates the room
+    const rival = entries.sort((a,b)=>a.ts-b.ts)[0];
+    const iAmHost = entry.ts <= rival.ts;
+
+    if(!MM.active) return;
+    MM.active = false;
+    window._fbOff(MM.queueRef);
+    clearInterval(MM.timerInterval);
+
+    // Remove both from queue
+    await window._fbSet(MM.myEntryRef, null);
+
+    if(iAmHost) {
+      // I create the room
+      const code = genRoomCode();
+      await window._fbSet(window._fbRef(window._db,'rooms/'+code),{
+        created:Date.now(), host:myRole, guest:null, state:null, step:null, picks:null, coinWinner:null
+      });
+      await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/playerNames/'+myRole), myName);
+      // Signal rival to join this room
+      await window._fbSet(window._fbRef(window._db,'matchmaking/match/'+rival.uid), {roomCode:code, role:rivalRole});
+      ONLINE.roomId=code; ONLINE.myRole=myRole; ONLINE.enabled=true; ONLINE.currentStep=null;
+      // Wait for rival to join
+      document.getElementById('mm-status').textContent = '✓ Rival encontrado. Iniciando...';
+      window._fbOnValue(window._fbRef(window._db,'rooms/'+code+'/guest'), s=>{
+        if(!s.val()) return;
+        window._fbOff(window._fbRef(window._db,'rooms/'+code+'/guest'));
+        setTimeout(startOnlineGame, 400);
+      });
+    } else {
+      // Rival is host — wait for match signal with room code
+      document.getElementById('mm-status').textContent = '✓ Rival encontrado. Conectando...';
+      listenForMatchSignal(user.uid, myName);
+    }
+  });
+}
+
+function listenForMatchSignal(uid, myName) {
+  const matchRef = window._fbRef(window._db,'matchmaking/match/'+uid);
+  window._fbOnValue(matchRef, async snap=>{
+    if(!snap.exists()) return;
+    const data = snap.val();
+    window._fbOff(matchRef);
+    await window._fbSet(matchRef, null);
+    // Join the room
+    const code = data.roomCode;
+    const myRole = data.role;
+    ONLINE.roomId=code; ONLINE.myRole=myRole; ONLINE.enabled=true; ONLINE.currentStep=null;
+    await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/guest'), myRole);
+    await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/playerNames/'+myRole), myName);
+    setTimeout(startOnlineGame, 400);
+  });
+}
+
+async function cancelMatchmaking() {
+  MM.active = false;
+  clearInterval(MM.timerInterval);
+  if(MM.queueRef) window._fbOff(MM.queueRef);
+  const user = window._currentUser;
+  if(user && MM.myEntryRef) await window._fbSet(MM.myEntryRef, null);
+  showScreen('lobby');
+}
+
 let _rankingData = []; // cached ranking entries
 
 async function openRanking() {
