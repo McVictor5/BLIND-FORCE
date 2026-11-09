@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>BLIND-FORCE ONLINE</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#100f0d">
@@ -529,6 +529,121 @@ body::before { display:none; }
 .phase-tag, .role-badge { border-radius:3px; }
 .unit-ability-btn.glow-atk, .unit-ability-btn.glow-def { box-shadow:none; animation:none; outline:1px solid currentColor; }
 button, input, select { border-radius:3px; }
+
+/* ══ PULIDO VISUAL ══ */
+@keyframes bfIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+.screen.active { animation:bfIn .32s ease-out both; }
+body { background:radial-gradient(ellipse 120% 80% at 50% 0%, #1a1814 0%, #100f0d 55%, #0a0908 100%) fixed; }
+#screen-title { background:transparent; }
+.ttl-wrap { width:100%; max-width:380px; display:flex; flex-direction:column; align-items:center; }
+.ttl-emblem { width:132px; height:132px; margin-bottom:18px; filter:drop-shadow(0 6px 22px rgba(201,168,74,.14)); }
+.ttl-wrap .title-glow { font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-size:3rem; font-weight:700; letter-spacing:.2em; margin:0 0 0 .2em; line-height:1; }
+.ttl-wrap .title-sub { margin:10px 0 0 .42em; font-size:.74rem; letter-spacing:.42em; }
+.ttl-rule { display:flex; align-items:center; gap:12px; width:100%; margin:22px 0 24px; color:#8a7a50; font-size:.55rem; }
+.ttl-rule span { flex:1; height:1px; background:linear-gradient(90deg, transparent, #3a352d 40%, #3a352d 60%, transparent); }
+.ttl-rule i { font-style:normal; }
+.ttl-menu { width:100%; display:flex; flex-direction:column; gap:10px; }
+.ttl-main { width:100%; margin:0 !important; min-height:62px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:10px 14px; text-align:center; }
+.ttl-main b { font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-size:1.25rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase; }
+.ttl-main small { font-size:.72rem; letter-spacing:.06em; color:var(--text-dim); font-weight:400; text-transform:none; }
+.ttl-main.ttl-blue { border-color:var(--accent-blue); color:#b9d0ee; background:rgba(91,143,208,.07); }
+.ttl-main.ttl-blue:hover { background:rgba(91,143,208,.17); }
+.ttl-row { display:flex; gap:8px; margin-top:6px; }
+.ttl-row .btn-secondary { margin:0 !important; flex:1 1 0; min-width:0; padding:12px 4px; font-size:.78rem; letter-spacing:.1em; text-transform:uppercase; }
+/* controles generales */
+.btn-primary, .btn-secondary { transition:background .15s, border-color .15s, color .15s, transform .08s; }
+.btn-primary:active, .btn-secondary:active { transform:translateY(1px) scale(.995); }
+button:focus-visible, input:focus-visible { outline:2px solid var(--accent-yellow); outline-offset:2px; }
+input[type=text], input[type=password], input[type=email], input:not([type]) { transition:border-color .15s, box-shadow .15s; }
+input[type=text]:focus, input[type=password]:focus, input[type=email]:focus { border-color:var(--accent-yellow) !important; box-shadow:0 0 0 3px rgba(201,168,74,.12); outline:none; }
+#screen-lobby, #screen-auth, #screen-stats, #screen-ranking, #screen-playerstats, #screen-matchmaking { background:transparent !important; }
+#screen-lobby [style*="border:1px solid"], #screen-lobby .lobby-card { border-radius:6px !important; }
+@media (max-width:420px) { .ttl-wrap .title-glow { font-size:2.5rem; } .ttl-emblem { width:112px; height:112px; } }
+
+.ttl-wrap .title-glow { white-space:nowrap; font-size:2.7rem; }
+@media (max-width:420px) { .ttl-wrap .title-glow { font-size:2.2rem; letter-spacing:.16em; } }
+#screen-auth .btn-secondary, #screen-stats .btn-secondary, #screen-ranking .btn-secondary, #screen-playerstats .btn-secondary { box-sizing:border-box; }
+#screen-auth .btn-secondary { width:100%; margin:10px 0 0 !important; }
+#screen-lobby { background:transparent !important; }
+#screen-lobby > div, #screen-lobby > div > div { border-radius:6px; }
+
+/* ══ HORIZONTAL (móvil apaisado) ══ */
+#rotate-hint { display:none; position:fixed; inset:0; z-index:20000; background:#0d0c0a; color:var(--text); flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:24px; text-align:center; }
+#rotate-hint .rot-title { font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-size:1.7rem; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:#e8e0cc; }
+#rotate-hint .rot-text { color:var(--text-dim); font-size:.95rem; max-width:300px; margin-bottom:10px; }
+#rotate-hint button { width:100%; max-width:300px; margin:0; box-sizing:border-box; }
+.rot-phone { transform-origin:60px 60px; animation:rotPhone 2.8s ease-in-out infinite; }
+@keyframes rotPhone { 0%,25% { transform:rotate(0); } 55%,85% { transform:rotate(-90deg); } 100% { transform:rotate(0); } }
+@media (orientation:portrait) and (pointer:coarse) and (max-width:820px) { html:not(.rot-skip) #rotate-hint { display:flex; } }
+
+@media (orientation:landscape) and (max-height:600px) {
+  .screen.active { padding:max(8px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left)); }
+  #sfx-toggle { top:max(4px,env(safe-area-inset-top)) !important; right:max(6px,env(safe-area-inset-right)) !important; width:30px !important; height:30px !important; }
+  .modal-box { padding:16px 22px; max-height:92vh; max-height:92dvh; }
+  .modal-title { padding-bottom:8px; font-size:1.05rem; }
+  .btn-primary { padding-top:10px; padding-bottom:10px; }
+
+  /* Portada: emblema a la izquierda, menú a la derecha */
+  #screen-title.active .ttl-wrap { max-width:760px; display:grid; grid-template-columns:1fr 1fr; column-gap:36px; align-items:center; justify-items:center; }
+  #screen-title .ttl-emblem { grid-column:1; width:84px; height:84px; margin:0 0 8px; }
+  #screen-title .title-glow { grid-column:1; font-size:2.1rem !important; }
+  #screen-title .title-sub { grid-column:1; margin-top:6px; font-size:.62rem; }
+  #screen-title .ttl-rule { display:none; }
+  #screen-title #title-user-bar { grid-column:1; margin:10px 0 0; }
+  #screen-title .ttl-menu { grid-column:2; grid-row:1 / span 6; }
+  #screen-title .ttl-main { min-height:54px; }
+
+  /* Lobby y cuentas */
+  #screen-lobby.active { padding-top:12px; gap:10px; justify-content:flex-start; }
+  #screen-auth.active > div { padding:16px 24px !important; }
+  #screen-lobby > div { max-width:900px; }
+
+  /* Selección */
+  #screen-pick.active { justify-content:flex-start; padding-top:10px; }
+
+  /* Construcción y despliegue: info a la izquierda, tablero a la derecha */
+  #screen-construct.active, #screen-spawn.active { display:grid; grid-template-columns:minmax(210px,1fr) auto; gap:0 18px !important; grid-template-rows:repeat(6,auto); align-content:center !important; align-items:center !important; justify-items:center !important; min-height:100vh; min-height:100dvh; }
+  #screen-construct.active > *, #screen-spawn.active > * { grid-column:1; width:100%; margin-top:0; margin-bottom:8px; text-align:center; }
+  #screen-construct.active > .phase-header, #screen-spawn.active > .phase-header { justify-content:center; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+  #screen-construct.active > div:nth-child(4), #screen-spawn.active > div:nth-child(3) { grid-column:2; grid-row:1 / -1; width:auto; margin:0; }
+  #construct-canvas, #spawn-canvas { height:calc(100vh - 20px); height:calc(100dvh - 20px); width:auto; max-width:calc(100vw - 270px); }
+  .phase-title { font-size:1rem; }
+
+  /* Partida: tablero a toda altura a la izquierda; marcador, fases y panel a la derecha */
+  #screen-game.active { display:grid; grid-template-columns:auto minmax(230px,1fr); grid-template-rows:repeat(7,auto); gap:0 14px !important; align-content:start !important; align-items:start !important; justify-items:stretch !important; min-height:100vh; min-height:100dvh; }
+  #screen-game.active > * { grid-column:2; width:auto; max-width:none !important; margin-top:0; margin-bottom:6px; }
+  #screen-game .game-row { display:contents !important; }
+  #screen-game .board-wrap { grid-column:1; grid-row:1 / -1; margin:0; position:sticky; top:8px; align-self:start; }
+  #game-canvas { height:calc(100vh - 20px); height:calc(100dvh - 20px); width:auto; max-width:calc(100vw - 290px); }
+  #screen-game .sidebar { grid-column:2; width:auto; max-height:calc(100vh - 175px); max-height:calc(100dvh - 175px); overflow-y:auto; gap:8px; }
+  #screen-game .sidebar-panel { padding:10px; }
+  #screen-game .turn-banner { margin-bottom:4px; }
+  #screen-game .phase-bar { margin-bottom:6px; }
+  #screen-game .phase-step { padding:6px 2px; font-size:.58rem; }
+  #screen-game .help-text { margin-top:4px !important; font-size:.72rem; }
+  #chat-feed { max-height:60px !important; }
+
+  /* Resultado y repetición */
+  #replay-canvas { max-height:calc(100vh - 120px); max-height:calc(100dvh - 120px); }
+}
+
+/* ══ PORTADA: pantalla de inicio (solo ojo, título y botón) ══ */
+@keyframes bfSpin { to { transform:rotate(360deg); } }
+@keyframes bfBreathe { 0%,100% { opacity:.75; } 50% { opacity:1; } }
+.ttl-emblem { transition:width .35s ease, height .35s ease, margin .35s ease; }
+.ttl-emblem .ring-spin { transform-origin:100px 100px; animation:bfSpin 90s linear infinite; }
+.ttl-emblem .iris { animation:bfBreathe 4s ease-in-out infinite; }
+.ttl-start { display:none; margin:34px 0 0 !important; min-width:240px; padding:14px 34px; font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-size:1.2rem; letter-spacing:.3em; text-transform:uppercase; }
+.ttl-wrap.splash .ttl-start { display:block; }
+.ttl-wrap.splash .ttl-menu, .ttl-wrap.splash #title-user-bar, .ttl-wrap.splash .ttl-rule { display:none !important; }
+.ttl-wrap.splash .ttl-emblem { width:min(70vw, 44vh, 300px); height:min(70vw, 44vh, 300px); margin-bottom:26px; }
+.ttl-wrap.splash .title-glow { font-size:min(2.9rem,8.6vw) !important; letter-spacing:.16em; margin-left:.16em; }
+@media (orientation:landscape) and (max-height:600px) {
+  #screen-title.active .ttl-wrap.splash { display:flex; flex-direction:column; align-items:center; }
+  #screen-title .ttl-wrap.splash .ttl-emblem { width:min(50vh, 220px); height:min(50vh, 220px); margin-bottom:10px; }
+  #screen-title .ttl-wrap.splash .title-glow { font-size:2.3rem !important; }
+  .ttl-wrap.splash .ttl-start { margin-top:16px !important; padding:11px 30px; }
+}
 </style>
 
 <!-- Firebase -->
@@ -573,20 +688,46 @@ button, input, select { border-radius:3px; }
 <body>
 <button id="sfx-toggle" onclick="SFX.toggle()" title="Sonido" style="position:fixed;top:8px;right:8px;z-index:9999;width:34px;height:34px;border-radius:50%;border:1px solid rgba(200,168,75,.4);background:rgba(10,12,18,.75);color:#fff;font-size:1rem;cursor:pointer;padding:0;line-height:1;">🔊</button>
 
+<div id="rotate-hint" role="dialog" aria-label="Gira el móvil">
+  <svg viewBox="0 0 120 120" width="96" height="96" aria-hidden="true"><g class="rot-phone"><rect x="40" y="14" width="40" height="92" rx="8" fill="none" stroke="#c9a84a" stroke-width="4"/><circle cx="60" cy="96" r="3.5" fill="#c9a84a"/></g></svg>
+  <div class="rot-title">Gira el móvil</div>
+  <div class="rot-text">BLIND-FORCE está pensado para jugarse en horizontal.</div>
+  <button class="btn-primary" id="rot-full" style="margin-top:6px;">Pantalla completa en horizontal</button>
+  <button class="btn-secondary" id="rot-skip" style="margin-top:4px;">Continuar en vertical</button>
+</div>
+
 <!-- ══════════════════════════════ TITLE SCREEN ══════════════════════════════ -->
 <div id="screen-title" class="screen active">
-  <div class="title-glow">BLIND-FORCE</div>
-  <div class="title-sub">TACTICAL BOARD WARFARE</div>
-  <div id="title-user-bar" style="display:none;margin-bottom:16px;font-size:.78rem;color:var(--text-dim);letter-spacing:.08em;text-align:center;">
-    <span id="title-username" style="color:var(--text);font-weight:600;"></span>
-    <button onclick="doSignOut()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.72rem;margin-left:10px;text-decoration:underline;">Cerrar sesión</button>
+  <div class="ttl-wrap splash" id="ttl-wrap">
+    <svg class="ttl-emblem" viewBox="0 0 200 200" role="img" aria-label="Ojo abierto">
+      <circle cx="100" cy="100" r="92" fill="none" stroke="#302c26" stroke-width="1.5"/>
+      <g class="ring-spin"><circle cx="100" cy="100" r="82" fill="none" stroke="#8a7a50" stroke-width="1" stroke-dasharray="2 7" opacity=".7"/></g>
+      <path d="M100 4V22M100 178V196M4 100H22M178 100H196" stroke="#c9a84a" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M34 100 Q100 52 166 100 Q100 148 34 100Z" fill="#181613" stroke="#c9a84a" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle class="iris" cx="100" cy="100" r="27" fill="#c9a84a"/>
+      <circle cx="100" cy="100" r="12" fill="#100f0d"/>
+      <circle cx="100" cy="100" r="4.5" fill="#d4503f"/>
+      <circle cx="92" cy="92" r="3.6" fill="#e8e0cc" opacity=".85"/>
+    </svg>
+    <div class="title-glow">BLIND-FORCE</div>
+    <div class="title-sub">TACTICAL BOARD WARFARE</div>
+    <div class="ttl-rule"><span></span><i>◆</i><span></span></div>
+    <div id="title-user-bar" style="display:none;margin-bottom:14px;font-size:.8rem;color:var(--text-dim);letter-spacing:.08em;text-align:center;">
+      <span id="title-username" style="color:var(--text);font-weight:600;"></span>
+      <button onclick="doSignOut()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.74rem;margin-left:10px;text-decoration:underline;">Cerrar sesión</button>
+    </div>
+    <button class="btn-primary ttl-start" id="ttl-start" onclick="leaveSplash()">Comenzar</button>
+    <div class="ttl-menu">
+      <button class="btn-primary ttl-main" onclick="startGame()"><b>Partida local</b><small>Dos jugadores, un dispositivo</small></button>
+      <button class="btn-primary ttl-main ttl-blue" onclick="showScreen('lobby')"><b>Partida online</b><small>Cada jugador en su dispositivo</small></button>
+      <button class="btn-primary ttl-main" id="btn-stats" onclick="openStats()" style="display:none;"><b>Mis estadísticas</b><small>Tu historial online</small></button>
+      <div class="ttl-row">
+        <button class="btn-secondary" onclick="openRanking()">Ranking</button>
+        <button class="btn-secondary" onclick="showScreen('auth')" id="btn-login">Cuenta</button>
+        <button class="btn-secondary" onclick="showInstructions()">Cómo jugar</button>
+      </div>
+    </div>
   </div>
-  <button class="btn-primary" onclick="startGame()">▶ LOCAL (mismo dispositivo)</button>
-  <button class="btn-primary" onclick="showScreen('lobby')" style="margin-top:12px;border-color:var(--accent-blue);color:var(--accent-blue);">🌐 ONLINE (dos dispositivos)</button>
-  <button class="btn-primary" id="btn-stats" onclick="openStats()" style="margin-top:12px;border-color:var(--accent-yellow);color:var(--accent-yellow);display:none;">📊 MIS ESTADÍSTICAS</button>
-  <button class="btn-secondary" onclick="openRanking()" style="margin-top:8px;">🏆 RANKING</button>
-  <button class="btn-secondary" onclick="showScreen('auth')" id="btn-login" style="margin-top:8px;">👤 INICIAR SESIÓN / REGISTRARSE</button>
-  <button class="btn-secondary" onclick="showInstructions()" style="margin-top:8px;border-color:rgba(255,255,255,.25);font-size:.9rem;">📖 INSTRUCCIONES</button>
 </div>
 
 <!-- ══════════════════════════════ AUTH SCREEN ══════════════════════════════ -->
@@ -692,7 +833,7 @@ button, input, select { border-radius:3px; }
   <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;width:100%;max-width:860px;">
 
     <!-- CREATE -->
-    <div style="flex:1;min-width:270px;max-width:370px;background:linear-gradient(135deg,#0f1520,#0a0f1a);border:1px solid rgba(157,179,138,.25);padding:26px 24px;position:relative;overflow:hidden;">
+    <div style="flex:1;min-width:270px;max-width:370px;background:linear-gradient(160deg,#1c1915,#14120f);border:1px solid rgba(157,179,138,.25);padding:26px 24px;position:relative;overflow:hidden;">
       <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#9db38a,transparent);"></div>
       <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:.85rem;font-weight:700;color:var(--accent-green);letter-spacing:.2em;margin-bottom:20px;">⚔ CREAR SALA</div>
 
@@ -726,7 +867,7 @@ button, input, select { border-radius:3px; }
     </div>
 
     <!-- JOIN -->
-    <div style="flex:1;min-width:270px;max-width:370px;background:linear-gradient(135deg,#0f1520,#0a0f1a);border:1px solid rgba(91,143,208,.25);padding:26px 24px;position:relative;overflow:hidden;">
+    <div style="flex:1;min-width:270px;max-width:370px;background:linear-gradient(160deg,#1c1915,#14120f);border:1px solid rgba(91,143,208,.25);padding:26px 24px;position:relative;overflow:hidden;">
       <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#5b8fd0,transparent);"></div>
       <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:.85rem;font-weight:700;color:var(--def);letter-spacing:.2em;margin-bottom:20px;">🔗 UNIRSE A SALA</div>
 
@@ -839,7 +980,7 @@ button, input, select { border-radius:3px; }
     <div class="phase-step" id="ps-shoot">DISPARO</div>
     <div class="phase-step" id="ps-end">FIN TURNO</div>
   </div>
-  <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;justify-content:center;">
+  <div class="game-row" style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;justify-content:center;">
     <div class="board-wrap">
       <div id="view3d-bar" style="position:absolute;top:8px;right:8px;z-index:5;display:none;gap:6px;">
         <button id="btn-view3d" onclick="VIEW3D.toggle()" title="Cambiar entre vista 2D y 3D"
@@ -1747,9 +1888,16 @@ function initState() {
 // ═══════════════════════════════════════════════════════════════════════════
 // SCREEN UTILS
 // ═══════════════════════════════════════════════════════════════════════════
+let SPLASH_DONE = false;
+function leaveSplash() {
+  SPLASH_DONE = true;
+  const w = document.getElementById('ttl-wrap'); if (w) w.classList.remove('splash');
+  try { if (window.SFX) { SFX.unlock(); SFX.play('confirm'); } } catch (_) {}
+}
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-'+id).classList.add('active');
+  if (id === 'title' && SPLASH_DONE) { const w = document.getElementById('ttl-wrap'); if (w) w.classList.remove('splash'); }
 }
 
 function showModal(title, body, btns) {
@@ -2636,8 +2784,19 @@ class Board3D {
   resize() {
     if (!this.ready || !this.cv()) return;
     const cw = document.documentElement.clientWidth;
-    const w = Math.max(280, Math.min(this.cv().width, cw - 32));
-    const h = Math.round(Math.max(300, Math.min(this.cv().width, w * (cw < 600 ? 0.95 : 1.08), window.innerHeight - (this.cfg.reserve || 170))));
+    let w, h;
+    if (window.matchMedia && window.matchMedia('(orientation:landscape) and (max-height:600px)').matches) {
+      // Móvil en horizontal: el tablero ocupa todo el alto y el panel va al lado
+      const scr = this.cfg.screen;
+      const side = scr === 'screen-game' ? 290 : (scr === 'screen-construct' || scr === 'screen-spawn') ? 270 : 0;
+      const vert = scr === 'screen-replay' ? 120 : 20;
+      h = Math.round(Math.max(200, window.innerHeight - vert));
+      w = Math.round(Math.max(240, Math.min(h * 1.08, cw - side - 24)));
+      h = Math.min(h, Math.round(w * 1.2));
+    } else {
+      w = Math.max(280, Math.min(this.cv().width, cw - 32));
+      h = Math.round(Math.max(300, Math.min(this.cv().width, w * (cw < 600 ? 0.95 : 1.08), window.innerHeight - (this.cfg.reserve || 170))));
+    }
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
@@ -2647,7 +2806,7 @@ class Board3D {
   resetCamera(anim = true) {
     if (!this.ready) return;
     const t = Math.tan((this.camera.fov * Math.PI / 180) / 2);
-    const pol = (this.camera.aspect || 1) < 0.95 ? 0.6 : 0.85;   // más cenital en pantallas estrechas
+    const pol = ((this.camera.aspect || 1) < 0.95 || (window.matchMedia && matchMedia('(orientation:landscape) and (max-height:600px)').matches)) ? 0.6 : 0.85;   // más cenital en pantallas estrechas
     // El borde cercano queda más cerca de la cámara y se ve más ancho: se compensa.
     const half = 9.3;
     const asp = this.camera.aspect || 1;
@@ -6911,7 +7070,7 @@ window._onAuthReady = function(user) {
   if(!btnLogin) return;
   if(user) {
     btnLogin.style.display = 'none';
-    btnStats.style.display = 'block';
+    btnStats.style.display = 'flex';
     userBar.style.display  = 'block';
     uname.textContent      = user.displayName || user.email;
     // Check for active game to reconnect to
@@ -7136,6 +7295,26 @@ async function openStats() {
 if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) {
   window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
 }
+</script>
+<script>
+// Orientación: horizontal preferente en móvil
+(function(){
+  const root = document.documentElement;
+  function tryLock() { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); } catch (_) {} }
+  const standalone = (window.matchMedia && matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches) || navigator.standalone;
+  if (standalone) { tryLock(); document.addEventListener('pointerdown', tryLock, { once: true }); }
+  try { if (sessionStorage.getItem('bf_rot_skip') === '1') root.classList.add('rot-skip'); } catch (_) {}
+  window.addEventListener('DOMContentLoaded', () => {
+    const full = document.getElementById('rot-full'), skip = document.getElementById('rot-skip');
+    if (full) full.onclick = async () => {
+      try { if (!document.fullscreenElement && root.requestFullscreen) await root.requestFullscreen(); } catch (_) {}
+      tryLock();
+    };
+    if (skip) skip.onclick = () => { root.classList.add('rot-skip'); try { sessionStorage.setItem('bf_rot_skip', '1'); } catch (_) {} };
+  });
+  const bump = () => { try { window.dispatchEvent(new Event('resize')); } catch (_) {} };
+  window.addEventListener('orientationchange', () => setTimeout(bump, 250));
+})();
 </script>
 </body>
 </html>

@@ -6,7 +6,7 @@
   "start_url": "./blind_force_online.html",
   "scope": "./",
   "display": "standalone",
-  "orientation": "any",
+  "orientation": "landscape",
   "background_color": "#100f0d",
   "theme_color": "#100f0d",
   "icons": [
