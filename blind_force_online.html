@@ -601,27 +601,32 @@ input[type=text]:focus, input[type=password]:focus, input[type=email]:focus { bo
   /* Selección */
   #screen-pick.active { justify-content:flex-start; padding-top:10px; }
 
-  /* Construcción y despliegue: info a la izquierda, tablero a la derecha */
-  #screen-construct.active, #screen-spawn.active { display:grid; grid-template-columns:minmax(210px,1fr) auto; gap:0 18px !important; grid-template-rows:repeat(6,auto); align-content:center !important; align-items:center !important; justify-items:center !important; min-height:100vh; min-height:100dvh; }
-  #screen-construct.active > *, #screen-spawn.active > * { grid-column:1; width:100%; margin-top:0; margin-bottom:8px; text-align:center; }
-  #screen-construct.active > .phase-header, #screen-spawn.active > .phase-header { justify-content:center; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
-  #screen-construct.active > div:nth-child(4), #screen-spawn.active > div:nth-child(3) { grid-column:2; grid-row:1 / -1; width:auto; margin:0; }
-  #construct-canvas, #spawn-canvas { height:calc(100vh - 20px); height:calc(100dvh - 20px); width:auto; max-width:calc(100vw - 270px); }
-  .phase-title { font-size:1rem; }
+  /* Construcción y despliegue: tablero ancho a la izquierda, info estrecha a la derecha */
+  #screen-construct.active, #screen-spawn.active { display:grid; grid-template-columns:minmax(0,1fr) 190px; gap:0 14px !important; grid-template-rows:repeat(6,auto); align-content:center !important; align-items:center !important; justify-items:center !important; min-height:100vh; min-height:100dvh; }
+  #screen-construct.active > *, #screen-spawn.active > * { grid-column:2; width:100%; margin-top:0; margin-bottom:8px; text-align:center; }
+  #screen-construct.active > .phase-header, #screen-spawn.active > .phase-header { justify-content:center; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
+  #screen-construct.active > div:nth-child(4), #screen-spawn.active > div:nth-child(3) { grid-column:1; grid-row:1 / -1; width:auto; margin:0; }
+  #construct-canvas, #spawn-canvas { height:calc(100vh - 20px); height:calc(100dvh - 20px); width:auto; max-width:calc(100vw - 225px); }
+  .phase-title { font-size:.95rem; }
+  #screen-construct .btn-secondary, #screen-spawn .btn-primary { margin:0 !important; width:100%; padding:10px 6px; font-size:.78rem; }
+  .phase-tag { font-size:.62rem; }
 
-  /* Partida: tablero a toda altura a la izquierda; marcador, fases y panel a la derecha */
-  #screen-game.active { display:grid; grid-template-columns:auto minmax(230px,1fr); grid-template-rows:repeat(7,auto); gap:0 14px !important; align-content:start !important; align-items:start !important; justify-items:stretch !important; min-height:100vh; min-height:100dvh; }
-  #screen-game.active > * { grid-column:2; width:auto; max-width:none !important; margin-top:0; margin-bottom:6px; }
+  /* Partida: franja superior a todo el ancho; debajo tablero ancho + panel estrecho */
+  #screen-game.active { display:grid; grid-template-columns:minmax(0,1fr) 200px; grid-template-rows:auto 1fr auto; gap:0 12px !important; align-content:start !important; align-items:start !important; justify-items:stretch !important; min-height:100vh; min-height:100dvh; }
+  #screen-game.active > * { width:auto; max-width:none !important; margin-top:0; }
+  #screen-game .game-top { grid-column:1 / -1; grid-row:1; display:flex; align-items:center; gap:10px; margin-bottom:6px; padding-right:40px; }
+  #screen-game .game-top .turn-banner { flex:1 1 auto; margin:0; min-width:0; flex-wrap:nowrap !important; gap:8px !important; white-space:nowrap; font-size:.8rem; }
+  #screen-game .game-top .turn-banner .btn-primary { padding:7px 12px; font-size:.78rem; white-space:nowrap; }
+  #screen-game .game-top .phase-bar { flex:0 1 380px; margin:0; width:auto; }
   #screen-game .game-row { display:contents !important; }
-  #screen-game .board-wrap { grid-column:1; grid-row:1 / -1; margin:0; position:sticky; top:8px; align-self:start; }
-  #game-canvas { height:calc(100vh - 20px); height:calc(100dvh - 20px); width:auto; max-width:calc(100vw - 290px); }
-  #screen-game .sidebar { grid-column:2; width:auto; max-height:calc(100vh - 175px); max-height:calc(100dvh - 175px); overflow-y:auto; gap:8px; }
-  #screen-game .sidebar-panel { padding:10px; }
-  #screen-game .turn-banner { margin-bottom:4px; }
-  #screen-game .phase-bar { margin-bottom:6px; }
-  #screen-game .phase-step { padding:6px 2px; font-size:.58rem; }
-  #screen-game .help-text { margin-top:4px !important; font-size:.72rem; }
-  #chat-feed { max-height:60px !important; }
+  #screen-game .board-wrap { grid-column:1; grid-row:2; margin:0; justify-self:center; }
+  #game-canvas { height:calc(100vh - 64px); height:calc(100dvh - 64px); width:auto; max-width:calc(100vw - 225px); }
+  #screen-game .sidebar { grid-column:2; grid-row:2; width:auto; max-height:calc(100vh - 100px); max-height:calc(100dvh - 100px); overflow-y:auto; gap:8px; }
+  #screen-game .sidebar-panel { padding:8px; }
+  #screen-game .help-text { grid-column:2; grid-row:3; margin:4px 0 0 !important; font-size:.66rem; line-height:1.3; text-align:left; }
+  #screen-game #chat-feed, #screen-game #chat-btn-bar { grid-column:2; }
+  #screen-game .phase-step { padding:6px 2px; font-size:.56rem; }
+  #chat-feed { max-height:50px !important; }
 
   /* Resultado y repetición */
   #replay-canvas { max-height:calc(100vh - 120px); max-height:calc(100dvh - 120px); }
@@ -644,6 +649,16 @@ input[type=text]:focus, input[type=password]:focus, input[type=email]:focus { bo
   #screen-title .ttl-wrap.splash .title-glow { font-size:2.3rem !important; }
   .ttl-wrap.splash .ttl-start { margin-top:16px !important; padding:11px 30px; }
 }
+
+/* ══ Sin capa azul al tocar (móvil) ══ */
+html, body { -webkit-tap-highlight-color:transparent; }
+canvas, .board-wrap, [id^="view3d-wrap"], [id^="view3d-wrap"] *, button, .unit-card, .phase-step {
+  -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none;
+}
+canvas { outline:none; -webkit-user-drag:none; }
+canvas:focus, canvas:active, [id^="view3d-wrap"] canvas:focus { outline:none; }
+canvas::selection, .board-wrap *::selection { background:transparent; }
+input, textarea, [contenteditable] { -webkit-user-select:text; user-select:text; }
 </style>
 
 <!-- Firebase -->
@@ -973,12 +988,14 @@ input[type=text]:focus, input[type=password]:focus, input[type=email]:focus { bo
 <!-- ══════════════════════════════ GAME SCREEN ══════════════════════════════ -->
 <div id="screen-game" class="screen" style="flex-direction:column;align-items:center;">
   <div id="online-room-badge" style="display:none;font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif;font-size:.7rem;color:var(--text-dim);letter-spacing:.15em;margin-bottom:4px;"></div>
+  <div class="game-top">
   <div id="turn-banner" class="turn-banner" style="max-width:900px;width:100%;"></div>
   <div class="phase-bar" id="phase-bar">
     <div class="phase-step" id="ps-move">MOVIMIENTO</div>
     <div class="phase-step" id="ps-vision">VISIÓN</div>
     <div class="phase-step" id="ps-shoot">DISPARO</div>
     <div class="phase-step" id="ps-end">FIN TURNO</div>
+  </div>
   </div>
   <div class="game-row" style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;justify-content:center;">
     <div class="board-wrap">
@@ -2788,11 +2805,10 @@ class Board3D {
     if (window.matchMedia && window.matchMedia('(orientation:landscape) and (max-height:600px)').matches) {
       // Móvil en horizontal: el tablero ocupa todo el alto y el panel va al lado
       const scr = this.cfg.screen;
-      const side = scr === 'screen-game' ? 290 : (scr === 'screen-construct' || scr === 'screen-spawn') ? 270 : 0;
-      const vert = scr === 'screen-replay' ? 120 : 20;
+      const side = (scr === 'screen-game' || scr === 'screen-construct' || scr === 'screen-spawn') ? 215 : 0;
+      const vert = scr === 'screen-replay' ? 120 : scr === 'screen-game' ? 66 : 20;
       h = Math.round(Math.max(200, window.innerHeight - vert));
-      w = Math.round(Math.max(240, Math.min(h * 1.08, cw - side - 24)));
-      h = Math.min(h, Math.round(w * 1.2));
+      w = Math.round(Math.max(240, Math.min(h * 1.9, cw - side - 24)));
     } else {
       w = Math.max(280, Math.min(this.cv().width, cw - 32));
       h = Math.round(Math.max(300, Math.min(this.cv().width, w * (cw < 600 ? 0.95 : 1.08), window.innerHeight - (this.cfg.reserve || 170))));
@@ -2806,11 +2822,12 @@ class Board3D {
   resetCamera(anim = true) {
     if (!this.ready) return;
     const t = Math.tan((this.camera.fov * Math.PI / 180) / 2);
-    const pol = ((this.camera.aspect || 1) < 0.95 || (window.matchMedia && matchMedia('(orientation:landscape) and (max-height:600px)').matches)) ? 0.6 : 0.85;   // más cenital en pantallas estrechas
+    const LSm = window.matchMedia && matchMedia('(orientation:landscape) and (max-height:600px)').matches;
+    const pol = LSm ? 0.5 : ((this.camera.aspect || 1) < 0.95 ? 0.6 : 0.85);   // más cenital en pantallas estrechas
     // El borde cercano queda más cerca de la cámara y se ve más ancho: se compensa.
     const half = 9.3;
     const asp = this.camera.aspect || 1;
-    const fitV = (half * 1.08) / t + half * Math.sin(pol) + 0.6;            // alto: cabe el tablero entero
+    const fitV = (half * (LSm ? 1.0 : 1.08)) / t + half * Math.sin(pol) + 0.6;            // alto: cabe el tablero entero
     const fitH = (half * 1.3) / (t * asp) + half * Math.sin(pol) + 0.6;     // ancho: el borde cercano se ve más ancho
     const fit = Math.max(fitV, fitH);
     const to = { az: 0, pol, r: Math.min(this.maxR, Math.max(14, fit)) };
