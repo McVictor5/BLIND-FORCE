@@ -659,6 +659,163 @@ canvas { outline:none; -webkit-user-drag:none; }
 canvas:focus, canvas:active, [id^="view3d-wrap"] canvas:focus { outline:none; }
 canvas::selection, .board-wrap *::selection { background:transparent; }
 input, textarea, [contenteditable] { -webkit-user-select:text; user-select:text; }
+
+/* ══ PULIDO: panel de partida, fases y avisos ══ */
+.sidebar-panel, .intel-section, .marker-panel { border-radius:5px; background:linear-gradient(180deg,#1b1815,#151310); border:1px solid #2c2822; box-shadow:0 1px 0 rgba(255,255,255,.03) inset; }
+.sidebar-panel { position:relative; }
+.sidebar-panel::before { content:''; position:absolute; left:0; top:10px; bottom:10px; width:2px; background:var(--accent-yellow); opacity:.55; border-radius:2px; }
+.sidebar-title { font-size:.78rem; font-weight:700; letter-spacing:.2em; color:#d8bf6a; margin-bottom:8px; padding-left:4px; }
+.unit-list-item { gap:9px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.06); }
+.unit-list-dot { width:30px; height:30px; border-radius:50%; font-size:.85rem; }
+.unit-list-name { display:flex; flex-direction:column; min-width:0; line-height:1.15; }
+.unit-list-nm { font-weight:600; font-size:.9rem; color:#e2dccb; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.unit-list-ab { font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-size:.66rem; letter-spacing:.12em; color:var(--text-dim); text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.unit-ability-btn { min-width:48px; padding:6px 9px; font-size:.72rem; font-weight:700; letter-spacing:.14em; border-radius:3px; background:rgba(255,255,255,.02); }
+.unit-ability-btn:disabled { opacity:.35; }
+.unit-ability-btn.glow-atk { background:rgba(212,80,63,.16); box-shadow:0 0 0 1px var(--atk) inset; outline:none; animation:abPulse 1.4s ease-in-out infinite; }
+.unit-ability-btn.glow-def { background:rgba(91,143,208,.16); box-shadow:0 0 0 1px var(--def) inset; outline:none; animation:abPulse 1.4s ease-in-out infinite; }
+@keyframes abPulse { 0%,100% { opacity:.8; } 50% { opacity:1; } }
+.unit-used-tag { font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-size:.62rem; letter-spacing:.14em; color:var(--text-dim); border:1px solid #2c2822; padding:3px 6px; border-radius:3px; }
+/* contador de bomba segmentado */
+.bomb-counter-name { display:flex; justify-content:space-between; align-items:baseline; font-size:.85rem; color:#cfc8b6; }
+.bomb-counter-name b { font-size:1rem; color:#f0e4bb; letter-spacing:.04em; }
+.bomb-counter-name i { font-style:normal; color:var(--text-dim); font-weight:600; font-size:.8rem; }
+.bomb-counter-bar { position:relative; height:9px; background:#0e0d0b; border:1px solid #2c2822; border-radius:2px; margin-top:5px; }
+.bomb-counter-bar::after { content:''; position:absolute; inset:0; background:repeating-linear-gradient(90deg, transparent 0, transparent calc(20% - 2px), #151310 calc(20% - 2px), #151310 20%); pointer-events:none; }
+.bomb-counter-fill { background:linear-gradient(90deg,#b3342a,#d4503f); border-radius:0; }
+/* barra de fases */
+.phase-bar { border-radius:5px; background:#12100e; border:1px solid #2c2822; }
+.phase-step { position:relative; font-weight:600; letter-spacing:.14em; color:#6d675b; border-right:1px solid #24211c; }
+.phase-step.active { background:linear-gradient(180deg,rgba(201,168,74,.16),rgba(201,168,74,.05)); color:#ecd48a; }
+.phase-step.active::after { content:''; position:absolute; left:14%; right:14%; bottom:0; height:2px; background:var(--accent-yellow); border-radius:2px 2px 0 0; }
+.phase-step.done { color:#8a8366; }
+.phase-step.done::before { content:'✓ '; font-size:.85em; }
+/* cabecera de turno */
+.turn-player { font-size:1rem; letter-spacing:.14em; text-transform:uppercase; }
+.turn-player.atk { color:#e2665a; } .turn-player.def { color:#74a3dd; }
+.turn-round { letter-spacing:.16em; text-transform:uppercase; border:1px solid #2c2822; border-radius:3px; padding:3px 8px; margin-left:0; }
+/* texto de ayuda como barra discreta */
+.help-text { color:#a9b890; opacity:1; letter-spacing:.04em; }
+#game-help { background:rgba(157,179,138,.06); border-left:2px solid rgba(157,179,138,.45); padding:7px 10px; border-radius:0 3px 3px 0; text-align:left; }
+#game-help:empty { display:none; }
+/* paneles plegables */
+.intel-toggle, .marker-toggle { padding:11px 12px; letter-spacing:.16em; font-weight:600; font-size:.74rem; }
+.intel-toggle:hover { color:#ecd48a; }
+/* aviso (toast): centrado arriba, sin tapar el tablero ni el panel */
+.toast { right:auto; left:50%; top:auto; bottom:24px; transform:translateX(-50%); max-width:min(520px, 86vw); text-align:center; padding:11px 18px; background:#1d1a16; border:1px solid #6b5d33; border-radius:5px; color:#ecd48a; font-size:.9rem; letter-spacing:.04em; box-shadow:0 14px 36px rgba(0,0,0,.6); }
+@keyframes toastIn { from { opacity:0; transform:translate(-50%,8px); } to { opacity:1; transform:translate(-50%,0); } }
+/* ventanas emergentes */
+.modal-box { border-radius:6px; }
+.modal-btns, #modal-btns { gap:10px; }
+@media (orientation:landscape) and (max-height:600px) {
+  .toast { top:52px; bottom:auto; }
+  .sidebar-title { font-size:.7rem; letter-spacing:.14em; margin-bottom:5px; }
+  .bomb-counter { margin-bottom:4px; }
+  .bomb-counter-name { font-size:.76rem; }
+  .bomb-counter-name b { font-size:.85rem; }
+  .bomb-counter-bar { height:6px; margin-top:2px; }
+  .sidebar-panel::before { top:8px; bottom:8px; }
+  .unit-list-item { padding:5px 0; }
+  .unit-list-dot { width:26px; height:26px; font-size:.75rem; }
+  .unit-list-nm { font-size:.82rem; }
+  .unit-ability-btn { min-width:42px; padding:5px 7px; font-size:.66rem; letter-spacing:.1em; }
+  #screen-game .game-top .turn-banner .turn-round { padding:2px 6px; font-size:.66rem; }
+  #game-help { padding:5px 7px; }
+}
+
+/* ══ PULIDO: selección, ranking, estadísticas, resultado ══ */
+/* selección de unidades */
+#screen-pick.active { justify-content:flex-start; padding-top:18px; }
+#card-grid > div { max-width:900px !important; }
+#card-grid > div > button { border-radius:5px !important; background:linear-gradient(180deg,#1b1815,#151310) !important; border-color:#2c2822 !important; padding:12px 16px !important; }
+#card-grid > div > button > span:first-child { display:none; }
+#card-grid > div > button > span:nth-child(2) { font-size:.82rem !important; letter-spacing:.2em !important; font-weight:700; color:#e2dccb !important; }
+#card-grid > div > div[id^="pickcat_"] { border-radius:0 0 5px 5px; gap:10px !important; padding:10px !important; background:rgba(0,0,0,.22) !important; border-color:#2c2822 !important; }
+.unit-card { display:grid; grid-template-columns:48px 1fr; grid-template-rows:auto 1fr; align-content:start; column-gap:12px; align-items:start; padding:12px 14px; border:1px solid #2c2822; border-radius:6px; background:linear-gradient(180deg,#1b1815,#151310); }
+.unit-card .unit-icon { grid-row:1 / span 2; width:46px; height:46px; margin:0; border-radius:50%; font-size:1.2rem; }
+.unit-card .unit-name { font-size:1.05rem; margin:0 0 2px; letter-spacing:.04em; color:#ece4cf; }
+.unit-card .unit-ability { font-size:.8rem; line-height:1.4; }
+.unit-card:hover { border-color:#4a4435; }
+.unit-card.selected.atk { border-color:var(--atk); background:linear-gradient(180deg,rgba(212,80,63,.16),rgba(212,80,63,.05)); box-shadow:0 0 0 1px var(--atk) inset; }
+.unit-card.selected.def { border-color:var(--def); background:linear-gradient(180deg,rgba(91,143,208,.17),rgba(91,143,208,.05)); box-shadow:0 0 0 1px var(--def) inset; }
+.unit-card.selected::after { content:'✓'; position:absolute; top:8px; right:10px; width:20px; height:20px; border-radius:50%; font-size:.75rem; line-height:20px; text-align:center; font-weight:800; color:#12100e; }
+.unit-card.selected.atk::after { background:var(--atk); } .unit-card.selected.def::after { background:var(--def); }
+.pick-bar { position:sticky; bottom:0; width:100%; margin-top:14px; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); background:linear-gradient(180deg,rgba(16,15,13,0),#100f0d 28%); display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; z-index:5; }
+.pick-bar .sel-count { margin:0 !important; font-size:.95rem; letter-spacing:.14em; color:#d8bf6a; }
+.pick-bar > div { margin:0 !important; }
+.sel-count b { color:#f0e4bb; }
+@media (max-width:460px) { #card-grid > div > div[id^="pickcat_"] { grid-template-columns:1fr !important; } }
+/* ranking y estadísticas */
+#screen-ranking.active, #screen-stats.active, #screen-playerstats.active { justify-content:flex-start; padding-top:22px; }
+.rk-pos { display:inline-flex; width:26px; height:26px; border-radius:50%; align-items:center; justify-content:center; font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-weight:800; font-size:.95rem; color:#12100e; background:#4a453a; }
+.rk-pos.p1 { background:#d8b85a; } .rk-pos.p2 { background:#b9bcc2; } .rk-pos.p3 { background:#b7834f; }
+#ranking-content > div, #stats-content > div, #playerstats-content > div { border-radius:5px !important; }
+#ranking-content > div[onclick] { background-image:linear-gradient(180deg,rgba(255,255,255,.015),transparent); }
+/* resultado */
+.winner-text { font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-weight:800; letter-spacing:.24em; text-transform:uppercase; }
+.winner-text.atk { color:#e2665a; } .winner-text.def { color:#74a3dd; }
+.win-rule { display:flex; align-items:center; gap:12px; width:min(360px,70vw); margin:0 0 16px; color:#8a7a50; font-size:.6rem; }
+.win-rule span { flex:1; height:1px; background:linear-gradient(90deg,transparent,#3a352d 40%,#3a352d 60%,transparent); } .win-rule i { font-style:normal; }
+#screen-winner .btn-primary { min-width:170px; letter-spacing:.2em; text-transform:uppercase; }
+@media (orientation:landscape) and (max-height:600px) {
+  #screen-pick.active { padding-top:10px; }
+  #screen-pick .phase-header { margin-bottom:6px; }
+  #pick-role-badge { margin-bottom:6px !important; } #pick-instructions { margin-bottom:8px !important; }
+  #card-grid > div > div[id^="pickcat_"] { grid-template-columns:repeat(3,1fr) !important; }
+  .unit-card { padding:10px 12px; } .unit-card .unit-ability { font-size:.74rem; }
+  #stats-content { columns:2; column-gap:14px; }
+  #stats-content > div { break-inside:avoid; }
+  #screen-ranking.active, #screen-stats.active, #screen-playerstats.active { padding-top:12px; }
+  #screen-winner.active .winner-text { font-size:2.2rem !important; }
+}
+
+/* ══ SELECCIÓN: escaparate 3D + carrusel vertical ══ */
+#screen-pick.active { height:100vh; height:100dvh; min-height:0; overflow:hidden; justify-content:flex-start; padding:12px 14px 0; }
+#screen-pick .phase-header { margin:0 0 4px; max-width:none; justify-content:center; }
+#pick-instructions { margin:0 0 6px !important; font-size:.78rem; letter-spacing:.08em; text-align:center; }
+.pick-stage { flex:1 1 auto; min-height:0; width:100%; max-width:1000px; display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.pick-left { position:relative; min-height:0; display:flex; flex-direction:column; align-items:center; }
+#pick-role-badge { margin:0 0 4px; z-index:2; }
+#pick-3d { position:relative; flex:1 1 auto; width:100%; min-height:120px; }
+#pick-3d.nogl #pick-3d-fallback { display:flex; }
+#pick-3d-fallback { display:none; position:absolute; inset:0; margin:auto; width:min(60%,180px); height:min(60%,180px); border-radius:50%; align-items:center; justify-content:center; font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-size:5rem; font-weight:800; }
+#pick-3d-fallback.atk { background:rgba(212,80,63,.2); color:var(--atk); border:3px solid var(--atk); }
+#pick-3d-fallback.def { background:rgba(91,143,208,.2); color:var(--def); border:3px solid var(--def); }
+#pick-focus { text-align:center; line-height:1.1; margin-top:2px; }
+#pick-focus b { display:block; font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-size:1.35rem; letter-spacing:.14em; text-transform:uppercase; color:#ece4cf; }
+#pick-focus span { font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-size:.72rem; letter-spacing:.2em; text-transform:uppercase; color:var(--text-dim); }
+#pick-slots { display:flex; gap:8px; margin:8px 0 6px; }
+#pick-slots .slot { width:30px; height:30px; border-radius:50%; border:1.5px dashed #3a352d; display:flex; align-items:center; justify-content:center; font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-weight:800; font-size:.9rem; cursor:pointer; }
+#pick-slots .slot.full.atk { border:1.5px solid var(--atk); background:rgba(212,80,63,.2); color:var(--atk); }
+#pick-slots .slot.full.def { border:1.5px solid var(--def); background:rgba(91,143,208,.2); color:var(--def); }
+.pick-right { position:relative; min-height:0; }
+.pick-right::before, .pick-right::after { content:''; position:absolute; left:0; right:0; height:26px; z-index:3; pointer-events:none; }
+.pick-right::before { top:0; background:linear-gradient(180deg,#100f0d,rgba(16,15,13,0)); }
+.pick-right::after { bottom:0; background:linear-gradient(0deg,#100f0d,rgba(16,15,13,0)); }
+#screen-pick #card-grid { position:absolute; inset:0; width:auto !important; max-width:none !important; display:block !important; overflow-y:auto; scroll-snap-type:y proximity; padding:30px 4px 30px 0; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#3a352d transparent; }
+#screen-pick #card-grid > .unit-card { max-width:none !important; margin:0 0 9px; scroll-snap-align:center; transition:transform .2s, border-color .2s, opacity .2s; opacity:.72; }
+#screen-pick #card-grid > .unit-card.focus { opacity:1; transform:scale(1.015); border-color:#6b5d33; }
+#screen-pick #card-grid > .unit-card.selected { opacity:1; }
+.unit-card .unit-name small { display:block; font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-size:.6rem; letter-spacing:.18em; text-transform:uppercase; color:var(--text-dim); font-weight:600; margin-top:1px; }
+.pick-bar { position:static; flex:0 0 auto; margin:0; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:none; }
+.pick-actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+.pick-actions .btn-primary, .pick-actions .btn-secondary { margin:0; padding:9px 16px; font-size:.78rem; }
+@media (max-width:700px) and (orientation:portrait) {
+  .pick-stage { grid-template-columns:1fr; grid-template-rows:minmax(150px,38%) 1fr; gap:6px; }
+  #pick-slots { margin:4px 0 2px; }
+}
+@media (orientation:landscape) and (max-height:600px) {
+  #screen-pick.active { padding-top:6px; }
+  #screen-pick .phase-header { display:none; }
+  #pick-instructions { display:none; }
+  .pick-stage { grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); }
+  #pick-focus b { font-size:1.1rem; }
+  #pick-slots .slot { width:26px; height:26px; font-size:.8rem; }
+  .pick-bar { display:flex; align-items:center; justify-content:center; gap:14px; padding-top:4px; padding-bottom:calc(4px + env(safe-area-inset-bottom)); }
+  .pick-bar .sel-count { font-size:.8rem; }
+  .pick-actions .btn-primary, .pick-actions .btn-secondary { padding:7px 14px; font-size:.7rem; }
+  #screen-pick #card-grid > .unit-card { padding:9px 11px; margin-bottom:7px; }
+}
 </style>
 
 <!-- Firebase -->
@@ -834,7 +991,7 @@ input, textarea, [contenteditable] { -webkit-user-select:text; user-select:text;
 
   <!-- Matchmaking -->
   <div style="width:100%;max-width:860px;background:rgba(74,124,89,.06);border:1px solid rgba(74,124,89,.3);padding:18px 22px;text-align:center;">
-    <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:.75rem;font-weight:700;color:var(--accent-green);letter-spacing:.2em;margin-bottom:6px;">⚡ BUSCAR PARTIDA AUTOMÁTICAMENTE</div>
+    <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:.75rem;font-weight:700;color:var(--accent-green);letter-spacing:.2em;margin-bottom:6px;">BUSCAR PARTIDA AUTOMÁTICAMENTE</div>
     <div style="font-size:.76rem;color:var(--text-dim);margin-bottom:12px;">El sistema te empareja con otro jugador disponible. El rol se asigna aleatoriamente.</div>
     <button onclick="startMatchmaking()"
       style="padding:10px 32px;background:rgba(74,124,89,.15);border:1px solid var(--accent-green);color:var(--accent-green);font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:.75rem;font-weight:700;letter-spacing:.15em;cursor:pointer;transition:all .2s;"
@@ -850,7 +1007,7 @@ input, textarea, [contenteditable] { -webkit-user-select:text; user-select:text;
     <!-- CREATE -->
     <div style="flex:1;min-width:270px;max-width:370px;background:linear-gradient(160deg,#1c1915,#14120f);border:1px solid rgba(157,179,138,.25);padding:26px 24px;position:relative;overflow:hidden;">
       <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#9db38a,transparent);"></div>
-      <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:.85rem;font-weight:700;color:var(--accent-green);letter-spacing:.2em;margin-bottom:20px;">⚔ CREAR SALA</div>
+      <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:.85rem;font-weight:700;color:var(--accent-green);letter-spacing:.2em;margin-bottom:20px;">CREAR SALA</div>
 
       <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:.68rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:8px;text-transform:uppercase;">Tu rol</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;">
@@ -884,7 +1041,7 @@ input, textarea, [contenteditable] { -webkit-user-select:text; user-select:text;
     <!-- JOIN -->
     <div style="flex:1;min-width:270px;max-width:370px;background:linear-gradient(160deg,#1c1915,#14120f);border:1px solid rgba(91,143,208,.25);padding:26px 24px;position:relative;overflow:hidden;">
       <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#5b8fd0,transparent);"></div>
-      <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:.85rem;font-weight:700;color:var(--def);letter-spacing:.2em;margin-bottom:20px;">🔗 UNIRSE A SALA</div>
+      <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:.85rem;font-weight:700;color:var(--def);letter-spacing:.2em;margin-bottom:20px;">UNIRSE A SALA</div>
 
       <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:.68rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:8px;text-transform:uppercase;">Tu rol (se asigna automáticamente)</div>
       <div style="background:rgba(91,143,208,.06);border:1px solid rgba(91,143,208,.15);padding:10px 14px;margin-bottom:20px;font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:.75rem;color:var(--text-dim);">
@@ -913,7 +1070,7 @@ input, textarea, [contenteditable] { -webkit-user-select:text; user-select:text;
 
 <!-- ══════════════════════════════ MATCHMAKING SCREEN ══════════════════════════════ -->
 <div id="screen-matchmaking" class="screen" style="flex-direction:column;align-items:center;justify-content:center;gap:24px;background:#0e0d0c;">
-  <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:1.1rem;font-weight:700;color:var(--text);letter-spacing:.1em;">🔍 BUSCANDO PARTIDA</div>
+  <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:1.1rem;font-weight:700;color:var(--text);letter-spacing:.1em;">BUSCANDO PARTIDA</div>
   <div style="text-align:center;">
     <div id="mm-status" style="font-family:Inter,sans-serif;font-size:.85rem;color:var(--text-dim);margin-bottom:8px;">Buscando rival...</div>
     <div id="mm-timer" style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:2rem;color:var(--accent-yellow);letter-spacing:.2em;">0:00</div>
@@ -924,7 +1081,7 @@ input, textarea, [contenteditable] { -webkit-user-select:text; user-select:text;
     <div style="width:8px;height:8px;border-radius:50%;background:var(--accent-green);animation:pulse .6s ease-in-out .2s infinite alternate;"></div>
     <div style="width:8px;height:8px;border-radius:50%;background:var(--accent-green);animation:pulse .6s ease-in-out .4s infinite alternate;"></div>
   </div>
-  <button onclick="cancelMatchmaking()" class="btn-secondary">✕ CANCELAR</button>
+  <button onclick="cancelMatchmaking()" class="btn-secondary">CANCELAR</button>
 </div>
 
 <!-- ══════════════════════════════ PICK SCREEN ══════════════════════════════ -->
@@ -933,13 +1090,24 @@ input, textarea, [contenteditable] { -webkit-user-select:text; user-select:text;
     <span class="phase-tag">FASE 1</span>
     <span class="phase-title">SELECCIÓN DE UNIDADES</span>
   </div>
-  <div id="pick-role-badge" style="margin-bottom:16px;"></div>
-  <div id="pick-instructions" class="sel-count" style="margin-bottom:18px;text-align:center;"></div>
-  <div id="card-grid" style="width:100%;max-width:820px;display:flex;flex-direction:column;align-items:center;"></div>
-  <div id="pick-count" class="sel-count" style="margin-top:16px;text-align:center;"></div>
-  <div style="display:flex;gap:12px;margin-top:20px;align-items:center;flex-wrap:wrap;justify-content:center;">
-    <button class="btn-primary" id="pick-confirm" style="display:none;" onclick="confirmPick()">CONFIRMAR SELECCIÓN</button>
-    <button class="btn-secondary" id="pick-rival-intel" onclick="showRivalIntel()" style="border-color:var(--accent-yellow);color:var(--accent-yellow);">🔍 VER FICHAS RIVALES</button>
+  <div id="pick-instructions" class="sel-count"></div>
+  <div class="pick-stage">
+    <div class="pick-left">
+      <div id="pick-role-badge"></div>
+      <div id="pick-3d"><div id="pick-3d-fallback"></div></div>
+      <div id="pick-focus"><b id="pick-focus-name"></b><span id="pick-focus-cat"></span></div>
+      <div id="pick-slots"></div>
+    </div>
+    <div class="pick-right">
+      <div id="card-grid"></div>
+    </div>
+  </div>
+  <div class="pick-bar">
+    <div id="pick-count" class="sel-count"></div>
+    <div class="pick-actions">
+      <button class="btn-primary" id="pick-confirm" style="display:none;" onclick="confirmPick()">CONFIRMAR SELECCIÓN</button>
+      <button class="btn-secondary" id="pick-rival-intel" onclick="showRivalIntel()" style="border-color:var(--accent-yellow);color:var(--accent-yellow);">VER FICHAS RIVALES</button>
+    </div>
   </div>
 </div>
 
@@ -1037,13 +1205,13 @@ input, textarea, [contenteditable] { -webkit-user-select:text; user-select:text;
 </div>
 
 <!-- ══════════════════════════════ WINNER SCREEN ══════════════════════════════ -->
-<div id="screen-winner" class="screen">
+<div id="screen-winner" class="screen"><div class="win-rule"><span></span><i>◆</i><span></span></div>
   <div id="winner-text" class="winner-text"></div>
   <div id="winner-result" style="font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif;font-size:1.6rem;font-weight:700;letter-spacing:.2em;margin:10px 0 4px;"></div>
   <div id="winner-reason" class="winner-reason"></div>
   <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center;">
-    <button class="btn-primary" onclick="openReplay()">📽 RESUMEN</button>
-    <button class="btn-primary" onclick="location.reload()">↩ NUEVA PARTIDA</button>
+    <button class="btn-primary" onclick="openReplay()">RESUMEN</button>
+    <button class="btn-primary" onclick="location.reload()">NUEVA PARTIDA</button>
   </div>
 </div>
 
@@ -1077,7 +1245,7 @@ input, textarea, [contenteditable] { -webkit-user-select:text; user-select:text;
 <div id="screen-ranking" class="screen" style="flex-direction:column;align-items:center;padding:20px 16px;background:var(--bg);gap:0;">
   <div style="width:100%;max-width:680px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
-      <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:1.1rem;font-weight:700;color:var(--text);letter-spacing:.1em;">🏆 RANKING GLOBAL</div>
+      <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:1.1rem;font-weight:700;color:var(--text);letter-spacing:.1em;">RANKING GLOBAL</div>
       <div style="display:flex;gap:8px;align-items:center;">
         <select id="ranking-sort" onchange="renderRanking()" style="background:var(--panel);border:1px solid var(--border);color:var(--text);padding:6px 10px;font-family:Inter,sans-serif;font-size:.75rem;cursor:pointer;outline:none;">
           <option value="wins">Por victorias</option>
@@ -1809,6 +1977,7 @@ let G = {};
 
 function initState() {
   REVEAL_LOCAL.atk=false; REVEAL_LOCAL.def=false;   // partida nueva: el aviso de personaje desvelado vuelve a estar disponible
+  try { Board3D.all.forEach(b => b.heads && b.heads.clear()); } catch (_) {}   // partida nueva: sin orientaciones previas
   G = {
     // picks
     atkPick: [], // unit ids chosen by attacker
@@ -2115,55 +2284,142 @@ const PICK_CATEGORIES = {
 // Track open/closed state of each category
 const _pickCatOpen = {};
 
+// ── Escaparate 3D del personaje enfocado (soldadito girando) ──
+const PICK3D = (function () {
+  let ok = null, renderer, scene, camera, host, helper, soldier = null, key = '', last = 0, spin = 0.4;
+  function fail() { ok = false; const h = document.getElementById('pick-3d'); if (h) h.classList.add('nogl'); return false; }
+  function init() {
+    if (ok !== null) return ok;
+    try {
+      if (typeof THREE === 'undefined' || !Board3D.available) return fail();
+      host = document.getElementById('pick-3d');
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.domElement.style.cssText = 'display:block;position:absolute;inset:0;width:100%;height:100%;';
+      host.appendChild(renderer.domElement);
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(28, 1, 0.1, 50);
+      scene.add(new THREE.HemisphereLight(0xdfe6f2, 0x2a2420, 0.72));
+      const sun = new THREE.DirectionalLight(0xfff1dc, 0.9);
+      sun.position.set(3, 6, 4); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+      Object.assign(sun.shadow.camera, { left: -2.5, right: 2.5, top: 2.5, bottom: -2.5, near: 1, far: 16 });
+      sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.02;
+      scene.add(sun);
+      const rim = new THREE.DirectionalLight(0xa9c4ff, 0.5); rim.position.set(-4, 3, -4); scene.add(rim);
+      // se reutiliza el constructor de soldaditos del tablero
+      helper = new Board3D({ screen: 'screen-pick', wrap: 'pick-3d', bar: 'pick-3d', btn: 'pick-3d', canvas: () => null, cs: () => 1, ws: () => 0, tl: () => ({ x: 0, y: 0 }), onXY() {}, render() {} });
+      helper.geo = { ring: new THREE.RingGeometry(0.46, 0.57, 40) };
+      helper._ls = 0.9;
+      if (window.ResizeObserver) new ResizeObserver(resize).observe(host);
+      window.addEventListener('resize', resize);
+      ok = true; resize(); loop();
+      return true;
+    } catch (e) { console.warn('[3D pick]', e); return fail(); }
+  }
+  function resize() {
+    if (!ok || !host) return;
+    const w = Math.max(80, host.clientWidth), h = Math.max(80, host.clientHeight);
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+    const d = Math.max(4.6, 3.0 / Math.min(1, camera.aspect) / Math.tan(camera.fov * Math.PI / 360) * 0.5 + 1);
+    camera.position.set(0, 1.6, d); camera.lookAt(0, 1.15, 0);
+  }
+  function clear() {
+    if (!soldier) return;
+    scene.remove(soldier);
+    soldier.userData.mats.forEach(m => m.dispose());
+    soldier = null;
+  }
+  function show(icon, side) {
+    if (!init()) return;
+    const k = side;
+    if (k === key) return;
+    key = k; clear();
+    const g = helper.makeSoldier('', side);
+    const S = 1.7;
+    g.scale.setScalar(S);
+    const lab = g.userData.lab;
+    lab.visible = false; g.userData.mats[5].visible = false;
+    g.userData.pv.children[0].visible = false; g.userData.pv.children[1].visible = false;   // sin peana: flota
+    g.userData.ring.visible = false;
+    g.userData.pv.rotation.y = spin;
+    soldier = g; scene.add(g);
+  }
+  function loop() {
+    requestAnimationFrame(loop);
+    const scr = document.getElementById('screen-pick');
+    if (!ok || !scr || !scr.classList.contains('active') || !soldier) return;
+    const now = performance.now(), dt = last ? Math.min(60, now - last) : 16; last = now;
+    spin += dt * 0.0011;   // una vuelta cada ~5,7 s
+    soldier.userData.pv.rotation.y = spin;
+    soldier.position.y = 0.12 + Math.sin(now * 0.0017) * 0.07;
+    renderer.render(scene, camera);
+  }
+  return { show, resize };
+})();
+
+let _pickFocusId = null, _pickBuiltFor = null, _pickScrollRaf = 0;
+function pickFocus(id) {
+  const side = pickSide, d = UNIT_DEFS[id];
+  if (!d) return;
+  _pickFocusId = id;
+  PICK3D.show('', side);
+  const nm = document.getElementById('pick-focus-name'), ct = document.getElementById('pick-focus-cat');
+  if (nm) nm.textContent = d.name;
+  if (ct) { const cat = PICK_CATEGORIES[side].find(c => c.ids.includes(id)); ct.textContent = cat ? cat.label : ''; }
+  const fb = document.getElementById('pick-3d-fallback');
+  if (fb) { fb.textContent = d.icon; fb.className = side; }
+  document.querySelectorAll('#card-grid .unit-card').forEach(c => c.classList.toggle('focus', c.dataset.id === id));
+}
+function pickCenterCard() {
+  const list = document.getElementById('card-grid'); if (!list) return;
+  const r = list.getBoundingClientRect(), cy = r.top + r.height / 2;
+  let best = null, bd = 1e9;
+  list.querySelectorAll('.unit-card').forEach(c => { const b = c.getBoundingClientRect(); const d = Math.abs(b.top + b.height / 2 - cy); if (d < bd) { bd = d; best = c; } });
+  if (best && best.dataset.id !== _pickFocusId) pickFocus(best.dataset.id);
+}
+
 function renderPickScreen() {
   const side = pickSide;
-  const badge = document.getElementById('pick-role-badge');
-  badge.innerHTML = side==='atk'
-    ? '<span class="role-badge atk">⚔ ATACANTE</span>'
-    : '<span class="role-badge def">🛡 DEFENSOR</span>';
-  const inst = document.getElementById('pick-instructions');
-  inst.textContent = 'Selecciona 4 unidades para tu equipo';
+  document.getElementById('pick-role-badge').innerHTML = side==='atk'
+    ? '<span class="role-badge atk">ATACANTE</span>'
+    : '<span class="role-badge def">DEFENSOR</span>';
+  document.getElementById('pick-instructions').textContent = 'Desliza la lista y toca para elegir 4 unidades';
   const chosen = side==='atk' ? G.atkPick : G.defPick;
-  const grid = document.getElementById('card-grid');
-  const cats = PICK_CATEGORIES[side];
+  const list = document.getElementById('card-grid');
 
-  // Build grouped HTML
-  grid.innerHTML = cats.map(cat => {
-    const isOpen = _pickCatOpen[side+'_'+cat.id] === true; // closed by default
-    const units = cat.ids.map(id=>UNIT_DEFS[id]).filter(Boolean);
-    const selCount = units.filter(u=>chosen.includes(u.id)).length;
-    const cardsHTML = units.map(u => {
-      const sel = chosen.includes(u.id);
-      const color = side==='atk' ? 'var(--atk)' : 'var(--def)';
-      const bgSel = side==='atk' ? 'rgba(200,69,58,.08)' : 'rgba(58,114,160,.08)';
-      return `<div class="unit-card ${sel?'selected '+side:''}" onclick="togglePick('${u.id}','${side}')"
-        style="${sel?`border-color:${color};background:${bgSel};`:''}">
+  // La lista solo se reconstruye al cambiar de bando: así no se pierde la posición del scroll al elegir.
+  if (_pickBuiltFor !== side) {
+    _pickBuiltFor = side; _pickFocusId = null;
+    list.innerHTML = PICK_CATEGORIES[side].map(cat => cat.ids.map(id => UNIT_DEFS[id]).filter(Boolean).map(u =>
+      `<div class="unit-card ${side}" data-id="${u.id}" onclick="togglePick('${u.id}','${side}')">
         <div class="unit-icon ${side}">${u.icon}</div>
-        <div class="unit-name">${u.name}</div>
+        <div class="unit-name">${u.name}<small>${cat.label}</small></div>
         <div class="unit-ability"><b>${u.abilityName}:</b> ${u.abilityDesc}</div>
-      </div>`;
-    }).join('');
-    return `
-      <div style="width:100%;max-width:820px;margin-bottom:10px;">
-        <button onclick="togglePickCat('${side}','${cat.id}')"
-          style="width:100%;background:var(--panel);border:1px solid var(--border);padding:11px 16px;
-          display:flex;align-items:center;gap:10px;cursor:pointer;text-align:left;transition:background .15s;"
-          onmouseover="this.style.background='#2a2720'" onmouseout="this.style.background='var(--panel)'">
-          <span style="font-size:1rem;">${cat.icon}</span>
-          <span style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:.7rem;letter-spacing:.12em;color:var(--text);text-transform:uppercase;flex:1;">${cat.label}</span>
-          ${selCount>0?`<span style="font-size:.68rem;color:var(--accent-yellow);font-weight:600;">${selCount} seleccionada${selCount>1?'s':''}</span>`:''}
-          <span style="color:var(--text-dim);font-size:.7rem;transition:transform .2s;${isOpen?'transform:rotate(180deg)':''}">▼</span>
-        </button>
-        <div id="pickcat_${side}_${cat.id}" style="display:${isOpen?'grid':'none'};grid-template-columns:repeat(2,1fr);gap:10px;padding:10px;background:rgba(0,0,0,.15);border:1px solid var(--border);border-top:none;">
-          ${cardsHTML}
-        </div>
-      </div>`;
+      </div>`).join('')).join('');
+    list.scrollTop = 0;
+    list.onscroll = () => { if (_pickScrollRaf) return; _pickScrollRaf = requestAnimationFrame(() => { _pickScrollRaf = 0; pickCenterCard(); }); };
+    const first = list.querySelector('.unit-card'); if (first) pickFocus(first.dataset.id);
+  }
+  list.querySelectorAll('.unit-card').forEach(c => {
+    const sel = chosen.includes(c.dataset.id);
+    c.classList.toggle('selected', sel);
+    c.classList.toggle(side, true);
+  });
+  // casillas de los 4 elegidos
+  const slots = document.getElementById('pick-slots');
+  slots.innerHTML = [0, 1, 2, 3].map(i => {
+    const id = chosen[i], d = id && UNIT_DEFS[id];
+    return `<span class="slot ${d ? 'full ' + side : ''}" ${d ? `onclick="togglePick('${id}','${side}')" title="Quitar ${d.name}"` : ''}>${d ? d.icon : ''}</span>`;
   }).join('');
-
   const cnt = document.getElementById('pick-count');
-  cnt.textContent = `Seleccionadas: ${chosen.length} / 4`;
+  cnt.innerHTML = `Seleccionadas <b>${chosen.length}</b> / 4`;
   const btn = document.getElementById('pick-confirm');
   btn.style.display = chosen.length===4 ? 'block' : 'none';
+  if (_pickFocusId) pickFocus(_pickFocusId);
+  PICK3D.resize();
 }
 
 function togglePickCat(side, catId) {
@@ -2676,6 +2932,8 @@ class Board3D {
       def: { base: 0x0e3d7d, body: 0x1c6fd1, cap: 0x3f93ef, em: 0x041a36 },
       dev: { base: 0x70727a, body: 0xa2a4ab, cap: 0xc2c4ca, em: 0x000000 },
     };
+    this.heads = new Map();   // orientación de cada soldado según lo que ESTE jugador ha visto mover
+    this.labels = new Map();
     Board3D.all.push(this);
   }
 
@@ -2727,8 +2985,11 @@ class Board3D {
       const small = window.innerWidth < 700;
       sun.shadow.mapSize.set(small ? 1024 : 2048, small ? 1024 : 2048);
       Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 45 });
-      sun.shadow.bias = -0.0005;
+      sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.025;
       scene.add(sun);
+      const rim = new THREE.DirectionalLight(0xa9c4ff, 0.3);   // luz de contorno: separa las figuras del fondo
+      rim.position.set(-9, 7, -8);
+      scene.add(rim);
 
       this.geo = {
         box:    new THREE.BoxGeometry(1, 1, 1),
@@ -3081,6 +3342,19 @@ class Board3D {
         } else { g.position.copy(tgt); g.userData.mv = null; }
       }
       g.userData.cell = { r, c };
+      if (g.userData.pv) {
+        // Orientación = dirección del último movimiento OBSERVADO por quien mira (nunca estado oculto):
+        // la memoria va por jugador, así en partida local no se filtra el rumbo de una ficha rival.
+        const vs = this.cfg.screen === 'screen-replay' ? 'r' : (typeof viewSide === 'function' ? viewSide() : 'x');
+        const hk = vs + '|' + key, rec = this.heads.get(hk);
+        let ang;
+        if (!rec) { const ce = this.cellPos(7, 7); ang = Math.atan2(ce.x - p.x, ce.z - p.z); }
+        else if (rec.r !== r || rec.c !== c) { const pr = this.cellPos(rec.r, rec.c); ang = Math.atan2(p.x - pr.x, p.z - pr.z); }
+        else ang = rec.ang;
+        this.heads.set(hk, { r, c, ang });
+        if (g.userData.angT === undefined) g.userData.pv.rotation.y = ang;
+        g.userData.angT = ang;
+      }
       this.styleToken(g, o);
     };
     this.frame.units.forEach(e => upsert('u_' + e.u.id, e.u.icon, e.u.side, e.u.row, e.u.col, e));
@@ -3135,7 +3409,116 @@ class Board3D {
 
   // Ficha tipo pieza de juego de mesa. Los dispositivos son más pequeños y grises;
   // los señuelos (Iarramendi/Bisbal) usan la ficha de su bando para ser idénticos a la real.
+  labelTex(icon, kind) {
+    const k = kind + '|' + icon;
+    let t = this.labels.get(k);
+    if (t) return t;
+    const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+    const cx = cv.getContext('2d');
+    const col = kind === 'atk' ? '#e2665a' : '#74a3dd';
+    cx.fillStyle = 'rgba(18,16,14,.9)';
+    cx.beginPath(); cx.roundRect(8, 8, 112, 112, 20); cx.fill();
+    cx.lineWidth = 9; cx.strokeStyle = col; cx.stroke();
+    cx.fillStyle = '#f1e9d2'; cx.font = "800 84px 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif";
+    cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.fillText(String(icon).toUpperCase(), 64, 70);
+    t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+    this.labels.set(k, t);
+    return t;
+  }
+
+  // Soldadito con rifle: una sola pieza de un único color (rojo = atacante, azul = defensor).
+  // Formas redondeadas (elipsoides y cilindros con remates esféricos). Mira hacia +Z local;
+  // el pivote `pv` gira para orientarlo. Las piezas (geometrías) se construyen una vez y se comparten.
+  soldierParts() {
+    if (this.sgParts) return this.sgParts;
+    const V = (x, y, z) => new THREE.Vector3(x, y, z);
+    const P = [];
+    const sph = new THREE.SphereGeometry(1, 20, 14);
+    const ell = (x, y, z, rx, ry, rz) => P.push({ geo: sph, pos: V(x, y, z), scl: V(rx, ry, rz) });
+    const cyl = (geo, x, y, z, sx = 1, sy = 1, sz = 1, rot) => P.push({ geo, pos: V(x, y, z), scl: V(sx, sy, sz), rot });
+    // extremidad/tubo entre dos puntos, con remates esféricos
+    const limb = (a, b, r, r2) => {
+      const A = V(...a), B = V(...b), len = A.distanceTo(B);
+      const geo = new THREE.CylinderGeometry(r2 === undefined ? r : r2, r, len, 14);
+      const q = new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), B.clone().sub(A).normalize());
+      P.push({ geo, pos: A.clone().add(B).multiplyScalar(0.5), scl: V(1, 1, 1), quat: q });
+      ell(a[0], a[1], a[2], r, r, r); ell(b[0], b[1], b[2], r2 === undefined ? r : r2, r2 === undefined ? r : r2, r2 === undefined ? r : r2);
+    };
+    // peana redondeada
+    cyl(new THREE.CylinderGeometry(0.33, 0.36, 0.06, 32), 0, 0.03, 0);
+    cyl(new THREE.TorusGeometry(0.345, 0.03, 10, 32), 0, 0.06, 0, 1, 1, 1, [Math.PI / 2, 0, 0]);
+    // piernas y botas
+    limb([-0.095, 0.3, 0], [-0.095, 0.15, 0.01], 0.075, 0.07); limb([0.095, 0.3, 0], [0.095, 0.15, 0.01], 0.075, 0.07);
+    ell(-0.095, 0.115, 0.04, 0.095, 0.075, 0.15); ell(0.095, 0.115, 0.04, 0.095, 0.075, 0.15);
+    // cadera, torso, hombros
+    ell(0, 0.4, 0, 0.2, 0.12, 0.155);
+    cyl(new THREE.CylinderGeometry(0.175, 0.205, 0.3, 20), 0, 0.58, 0, 1, 1, 0.78);
+    ell(0, 0.73, 0, 0.215, 0.13, 0.17);
+    cyl(new THREE.CylinderGeometry(0.212, 0.212, 0.05, 20), 0, 0.46, 0, 1, 1, 0.8);       // cinturón
+    ell(0, 0.56, -0.17, 0.13, 0.15, 0.085);                                               // mochila
+    ell(-0.13, 0.5, 0.15, 0.06, 0.07, 0.045); ell(0.13, 0.5, 0.15, 0.06, 0.07, 0.045);   // cartucheras
+    // cabeza y casco
+    cyl(new THREE.CylinderGeometry(0.06, 0.07, 0.07, 12), 0, 0.82, 0);
+    ell(0, 0.92, 0.01, 0.125, 0.13, 0.12);
+    P.push({ geo: new THREE.SphereGeometry(1, 22, 12, 0, Math.PI * 2, 0, Math.PI * 0.56), pos: V(0, 0.935, 0), scl: V(0.165, 0.16, 0.165) });
+    cyl(new THREE.TorusGeometry(0.168, 0.02, 8, 28), 0, 0.935, 0, 1, 1, 1, [Math.PI / 2, 0, 0]);   // ala del casco
+    // brazos (hombro → codo → mano) y manos
+    limb([0.215, 0.73, 0.02], [0.2, 0.62, 0.15], 0.055); limb([0.2, 0.62, 0.15], [0.085, 0.63, 0.25], 0.05);
+    limb([-0.215, 0.73, 0.02], [-0.19, 0.64, 0.17], 0.055); limb([-0.19, 0.64, 0.17], [0.0, 0.64, 0.38], 0.05);
+    // rifle: culata, cuerpo, guardamanos, cañón, cargador y mira
+    ell(0.07, 0.62, 0.0, 0.035, 0.07, 0.12);
+    limb([0.07, 0.64, 0.05], [0.07, 0.645, 0.52], 0.032);
+    limb([0.07, 0.645, 0.24], [0.07, 0.645, 0.44], 0.046);
+    limb([0.07, 0.645, 0.5], [0.07, 0.645, 0.68], 0.014);
+    limb([0.07, 0.6, 0.2], [0.07, 0.5, 0.235], 0.026);
+    ell(0.07, 0.69, 0.3, 0.02, 0.025, 0.04);
+    return (this.sgParts = P);
+  }
+
+  makeSoldier(icon, kind) {
+    const C = this.COL[kind];
+    const col = kind === 'atk' ? 0xd6291f : 0x1c6fd1;
+    const m = new THREE.MeshStandardMaterial({ color: col, roughness: 0.36, metalness: 0.04 });
+    const g = new THREE.Group(), pv = new THREE.Group();
+    this.soldierParts().forEach(pt => {
+      const mesh = new THREE.Mesh(pt.geo, m);
+      mesh.position.copy(pt.pos); mesh.scale.copy(pt.scl);
+      if (pt.quat) mesh.quaternion.copy(pt.quat);
+      if (pt.rot) mesh.rotation.set(pt.rot[0], pt.rot[1], pt.rot[2]);
+      mesh.castShadow = true; mesh.receiveShadow = true;
+      pv.add(mesh);
+    });
+    g.add(pv);
+    // sombra de contacto suave bajo la peana (se ve nítida aunque las sombras del sol sean pequeñas)
+    if (!this.blobTex) {
+      const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+      const cx = cv.getContext('2d'), gr = cx.createRadialGradient(32, 32, 4, 32, 32, 31);
+      gr.addColorStop(0, 'rgba(0,0,0,.6)'); gr.addColorStop(0.6, 'rgba(0,0,0,.28)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      cx.fillStyle = gr; cx.fillRect(0, 0, 64, 64);
+      this.blobTex = new THREE.CanvasTexture(cv);
+    }
+    const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.15), new THREE.MeshBasicMaterial({ map: this.blobTex, transparent: true, depthWrite: false }));
+    blob.rotation.x = -Math.PI / 2; blob.position.y = 0.012; blob.renderOrder = 1;
+    g.add(blob);
+    const lab = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.labelTex(icon, kind), depthTest: false, transparent: true }));
+    lab.scale.set((this._ls || 0.7) / 1.25, (this._ls || 0.7) / 1.25, 1); lab.position.y = (1.42 + (this._ls || 0.7) * 0.5) / 1.25; lab.renderOrder = 9;
+    g.add(lab);
+    const ring = new THREE.Mesh(this.geo.ring, new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.95, side: THREE.DoubleSide }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03; ring.visible = false;
+    g.add(ring);
+    g.scale.setScalar(1.25);
+    g.userData = {
+      kind, icon, ring, pv, lab, soldier: true, sprite: null, spriteTxt: '', target: new THREE.Vector3(),
+      baseScale: 1.25, mv: null, land: undefined, pulseUntil: 0, wasSel: false, wob: null, angT: undefined,
+      mats: [m, m, m, lab.material, ring.material, blob.material],
+      baseCols: [col, col, col], em: C.em,
+    };
+    return g;
+  }
+
   makeToken(icon, kind) {
+    if (kind === 'atk' || kind === 'def') return this.makeSoldier(icon, kind);
     const C = this.COL[kind];
     const g = new THREE.Group();
     const mBase = new THREE.MeshStandardMaterial({ color: C.base, roughness: 0.5,  metalness: 0.15 });
@@ -3177,7 +3560,7 @@ class Board3D {
       if (u.sprite) { g.remove(u.sprite); u.sprite.material.dispose(); u.sprite = null; }
       if (txt) {
         const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.sprTex(txt), depthTest: false, transparent: true }));
-        s.scale.set(0.8, 0.4, 1); s.position.y = 1.05; s.renderOrder = 10;
+        s.scale.set(0.8, 0.4, 1); s.position.y = u.soldier ? 2.1 : 1.05; s.renderOrder = 10;
         g.add(s); u.sprite = s;
       }
       u.spriteTxt = txt;
@@ -3462,6 +3845,10 @@ class Board3D {
         if (k >= 1) { u.land = undefined; g.scale.setScalar(s); }
         else { const w = Math.sin(Math.PI * k); g.scale.set(s * (1 + 0.06 * w), s * (1 - 0.12 * w), s * (1 + 0.06 * w)); moving = true; }
       }
+      if (u.pv && u.angT !== undefined) {   // giro suave hacia la dirección del último movimiento
+        let d = u.angT - u.pv.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d));
+        if (Math.abs(d) < 0.012 || !this.fxOn()) u.pv.rotation.y = u.angT; else { u.pv.rotation.y += d * 0.22; moving = true; }
+      }
       if (now < u.pulseUntil) { u.ring.scale.setScalar(1 + 0.08 * Math.sin(now / 110)); moving = true; }
       else if (u.ring.scale.x !== 1) u.ring.scale.setScalar(1);
       if (u.wob) {
@@ -3470,6 +3857,8 @@ class Board3D {
         else { g.rotation.z = 0; u.wob = null; }
       }
     });
+    const ls = Math.min(1.0, Math.max(0.5, 0.034 * this.cam.r));   // la etiqueta mantiene un tamaño legible al alejar la cámara
+    if (ls !== this._ls) { this._ls = ls; this.ents.forEach(g => { const l = g.userData.lab; if (l) { l.scale.set(ls / 1.25, ls / 1.25, 1); l.position.y = (1.42 + ls * 0.5) / 1.25; } }); this.dirty = true; }
     const fxActive = this.updateFx(now);
     if (this.dirty || moving || fxActive) {
       this.updateCamera();
@@ -4686,7 +5075,7 @@ function endGame(winner, reason) {
     if(RECONNECT.presenceListener){window._fbOff(RECONNECT.presenceListener);RECONNECT.presenceListener=null;}
   }
   clearSavedRoom();
-  document.getElementById('winner-text').textContent = winner==='atk' ? '⚔ ATACANTE GANA' : '🛡 DEFENSOR GANA';
+  document.getElementById('winner-text').textContent = winner==='atk' ? 'ATACANTE GANA' : 'DEFENSOR GANA';
   document.getElementById('winner-text').className = 'winner-text '+winner;
   document.getElementById('winner-reason').textContent = reason;
   // In online mode show VICTORIA / DERROTA based on player's role
@@ -5658,12 +6047,12 @@ function updateSidebar() {
   // Bomb counters
   const atkUnitsInBomb=G.atkPick.filter(uid=>{ const u=getUnit(uid); return u&&u.alive&&inBombZone(u.row,u.col); });
   if(atkUnitsInBomb.length>0||Object.values(G.bombCounters).some(v=>v>0)) {
-    html+=`<div class="sidebar-panel"><div class="sidebar-title">💣 CONTADORES BOMBA</div>`;
+    html+=`<div class="sidebar-panel"><div class="sidebar-title">Contador de bomba</div>`;
     G.atkPick.forEach(uid=>{
       const cnt=G.bombCounters[uid]||0;
       if(cnt>0||atkUnitsInBomb.includes(uid)) {
         html+=`<div class="bomb-counter">
-          <div class="bomb-counter-name">${UNIT_DEFS[uid].name}: ${cnt}/5</div>
+          <div class="bomb-counter-name"><span>${UNIT_DEFS[uid].name}</span><b>${cnt}<i>/5</i></b></div>
           <div class="bomb-counter-bar"><div class="bomb-counter-fill" style="width:${cnt*20}%"></div></div>
         </div>`;
       }
@@ -5672,7 +6061,7 @@ function updateSidebar() {
   }
 
   // Current player units (with ability buttons) — compact list
-  html+=`<div class="sidebar-panel"><div class="sidebar-title">${side==='atk'?'⚔ ATACANTE':'🛡 DEFENSOR'} — UNIDADES</div>`;
+  html+=`<div class="sidebar-panel"><div class="sidebar-title">${side==='atk'?'Atacante':'Defensor'} · Unidades</div>`;
   const myUnits=G.units.filter(u=>u.side===side);
   myUnits.forEach(u=>{
     const def=UNIT_DEFS[u.id];
@@ -5680,25 +6069,26 @@ function updateSidebar() {
     html+=`<div class="unit-list-item">
       <div class="unit-list-dot ${side} ${u.alive?'':'dead'}">${u.icon}</div>
       <div class="unit-list-name" style="${u.alive?'':'text-decoration:line-through;opacity:.4;'}">
-        ${u.name}${u.alive?'':' <small style="color:var(--text-dim)">KIA</small>'}
+        <span class="unit-list-nm">${u.name}${u.alive?'':' <small style="color:var(--text-dim)">KIA</small>'}</span>
+        <span class="unit-list-ab">${def.abilityName}</span>
       </div>
       ${u.alive&&!u.abilityUsed?`<button class="unit-ability-btn ${side} ${canUse?'glow-'+side:''}"
         ${canUse?`onclick="triggerAbility('${u.id}')"`:' disabled'}
-        title="${def.abilityName}">${u.icon}★</button>`:''}
-      ${u.abilityUsed?`<span style="font-size:.6rem;color:var(--text-dim);font-family:Barlow Condensed">USADO</span>`:''}
+        title="${def.abilityName}">USAR</button>`:''}
+      ${u.abilityUsed?`<span class="unit-used-tag">USADA</span>`:''}
     </div>`;
   });
   html+=`</div>`;
 
   // ── INTEL: own full roster (collapsible) ──
-  const ownLabel = side==='atk' ? '📋 FICHAS ATACANTES' : '📋 FICHAS DEFENSORAS';
+  const ownLabel = side==='atk' ? 'Fichas atacantes' : 'Fichas defensoras';
   const ownId = 'intel-own';
   html += buildIntelPanel(ownId, ownLabel, side==='atk'?G.atkPick:G.defPick, side, true);
 
   // ── INTEL: seen enemies (collapsible) ──
   const seenIds = side==='atk' ? G.seenByAtk : G.seenByDef;
   const enemySide = side==='atk'?'def':'atk';
-  const enemyLabel = side==='atk' ? '🔍 FICHAS ENEMIGAS VISTAS' : '🔍 FICHAS ENEMIGAS VISTAS';
+  const enemyLabel = 'Fichas enemigas vistas';
   const seenArr = [...seenIds].filter(id=>G.units.find(u=>u.id===id));
   const enemyId = 'intel-enemy';
   if(seenArr.length>0) {
@@ -5736,7 +6126,7 @@ function buildIntelPanel(id, label, unitIds, side, showAbilityBtn) {
     if(showAbilityBtn&&u.alive&&!u.abilityUsed) {
       html+=`<button class="unit-ability-btn ${side} ${canUse?'glow-'+side:''}"
         ${canUse?`onclick="triggerAbility('${u.id}')"`:' disabled'}
-        title="${def.abilityName}">${u.icon}★</button>`;
+        title="${def.abilityName}">USAR</button>`;
     }
     if(showAbilityBtn&&u.abilityUsed) {
       html+=`<span style="font-size:.6rem;color:var(--text-dim);font-family:Barlow Condensed;flex-shrink:0">USADO</span>`;
@@ -6996,7 +7386,7 @@ function renderRanking() {
     return;
   }
 
-  const medals = ['🥇','🥈','🥉'];
+  const medals = ['<span class="rk-pos p1">1</span>','<span class="rk-pos p2">2</span>','<span class="rk-pos p3">3</span>'];
   const myUid = window._currentUser?.uid;
 
   const rows = sorted.map((p,i) => {
@@ -7015,10 +7405,10 @@ function renderRanking() {
         ${isMe?'<span style="font-size:.65rem;color:var(--accent-yellow);margin-left:6px;">(tú)</span>':''}
       </div>
       <div style="display:flex;gap:16px;font-size:.78rem;flex-shrink:0;">
-        <span style="color:var(--accent-green);" title="Victorias">⚔ ${p.wins||0}V</span>
+        <span style="color:var(--accent-green);" title="Victorias">${p.wins||0} V</span>
         <span style="color:var(--text-dim);" title="Partidas">${p.games||0} partidas</span>
         <span style="color:var(--accent-yellow);" title="Ratio">${p.ratio||0}%</span>
-        <span style="color:var(--text-dim);" title="Racha maxima">🔥${p.maxStreak||0}</span>
+        <span style="color:var(--text-dim);" title="Racha maxima">racha ${p.maxStreak||0}</span>
       </div>
     </div>`;
   }).join('');
