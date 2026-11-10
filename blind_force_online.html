@@ -4590,7 +4590,7 @@ class Board3D {
       p.m.scale.setScalar(p.size * (1 - 0.5 * u));
     }
     for (let i = this.anims.length - 1; i >= 0; i--) {
-      if (this.anims[i](now)) active = true; else this.anims.splice(i, 1);
+      if (this.anims[i](now)) active = true; else { this.anims.splice(i, 1); active = true; }   // el fotograma final también se dibuja
     }
     const ct = this.camTween;
     if (ct) {
@@ -4598,7 +4598,8 @@ class Board3D {
       this.cam.az = ct.from.az + (ct.to.az - ct.from.az) * e;
       this.cam.pol = ct.from.pol + (ct.to.pol - ct.from.pol) * e;
       this.cam.r = ct.from.r + (ct.to.r - ct.from.r) * e;
-      if (u >= 1) this.camTween = null; else active = true;
+      if (u >= 1) this.camTween = null;
+      active = true;
     }
     if (this.dying.size) this.dying.forEach((d, k) => { if (d.exp < now) this.dying.delete(k); });
     return active;
