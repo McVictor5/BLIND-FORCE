@@ -603,7 +603,10 @@ input[type=text]:focus, input[type=password]:focus, input[type=email]:focus { bo
   #screen-pick.active { justify-content:flex-start; padding-top:10px; }
 
   /* Construcción y despliegue: tablero ancho a la izquierda, info estrecha a la derecha */
-  #screen-construct.active, #screen-spawn.active { display:grid; grid-template-columns:minmax(0,1fr) 190px; gap:0 14px !important; grid-template-rows:repeat(6,auto); align-content:center !important; align-items:center !important; justify-items:center !important; min-height:100vh; min-height:100dvh; }
+  #screen-construct.active, #screen-spawn.active { display:grid; grid-template-columns:minmax(0,1fr) 190px; gap:0 14px !important; grid-template-rows:repeat(6,auto);
+  }
+  #screen-construct.active { grid-template-rows:repeat(7,auto); }
+  #screen-construct.active, #screen-spawn.active { align-content:center !important; align-items:center !important; justify-items:center !important; min-height:100vh; min-height:100dvh; }
   #screen-construct.active > *, #screen-spawn.active > * { grid-column:2; width:100%; margin-top:0; margin-bottom:8px; text-align:center; }
   #screen-construct.active > .phase-header, #screen-spawn.active > .phase-header { justify-content:center; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
   #screen-construct.active > div:nth-child(4), #screen-spawn.active > div:nth-child(3) { grid-column:1; grid-row:1 / -1; width:auto; margin:0; }
@@ -1141,6 +1144,10 @@ html { background:#0d0c0a; }
 .rematch-status.ask { color:#ecd48a; font-weight:600; animation:askPulse 1.6s ease-in-out infinite; }
 .rematch-status.ok { color:#a9c494; } .rematch-status.off { color:#e2665a; }
 @keyframes askPulse { 50% { opacity:.55; } }
+
+@media (orientation:landscape) and (max-height:600px) {
+  #screen-construct.active > .phase-header, #screen-spawn.active > .phase-header { margin-top:34px; }
+}
 </style>
 
 <!-- Firebase -->
@@ -1440,7 +1447,7 @@ html { background:#0d0c0a; }
     <span class="phase-title">CONSTRUCCIÓN DE PAREDES</span>
   </div>
   <div id="construct-turn-badge" style="margin-bottom:10px;text-align:center;"></div>
-  <div class="wall-info">Paredes colocadas: <b id="walls-placed">0</b> / <span id="walls-total">40</span> &nbsp;|&nbsp; Turno: <b id="wall-turn-label">—</b></div>
+  <div class="wall-info">Paredes colocadas: <b id="walls-placed">0</b> / <span id="walls-total">50</span> &nbsp;|&nbsp; Turno: <b id="wall-turn-label">—</b></div>
   <div style="margin:14px auto; position:relative;">
     <div id="view3d-bar-c" style="position:absolute;top:8px;right:8px;z-index:5;display:none;gap:6px;">
         <button id="btn-view3d-c" onclick="VIEW3D_C.toggle()" title="Cambiar entre vista 2D y 3D" style="background:rgba(30,29,27,.85);border:1px solid var(--border);color:var(--text);font-family:Inter,sans-serif;font-size:.7rem;font-weight:600;letter-spacing:.08em;padding:6px 11px;cursor:pointer;">3D</button>
@@ -1453,6 +1460,7 @@ html { background:#0d0c0a; }
   <div class="help-text" id="construct-help">Haz clic en un SURCO para colocar una pared</div>
   <!-- RANDOM MAP BUTTON — quitar esta línea para eliminar la función -->
   <button class="btn-secondary" style="margin-top:10px;border-color:var(--accent-green);color:var(--accent-green);" onclick="generateRandomMap()">⚙ MAPA ALEATORIO</button>
+  <button class="btn-secondary" id="btn-preset-maps" style="margin-top:8px;display:none;" onclick="openPresetMaps()">MAPAS PREDEFINIDOS</button>
 </div>
 
 <!-- ══════════════════════════════ SPAWN SCREEN ══════════════════════════════ -->
@@ -1620,8 +1628,17 @@ html { background:#0d0c0a; }
 // CONSTANTS & DEFINITIONS
 // ═══════════════════════════════════════════════════════════════════════════
 const GRID = 15;
-const WALL_TOTAL = 40;      // paredes que se colocan en la fase de construcción
+const WALL_TOTAL = 50;      // paredes que se colocan en la fase de construcción
 const WALLS_PER_TURN = 2;   // paredes seguidas que coloca cada jugador en su turno
+// De quién es el turno con n paredes colocadas: atacante 2, defensor 2…; como 25 es impar,
+// al final el atacante pone 1 y el defensor la última, para que cada uno coloque 25.
+function wallTurnFor(n) { return n === WALL_TOTAL - 1 ? 'def' : (Math.floor(n / WALLS_PER_TURN) % 2 === 0 ? 'atk' : 'def'); }
+function wallsLeftInTurn(n) { return n >= WALL_TOTAL - 2 ? 1 : WALLS_PER_TURN - (n % WALLS_PER_TURN); }
+// Mapas predefinidos (creados con el editor de mapas). walls = paredes del mapa, sin las fijas de la sala.
+const PRESET_MAPS = [
+  { id:'anillo', name:'Anillo', walls:["h_10_13", "h_11_10", "h_11_4", "h_11_5", "h_11_7", "h_11_9", "h_12_10", "h_12_8", "h_1_4", "h_1_6", "h_2_10", "h_2_4", "h_2_5", "h_2_7", "h_2_9", "h_3_1", "h_4_3", "h_5_12", "h_6_10", "h_7_4", "h_8_2", "h_9_11", "v_10_11", "v_10_2", "v_10_4", "v_11_2", "v_11_6", "v_11_9", "v_12_1", "v_12_11", "v_12_5", "v_13_2", "v_1_11", "v_2_12", "v_2_2", "v_2_8", "v_3_11", "v_3_4", "v_3_7", "v_4_11", "v_4_2", "v_4_9", "v_5_12", "v_5_2", "v_6_1", "v_7_11", "v_7_2", "v_8_12", "v_9_1", "v_9_11"] },
+  { id:'cuadrantes', name:'Cuadrantes', walls:["h_11_12", "h_11_2", "h_11_7", "h_11_8", "h_12_6", "h_1_8", "h_2_12", "h_2_2", "h_2_6", "h_2_7", "h_4_0", "h_4_10", "h_4_13", "h_4_14", "h_4_3", "h_4_4", "h_5_11", "h_6_3", "h_7_11", "h_8_3", "h_9_0", "h_9_1", "h_9_10", "h_9_11", "h_9_14", "h_9_4", "v_0_4", "v_0_9", "v_10_4", "v_11_10", "v_11_3", "v_11_9", "v_12_11", "v_12_4", "v_12_9", "v_13_3", "v_14_4", "v_14_9", "v_1_10", "v_2_2", "v_2_4", "v_2_9", "v_3_10", "v_3_3", "v_3_4", "v_4_9", "v_6_1", "v_7_1", "v_7_12", "v_8_12"] },
+];
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SONIDO sintético (Web Audio). Sin archivos externos. Mismas reglas de niebla de guerra
@@ -2653,14 +2670,14 @@ function showInstructions() {
   ${s('📐 El tablero',
     `Cuadrícula de ${b('15×15 casillas')}. Hay una zona especial:<br>
     — La ${b('sala de la bomba')}: las 25 casillas centrales (5×5), rodeadas de paredes fijas con una entrada en el centro de cada lado. La casilla del centro absoluto está bloqueada permanentemente.<br>
-    — Fuera de la sala no hay paredes fijas: el resto del tablero lo forman las 40 paredes que colocan los jugadores.<br>
+    — Fuera de la sala no hay paredes fijas: el resto del tablero lo forman las 50 paredes que colocan los jugadores.<br>
 
     Entre casillas hay ${b('surcos')}, que son los espacios donde se colocan las paredes.<br>
-    — ${b('Puertas de la sala:')} cuando una ficha de personaje entra en la sala por una puerta, ninguna otra ficha de personaje de su mismo bando puede entrar por esa puerta mientras la primera siga viva. Salir es siempre libre.`)}
+    — ${b('Puertas de la sala:')} cuando una ficha de personaje entra en la sala por una puerta, ninguna otra ficha de personaje de su mismo bando puede entrar por esa puerta mientras la primera siga viva y dentro de la sala; si muere o sale de la sala, la puerta vuelve a quedar libre. Salir es siempre libre.`)}
 
   ${s('⚙ Fases de una partida',
     `${b('1. Selección:')} cada jugador elige simultáneamente 4 fichas de personaje de las disponibles para su bando. Puedes ver las fichas rivales con el botón "Ver fichas rivales".<br>
-    ${b('2. Construcción:')} se colocan ${b('40 paredes')} en total (20 por jugador), en turnos alternos de 2 paredes. Hay un botón de mapa aleatorio.<br>
+    ${b('2. Construcción:')} se colocan ${b('50 paredes')} en total (25 por jugador), en turnos alternos de 2 paredes. Hay un botón de mapa aleatorio.<br>
     ${b('3. Despliegue:')} cada jugador coloca simultáneamente sus 4 fichas: el atacante en las casillas del borde exterior, el defensor en las casillas de fuera que dan a las puertas de la sala (tres por puerta, máximo una ficha por puerta).<br>
     ${b('4. Moneda:')} se lanza una moneda al aire para decidir quién empieza.<br>
     ${b('5. Rondas:')} cada jugador juega su turno completo y pasa al rival.`)}
@@ -2981,7 +2998,7 @@ function renderConstruct() {
   document.getElementById('walls-placed').textContent = G.wallsPlaced;
   document.getElementById('wall-turn-label').textContent = G.wallTurn==='atk' ? 'ATACANTE' : 'DEFENSOR';
   const badge = document.getElementById('construct-turn-badge');
-  const leftTurn = WALLS_PER_TURN - (G.wallsPlaced % WALLS_PER_TURN);
+  const leftTurn = wallsLeftInTurn(G.wallsPlaced);
   const leftTxt = leftTurn===1 ? 'coloca 1 pared más' : 'coloca '+leftTurn+' paredes';
   badge.innerHTML = G.wallTurn==='atk'
     ? '<span class="role-badge atk">⚔ ATACANTE — '+leftTxt+'</span>'
@@ -3122,7 +3139,7 @@ function onConstructClick(e) {
 function placeWall(key) {
   G.walls.add(key);
   G.wallsPlaced++;
-  if(G.wallsPlaced % WALLS_PER_TURN === 0) G.wallTurn = G.wallTurn==='atk' ? 'def' : 'atk';
+  G.wallTurn = wallTurnFor(G.wallsPlaced);
   renderConstruct();
   if(G.wallsPlaced>=WALL_TOTAL) {
     setTimeout(()=>{
@@ -5285,7 +5302,8 @@ function isCentralCell(r,c){ return r===7&&c===7; }
 
 // ── Puertas de la sala de la bomba ──
 // Cuando una ficha de personaje entra en la sala por una puerta, ninguna otra ficha de personaje de su mismo bando
-// puede entrar por esa puerta mientras la primera siga viva. Salir siempre es libre. Cada bando solo
+// puede entrar por esa puerta mientras la primera siga viva y dentro de la sala. Si muere o sale, la puerta se libera.
+// Salir siempre es libre. Cada bando solo
 // se ve afectado por sus propias fichas, así que la restricción no revela nada del rival.
 function bombDoorOf(fr,fc,tr,tc) {
   if(inBombZone(fr,fc) || !inBombZone(tr,tc)) return null;   // solo cuenta ENTRAR en la sala
@@ -5299,7 +5317,7 @@ function bombDoorLockedFor(u, door) {
   const holderId=locks&&locks[door];
   if(!holderId || holderId===u.id) return false;
   const h=getUnit(holderId);
-  return !!(h&&h.alive);
+  return !!(h&&h.alive&&inBombZone(h.row,h.col));
 }
 (function(){
   const _gvm=getValidMoves;
@@ -5321,9 +5339,12 @@ function bombDoorLockedFor(u, door) {
           if(!G.doorLock) G.doorLock={atk:{},def:{}};
           if(!G.doorLock[u.side]) G.doorLock[u.side]={};
           const cur=G.doorLock[u.side][door], ch=cur&&getUnit(cur);
-          if(!cur || cur===u.id || !(ch&&ch.alive)) G.doorLock[u.side][door]=u.id;
+          if(!cur || cur===u.id || !(ch&&ch.alive&&inBombZone(ch.row,ch.col))) G.doorLock[u.side][door]=u.id;
         }
       }
+      // Al salir de la sala, libera las puertas que tenía bloqueadas
+      if(u && G.doorLock && G.doorLock[u.side] && !inBombZone(u.row,u.col))
+        Object.keys(G.doorLock[u.side]).forEach(d=>{ if(G.doorLock[u.side][d]===u.id) delete G.doorLock[u.side][d]; });
     } catch(e){ console.warn('[doors]',e); }
     return res;
   };
@@ -5911,7 +5932,7 @@ function onGameClick(e) {
         return;
       }
       if(getValidMoves(u,true).find(m=>m.r===cr&&m.c===cc)) {   // movimiento posible salvo por la puerta ya usada
-        toast('⚠ Otra de tus fichas ya entró por esa puerta y sigue viva: no puedes entrar por ella');
+        toast('⚠ Otra de tus fichas entró por esa puerta y sigue dentro de la sala: no puedes entrar por ella');
         return;
       }
     }
@@ -7545,7 +7566,7 @@ function onSpawnClick(e){
 function updateConstructTurnUI(){
   const isMe=G.wallTurn===ONLINE.myRole;
   const badge=document.getElementById('construct-turn-badge');
-  const leftTurn=WALLS_PER_TURN-(G.wallsPlaced%WALLS_PER_TURN), leftTxt=leftTurn===1?'coloca 1 pared más':'coloca '+leftTurn+' paredes';
+  const leftTurn=wallsLeftInTurn(G.wallsPlaced), leftTxt=leftTurn===1?'coloca 1 pared más':'coloca '+leftTurn+' paredes';
   if(badge) badge.innerHTML=isMe?(ONLINE.myRole==='atk'?'<span class="role-badge atk">⚔ ATACANTE — '+leftTxt+' (TU TURNO)</span>':'<span class="role-badge def">🛡 DEFENSOR — '+leftTxt+' (TU TURNO)</span>'):(ONLINE.myRole==='atk'?'<span class="role-badge def" style="opacity:.5;">🛡 DEFENSOR está colocando...</span>':'<span class="role-badge atk" style="opacity:.5;">⚔ ATACANTE está colocando...</span>');
   const helpEl=document.getElementById('construct-help');
   if(helpEl) helpEl.textContent=isMe?'Haz clic en un SURCO para colocar una pared':'Esperando al rival...';
@@ -8558,6 +8579,81 @@ async function joinRematchRoom(code, oldRoom) {
     try { if (REMATCH.room && ONLINE.enabled && document.getElementById('screen-winner').classList.contains('active'))
       window._fbSet(window._fbRef(window._db, 'rooms/' + REMATCH.room + '/rematch/cancel'), ONLINE.myRole); } catch (_) {}
   });
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAPAS PREDEFINIDOS — botón en la fase de construcción.
+// Local: se carga al elegirlo. Online: un jugador lo propone y el otro lo acepta o lo rechaza.
+// Si el mapa tiene menos de WALL_TOTAL paredes, la construcción sigue por turnos con el resto.
+// ═══════════════════════════════════════════════════════════════════════════
+const PRESET = { listenRoom:null, ref:null, sent:null };
+function presetById(id) { return PRESET_MAPS.find(m => m.id === id); }
+function applyPresetMap(map) {
+  G.walls = new Set(G.fixedWalls);
+  (map.walls || []).forEach(k => { if (!G.fixedWalls.has(k)) G.walls.add(k); });
+  G.wallsPlaced = G.walls.size - G.fixedWalls.size;
+  // turnos de 2: atacante, atacante, defensor, defensor…
+  G.wallTurn = wallTurnFor(G.wallsPlaced);
+  renderConstruct();
+  try { if (ONLINE.enabled) updateConstructTurnUI(); } catch (_) {}
+  const help = document.getElementById('construct-help');
+  if (help) help.textContent = `Mapa «${map.name}» cargado (${G.wallsPlaced} paredes).` + (G.wallsPlaced < WALL_TOTAL ? ' Seguid colocando el resto por turnos.' : '');
+  if (G.wallsPlaced >= WALL_TOTAL) {
+    if (ONLINE.enabled) { pushState().then(() => setStep('spawn_both')); }
+    else setTimeout(() => showModal('MAPA CARGADO', `Se ha cargado <b>${map.name}</b> con sus ${G.wallsPlaced} paredes. Puedes continuar al despliegue.`, [{label:'CONTINUAR', action:startSpawn}]), 300);
+  } else if (ONLINE.enabled) pushState();
+}
+function refreshPresetButton() {
+  const b = document.getElementById('btn-preset-maps');
+  if (b) b.style.display = PRESET_MAPS.length ? '' : 'none';
+}
+function openPresetMaps() {
+  if (!PRESET_MAPS.length) return;
+  const esc = t => String(t).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+  const body = ONLINE.enabled
+    ? 'Elige un mapa para proponérselo al rival. Si lo acepta, sustituye las paredes colocadas hasta ahora.'
+    : 'Elige un mapa. Sustituye las paredes colocadas hasta ahora.';
+  const btns = PRESET_MAPS.map(m => ({ label: `${m.name} (${m.walls.length})`, action: () => ONLINE.enabled ? proposePresetMap(m) : applyPresetMap(m) }));
+  btns.push({ label:'CANCELAR' });
+  showModal('MAPAS PREDEFINIDOS', esc(body), btns);
+}
+async function proposePresetMap(m) {
+  try {
+    PRESET.sent = m.id;
+    await window._fbSet(window._fbRef(window._db, 'rooms/' + ONLINE.roomId + '/mapProposal'), { by: ONLINE.myRole, mapId: m.id, ts: Date.now() });
+    toast(`Has propuesto «${m.name}». Esperando al rival…`, 4000);
+  } catch (e) { toast('No se pudo enviar la propuesta: ' + (e.message || e)); }
+}
+function watchPresetProposals() {
+  if (!ONLINE.enabled || !ONLINE.roomId || PRESET.listenRoom === ONLINE.roomId) return;
+  if (PRESET.ref) { try { window._fbOff(PRESET.ref); } catch (_) {} }
+  PRESET.listenRoom = ONLINE.roomId;
+  const room = ONLINE.roomId, ref = PRESET.ref = window._fbRef(window._db, 'rooms/' + room + '/mapProposal');
+  window._fbOnValue(ref, snap => {
+    const p = snap.val();
+    if (!p || ONLINE.roomId !== room) return;
+    const m = presetById(p.mapId), mine = p.by === ONLINE.myRole;
+    if (p.answer) {   // respuesta a una propuesta
+      if (mine) { toast(p.answer === 'ok' ? `El rival ha aceptado «${m ? m.name : 'el mapa'}».` : 'El rival ha rechazado el mapa propuesto.', 4000); window._fbSet(ref, null).catch(() => {}); }
+      return;
+    }
+    if (mine || !m) return;
+    if (!document.getElementById('screen-construct').classList.contains('active')) return;
+    showModal('PROPUESTA DE MAPA', `El rival propone jugar en <b>${m.name}</b> (${m.walls.length} paredes). Si aceptas, sustituye las paredes colocadas hasta ahora.`, [
+      { label:'RECHAZAR', cls:'', action: () => window._fbSet(ref, Object.assign({}, p, { answer:'no' })).catch(() => {}) },
+      { label:'ACEPTAR', action: () => { applyPresetMap(m); window._fbSet(ref, Object.assign({}, p, { answer:'ok' })).catch(() => {}); } },
+    ]);
+  });
+}
+(function(){
+  const o = window.startConstruction;
+  window.startConstruction = function() { const r = o.apply(this, arguments); refreshPresetButton(); return r; };
+  const o2 = window.showScreen;
+  window.showScreen = function(id) {
+    const r = o2.apply(this, arguments);
+    if (id === 'construct') { refreshPresetButton(); try { watchPresetProposals(); } catch (e) { console.warn('[mapas]', e); } }
+    return r;
+  };
 })();
 </script>
 <script>
