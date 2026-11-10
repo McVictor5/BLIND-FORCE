@@ -579,6 +579,7 @@ input[type=text]:focus, input[type=password]:focus, input[type=email]:focus { bo
 @media (orientation:landscape) and (max-height:600px) {
   .screen.active { padding:max(8px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left)); }
   #sfx-toggle { top:max(4px,env(safe-area-inset-top)) !important; right:max(6px,env(safe-area-inset-right)) !important; width:30px !important; height:30px !important; }
+  html body #music-toggle { top:max(4px,env(safe-area-inset-top)); right:calc(max(6px,env(safe-area-inset-right)) + 36px); width:30px; height:30px; }
   .modal-box { padding:16px 22px; max-height:92vh; max-height:92dvh; }
   .modal-title { padding-bottom:8px; font-size:1.05rem; }
   .btn-primary { padding-top:10px; padding-bottom:10px; }
@@ -614,7 +615,7 @@ input[type=text]:focus, input[type=password]:focus, input[type=email]:focus { bo
   /* Partida: franja superior a todo el ancho; debajo tablero ancho + panel estrecho */
   #screen-game.active { display:grid; grid-template-columns:minmax(0,1fr) 200px; grid-template-rows:auto 1fr auto; gap:0 12px !important; align-content:start !important; align-items:start !important; justify-items:stretch !important; min-height:100vh; min-height:100dvh; }
   #screen-game.active > * { width:auto; max-width:none !important; margin-top:0; }
-  #screen-game .game-top { grid-column:1 / -1; grid-row:1; display:flex; align-items:center; gap:10px; margin-bottom:6px; padding-right:40px; }
+  #screen-game .game-top { grid-column:1 / -1; grid-row:1; display:flex; align-items:center; gap:10px; margin-bottom:6px; padding-right:84px; }
   #screen-game .game-top .turn-banner { flex:1 1 auto; margin:0; min-width:0; flex-wrap:nowrap !important; gap:8px !important; white-space:nowrap; font-size:.8rem; }
   #screen-game .game-top .turn-banner .btn-primary { padding:7px 12px; font-size:.78rem; white-space:nowrap; }
   #screen-game .game-top .phase-bar { flex:0 1 380px; margin:0; width:auto; }
@@ -923,9 +924,7 @@ input, textarea, [contenteditable] { -webkit-user-select:text; user-select:text;
 .cs-face svg { display:block; width:100%; height:100%; }
 .cs-face.front { transform:translateZ(5px); }
 .cs-face.back { transform:rotateX(180deg) translateZ(5px); }
-.cs-edge { position:absolute; left:50%; top:50%; width:0; height:0; transform-style:preserve-3d; }
-.cs-edge i { position:absolute; left:0; top:0; height:10px; margin:-5px 0 0; transform-origin:0 0; display:block;
-  background:linear-gradient(90deg,#8a7340,#d9bd6a 50%,#8a7340); translate:-50% 0; }
+.cs-coin > i { position:absolute; inset:0; border-radius:50%; display:block; background:radial-gradient(circle, #8a7340 60%, #c9ad5e 88%, #6f5c33 100%); }
 .cs-result { min-height:120px; display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; opacity:0; transform:translateY(10px); transition:opacity .4s, transform .4s; pointer-events:none; }
 #coin-screen.done .cs-result { opacity:1; transform:none; pointer-events:auto; }
 .cs-who { font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-size:1.9rem; font-weight:800; letter-spacing:.2em; }
@@ -1082,6 +1081,66 @@ html { background:#0d0c0a; }
 .st-kpis { grid-template-columns:repeat(6,minmax(0,1fr)); }
 .st-kpi { grid-column:span 2; }
 .st-kpi:nth-child(4), .st-kpi:nth-child(5) { grid-column:span 3; }
+
+/* ══ REGISTRO DE PARTIDA ══ */
+.log-panel { margin-top:8px; background:var(--panel); border:1px solid var(--border); border-radius:5px; }
+.log-toggle { width:100%; background:none; border:none; display:flex; align-items:center; justify-content:space-between; padding:11px 12px; cursor:pointer; color:var(--text-dim);
+  font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-size:.74rem; font-weight:600; letter-spacing:.16em; text-transform:uppercase; }
+.log-toggle:hover { color:#ecd48a; }
+.log-toggle em { font-style:normal; margin-left:6px; padding:1px 6px; border-radius:3px; background:#c9a84a; color:#16130e; font-size:.62rem; letter-spacing:.08em; font-weight:800; }
+.log-toggle .arrow { font-size:.6rem; transition:transform .2s; }
+.log-panel.open .log-toggle .arrow { transform:rotate(180deg); }
+.log-body { display:none; }
+.log-panel.open .log-body { display:block; }
+.log-bh { display:none; }
+.log-scroll { max-height:300px; overflow-y:auto; padding:0 10px 10px; scrollbar-width:thin; scrollbar-color:#3a352d transparent; }
+.log-empty { font-size:.78rem; color:var(--text-dim); padding:4px 2px 6px; }
+.log-grp + .log-grp { margin-top:8px; }
+.log-gh { display:flex; align-items:baseline; gap:8px; position:sticky; top:0; z-index:1; background:var(--panel); padding:6px 2px 4px; border-bottom:1px solid #2a2620;
+  font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-size:.68rem; letter-spacing:.16em; text-transform:uppercase; color:#8f8775; }
+.log-gh b { color:#d9bd6a; font-weight:700; }
+.log-gh.atk span { color:#e2665a; } .log-gh.def span { color:#74a3dd; }
+.log-it { display:flex; gap:8px; align-items:flex-start; padding:5px 4px; border-radius:4px; font-size:.78rem; line-height:1.35; color:#c4bba6; }
+.log-it.has-cell { cursor:pointer; }
+.log-it.has-cell:hover { background:rgba(255,255,255,.04); color:#f0e7cf; }
+.log-ic { flex:0 0 18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-style:normal; font-size:.66rem; margin-top:1px; }
+.log-ic.atk { color:#ff8b7d; background:rgba(212,80,63,.16); } .log-ic.def { color:#9cc3f5; background:rgba(91,143,208,.16); }
+.log-it.k-shot .log-ic, .log-it.k-enemyShot .log-ic, .log-it.k-elim .log-ic { background:#b8402f; color:#fff; }
+.log-it.k-notice .log-ic { background:#e0a53c; color:#1a1408; font-weight:800; }
+.log-it.k-seen span, .log-it.k-elim span, .log-it.k-enemyShot span { color:#ece2c4; }
+@media (orientation:landscape) and (max-height:600px) {
+  .log-panel.open .log-body { position:fixed; z-index:60; top:max(50px, env(safe-area-inset-top)); bottom:max(8px, env(safe-area-inset-bottom)); right:max(8px, env(safe-area-inset-right));
+    width:min(340px, 46vw); display:flex; flex-direction:column; background:#1a1814; border:1px solid #3a352d; border-radius:8px; box-shadow:0 20px 60px rgba(0,0,0,.7); animation:modalRise .2s ease-out; }
+  .log-bh { display:flex; align-items:center; justify-content:space-between; padding:10px 12px 6px; font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.18em; text-transform:uppercase; font-size:.8rem; color:#ece2c4; }
+  .log-x { background:none; border:1px solid #3a352d; color:#d8cfb8; width:30px; height:30px; border-radius:50%; cursor:pointer; }
+  .log-scroll { max-height:none; flex:1; }
+  .log-gh { background:#1a1814; }
+}
+
+/* ══ BOTÓN DE MÚSICA ══ */
+#music-toggle { position:fixed; top:8px; right:48px; z-index:9999; width:34px; height:34px; border-radius:50%; border:1px solid rgba(200,168,75,.4); background:rgba(10,12,18,.75); color:#e0c36e; cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center; }
+#music-toggle i { position:absolute; width:22px; height:2px; background:#e2665a; transform:rotate(-45deg); border-radius:1px; display:none; }
+#music-toggle.off { color:#7d7564; } #music-toggle.off i { display:block; }
+.st-head { padding-right:88px; }
+/* ══ LOGROS ══ */
+.ach-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:8px; }
+.ach { display:flex; gap:10px; align-items:center; padding:9px 10px; border-radius:6px; border:1px solid #2a2620; background:rgba(255,255,255,.015); }
+.ach-medal { flex:0 0 40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#24211c; border:1.5px dashed #4a4339; color:#5f5849;
+  font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-weight:800; font-size:1.15rem; }
+.ach.done { border-color:#4a3f22; background:linear-gradient(180deg,rgba(201,168,74,.08),rgba(201,168,74,.02)); }
+.ach.done .ach-medal { border:none; color:#1a1408; background:radial-gradient(circle at 35% 30%,#f3dc8d,#c79f3c 70%,#8a6a22); box-shadow:0 0 14px rgba(216,184,90,.35), inset 0 -2px 0 rgba(0,0,0,.2); }
+.ach-tx { flex:1; min-width:0; }
+.ach-tx b { display:block; font-size:.86rem; color:#a59c87; }
+.ach.done .ach-tx b { color:#f0e7cf; }
+.ach-tx span { display:block; font-size:.7rem; color:#7d7564; line-height:1.3; }
+.ach-bar { height:4px; border-radius:2px; background:#2c2822; margin:5px 0 2px; overflow:hidden; }
+.ach-bar i { display:block; height:100%; background:#8a7340; }
+.ach-tx em { font-style:normal; font-size:.64rem; color:#8f8775; letter-spacing:.06em; }
+/* ══ REVANCHA ══ */
+.rematch-status { min-height:1.2em; margin-top:14px; font-size:.86rem; color:#b9b09c; text-align:center; letter-spacing:.04em; }
+.rematch-status.ask { color:#ecd48a; font-weight:600; animation:askPulse 1.6s ease-in-out infinite; }
+.rematch-status.ok { color:#a9c494; } .rematch-status.off { color:#e2665a; }
+@keyframes askPulse { 50% { opacity:.55; } }
 </style>
 
 <!-- Firebase -->
@@ -1124,6 +1183,7 @@ html { background:#0d0c0a; }
 <script>if (typeof THREE === 'undefined') document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"><\/script>');</script>
 </head>
 <body>
+<button id="music-toggle" onclick="MUSIC.toggle()" title="Música" aria-label="Música" aria-pressed="true"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z" fill="currentColor"/></svg><i></i></button>
 <button id="sfx-toggle" onclick="SFX.toggle()" title="Sonido" style="position:fixed;top:8px;right:8px;z-index:9999;width:34px;height:34px;border-radius:50%;border:1px solid rgba(200,168,75,.4);background:rgba(10,12,18,.75);color:#fff;font-size:1rem;cursor:pointer;padding:0;line-height:1;">🔊</button>
 
 <div id="rotate-hint" role="dialog" aria-label="Gira el móvil">
@@ -1380,7 +1440,7 @@ html { background:#0d0c0a; }
     <span class="phase-title">CONSTRUCCIÓN DE PAREDES</span>
   </div>
   <div id="construct-turn-badge" style="margin-bottom:10px;text-align:center;"></div>
-  <div class="wall-info">Paredes colocadas: <b id="walls-placed">0</b> / 32 &nbsp;|&nbsp; Turno: <b id="wall-turn-label">—</b></div>
+  <div class="wall-info">Paredes colocadas: <b id="walls-placed">0</b> / <span id="walls-total">40</span> &nbsp;|&nbsp; Turno: <b id="wall-turn-label">—</b></div>
   <div style="margin:14px auto; position:relative;">
     <div id="view3d-bar-c" style="position:absolute;top:8px;right:8px;z-index:5;display:none;gap:6px;">
         <button id="btn-view3d-c" onclick="VIEW3D_C.toggle()" title="Cambiar entre vista 2D y 3D" style="background:rgba(30,29,27,.85);border:1px solid var(--border);color:var(--text);font-family:Inter,sans-serif;font-size:.7rem;font-weight:600;letter-spacing:.08em;padding:6px 11px;cursor:pointer;">3D</button>
@@ -1473,8 +1533,10 @@ html { background:#0d0c0a; }
   <div id="winner-reason" class="winner-reason"></div>
   <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center;">
     <button class="btn-primary" onclick="openReplay()">RESUMEN</button>
+    <button class="btn-primary" id="btn-rematch" style="display:none;" onclick="requestRematch()">REVANCHA</button>
     <button class="btn-primary" onclick="location.reload()">NUEVA PARTIDA</button>
   </div>
+  <div id="rematch-status" class="rematch-status"></div>
 </div>
 
 <!-- ══════════════════════════════ REPLAY SCREEN ══════════════════════════════ -->
@@ -1558,6 +1620,8 @@ html { background:#0d0c0a; }
 // CONSTANTS & DEFINITIONS
 // ═══════════════════════════════════════════════════════════════════════════
 const GRID = 15;
+const WALL_TOTAL = 40;      // paredes que se colocan en la fase de construcción
+const WALLS_PER_TURN = 2;   // paredes seguidas que coloca cada jugador en su turno
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SONIDO sintético (Web Audio). Sin archivos externos. Mismas reglas de niebla de guerra
@@ -1670,9 +1734,113 @@ window.SFX = SFX;
   // clic genérico muy sutil en botones, salvo si acaba de sonar otra cosa
   document.addEventListener('click', e => {
     const b = e.target.closest && e.target.closest('button');
-    if (!b || b.id === 'sfx-toggle' || b.classList.contains('fxbtn')) return;
+    if (!b || b.id === 'sfx-toggle' || b.id === 'music-toggle' || b.classList.contains('fxbtn')) return;
     setTimeout(() => { if (performance.now() - SFX.last > 90) SFX.play('click'); }, 30);
   });
+})();
+
+
+// ═══ MÚSICA AMBIENTE (generativa, Web Audio): bordón grave, latido lento y notas sueltas en modo frigio.
+// Discreta y tensa; tiene su propio botón y preferencia, independiente de los efectos.
+const MUSIC = {
+  on: (()=>{ try { return localStorage.getItem('bf_music') !== '0'; } catch(e){ return true; } })(),
+  out:null, running:false, timer:null, next:{beat:0, note:0, swell:0}, drone:null, vol:0.22,
+  scale:[0, 1, 3, 5, 7, 8, 10],   // La frigio
+  ensure() {
+    if (!SFX.init()) return false;
+    if (this.out) return true;
+    const c = SFX.ctx;
+    this.out = c.createGain(); this.out.gain.value = 0.0001;
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400;
+    this.out.connect(lp); lp.connect(c.destination);
+    return true;
+  },
+  start() {
+    if (!this.on || this.running || !this.ensure()) return;
+    const c = SFX.ctx; if (c.state === 'suspended') { try { c.resume(); } catch(e){} }
+    this.running = true;
+    // bordón: dos osciladores ligeramente desafinados a través de un paso bajo que respira
+    const g = c.createGain(); g.gain.value = 0.16;
+    const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 260; f.Q.value = 3;
+    const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = 0.045; lg.gain.value = 140;
+    lfo.connect(lg); lg.connect(f.frequency);
+    const o1 = c.createOscillator(), o2 = c.createOscillator(), o3 = c.createOscillator();
+    o1.type = 'sawtooth'; o1.frequency.value = 55; o2.type = 'sawtooth'; o2.frequency.value = 55.35; o3.type = 'triangle'; o3.frequency.value = 82.4;
+    const g3 = c.createGain(); g3.gain.value = 0.5;
+    o1.connect(f); o2.connect(f); o3.connect(g3); g3.connect(f); f.connect(g); g.connect(this.out);
+    [o1,o2,o3,lfo].forEach(o => o.start());
+    this.drone = { nodes:[o1,o2,o3,lfo], g };
+    const t = c.currentTime;
+    this.out.gain.cancelScheduledValues(t); this.out.gain.setValueAtTime(this.out.gain.value, t);
+    this.out.gain.linearRampToValueAtTime(this.vol, t + 3);
+    this.next = { beat:t + 1.5, note:t + 4, swell:t + 9 };
+    this.timer = setInterval(() => this.schedule(), 250);
+  },
+  stop(fade = 1.2) {
+    if (!this.running) return;
+    this.running = false; clearInterval(this.timer);
+    const c = SFX.ctx, t = c.currentTime, d = this.drone;
+    this.out.gain.cancelScheduledValues(t); this.out.gain.setValueAtTime(this.out.gain.value, t);
+    this.out.gain.linearRampToValueAtTime(0.0001, t + fade);
+    setTimeout(() => { if (d) d.nodes.forEach(o => { try { o.stop(); } catch(e){} }); }, fade * 1000 + 100);
+    this.drone = null;
+  },
+  env(node, t, a, peak, d) { node.gain.setValueAtTime(0.0001, t); node.gain.exponentialRampToValueAtTime(peak, t + a); node.gain.exponentialRampToValueAtTime(0.0001, t + a + d); },
+  schedule() {
+    const c = SFX.ctx; if (!c || !this.running) return;
+    const ahead = c.currentTime + 0.6;
+    while (this.next.beat < ahead) {   // latido: dos golpes graves, cada ~2,4 s
+      const t = this.next.beat;
+      [0, 0.32].forEach((dt, i) => {
+        const o = c.createOscillator(), g = c.createGain();
+        o.frequency.setValueAtTime(i ? 52 : 60, t + dt); o.frequency.exponentialRampToValueAtTime(34, t + dt + 0.25);
+        this.env(g, t + dt, 0.01, i ? 0.22 : 0.32, 0.32); o.connect(g); g.connect(this.out); o.start(t + dt); o.stop(t + dt + 0.4);
+      });
+      this.next.beat += 2.4;
+    }
+    while (this.next.note < ahead) {   // notas sueltas, lentas y apagadas
+      const t = this.next.note;
+      const deg = this.scale[(Math.random() * this.scale.length) | 0], oct = Math.random() < 0.7 ? 2 : 3;
+      const fr = 55 * Math.pow(2, oct + deg / 12);
+      const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain(), lp = c.createBiquadFilter();
+      o.type = 'triangle'; o2.type = 'sine'; o.frequency.value = fr; o2.frequency.value = fr * 2.003;
+      lp.type = 'lowpass'; lp.frequency.value = 900;
+      const g2 = c.createGain(); g2.gain.value = 0.25;
+      this.env(g, t, 1.6, 0.075, 4.5);
+      o.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); g.connect(this.out);
+      o.start(t); o2.start(t); o.stop(t + 6.3); o2.stop(t + 6.3);
+      this.next.note += 5 + Math.random() * 6;
+    }
+    while (this.next.swell < ahead) {   // soplo de ruido metálico muy lejano
+      const t = this.next.swell;
+      const src = c.createBufferSource(); src.buffer = SFX.noiseBuf; src.loop = true;
+      const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 9;
+      bp.frequency.setValueAtTime(1400 + Math.random() * 1600, t); bp.frequency.exponentialRampToValueAtTime(600, t + 5);
+      const g = c.createGain(); this.env(g, t, 2.2, 0.035, 3.2);
+      src.connect(bp); bp.connect(g); g.connect(this.out); src.start(t, Math.random()); src.stop(t + 5.6);
+      this.next.swell += 14 + Math.random() * 12;
+    }
+  },
+  toggle() {
+    this.on = !this.on;
+    try { localStorage.setItem('bf_music', this.on ? '1' : '0'); } catch (e) {}
+    if (this.on) this.start(); else this.stop();
+    this.refresh();
+  },
+  refresh() { const b = document.getElementById('music-toggle'); if (b) { b.classList.toggle('off', !this.on); b.title = this.on ? 'Música activada' : 'Música desactivada'; b.setAttribute('aria-pressed', this.on ? 'true' : 'false'); } }
+};
+window.MUSIC = MUSIC;
+(function(){
+  const go = () => { if (MUSIC.on && !MUSIC.running) MUSIC.start(); };
+  ['pointerdown','touchstart','keydown'].forEach(ev => document.addEventListener(ev, go, {passive:true}));
+  document.addEventListener('visibilitychange', () => {
+    if (!MUSIC.out || !SFX.ctx) return;
+    const t = SFX.ctx.currentTime;
+    MUSIC.out.gain.cancelScheduledValues(t);
+    MUSIC.out.gain.setValueAtTime(MUSIC.out.gain.value, t);
+    MUSIC.out.gain.linearRampToValueAtTime(document.hidden || !MUSIC.running ? 0.0001 : MUSIC.vol, t + 0.4);
+  });
+  document.addEventListener('DOMContentLoaded', () => MUSIC.refresh());
 })();
 
 const BOMB_MIN = 5, BOMB_MAX = 9; // cols 5-9 (0-indexed), rows 5-9 → 5x5=25 cells
@@ -2433,25 +2601,7 @@ function setupFixedWalls() {
   for(let r=5;r<=9;r++) if(r!==7) fw.add(`v_${r}_4`);
   for(let r=5;r<=9;r++) if(r!==7) fw.add(`v_${r}_9`);
 
-  function pickTwoDoors(min, max) {
-    const range = [];
-    for(let i=min;i<=max;i++) range.push(i);
-    const i1 = Math.floor(Math.random()*range.length);
-    const d1 = range[i1];
-    const valid = range.filter(v=>Math.abs(v-d1)>=3);
-    const d2 = valid[Math.floor(Math.random()*valid.length)];
-    return new Set([d1, d2||d1+3]);
-  }
-
-  const northDoors = pickTwoDoors(1,13);
-  const southDoors = pickTwoDoors(1,13);
-  const westDoors  = pickTwoDoors(1,13);
-  const eastDoors  = pickTwoDoors(1,13);
-
-  for(let c=1;c<=13;c++) if(!northDoors.has(c)) fw.add(`h_0_${c}`);
-  for(let c=1;c<=13;c++) if(!southDoors.has(c)) fw.add(`h_13_${c}`);
-  for(let r=1;r<=13;r++) if(!westDoors.has(r)) fw.add(`v_${r}_0`);
-  for(let r=1;r<=13;r++) if(!eastDoors.has(r)) fw.add(`v_${r}_13`);
+  // Sin anillo exterior de paredes fijas: el tablero solo tiene fija la sala de la bomba.
 
   fw.forEach(w => G.walls.add(w));
 }
@@ -2479,16 +2629,17 @@ function showInstructions() {
     `Dos jugadores se enfrentan: ${b('atacante')} contra ${b('defensor')}. El atacante gana si ${b('elimina todas las fichas defensoras')}, o si una de sus fichas permanece ${b('5 rondas consecutivas')} dentro de la sala de la bomba sin que haya defensores dentro al finalizar cada ronda. El defensor gana si ${b('elimina todas las fichas atacantes')}.`)}
 
   ${s('📐 El tablero',
-    `Cuadrícula de ${b('15×15 casillas')}. Hay dos zonas especiales:<br>
+    `Cuadrícula de ${b('15×15 casillas')}. Hay una zona especial:<br>
     — La ${b('sala de la bomba')}: las 25 casillas centrales (5×5), rodeadas de paredes fijas con una entrada en el centro de cada lado. La casilla del centro absoluto está bloqueada permanentemente.<br>
-    — El ${b('anillo exterior')}: un cuadrado de paredes fijas a 4 casillas de distancia de la sala de la bomba, con ${b('2 puertas aleatorias por lado')} que cambian en cada partida.<br>
+    — Fuera de la sala no hay paredes fijas: el resto del tablero lo forman las 40 paredes que colocan los jugadores.<br>
+
     Entre casillas hay ${b('surcos')}, que son los espacios donde se colocan las paredes.<br>
     — ${b('Puertas de la sala:')} cuando una ficha de personaje entra en la sala por una puerta, ninguna otra ficha de personaje de su mismo bando puede entrar por esa puerta mientras la primera siga viva. Salir es siempre libre.`)}
 
   ${s('⚙ Fases de una partida',
     `${b('1. Selección:')} cada jugador elige simultáneamente 4 fichas de personaje de las disponibles para su bando. Puedes ver las fichas rivales con el botón "Ver fichas rivales".<br>
-    ${b('2. Construcción:')} se colocan ${b('32 paredes')} en total alternando turnos (16 por jugador). Hay un botón de mapa aleatorio.<br>
-    ${b('3. Despliegue:')} cada jugador coloca simultáneamente sus 4 fichas: el atacante en las casillas del borde exterior, el defensor en la sala de la bomba.<br>
+    ${b('2. Construcción:')} se colocan ${b('40 paredes')} en total (20 por jugador), en turnos alternos de 2 paredes. Hay un botón de mapa aleatorio.<br>
+    ${b('3. Despliegue:')} cada jugador coloca simultáneamente sus 4 fichas: el atacante en las casillas del borde exterior, el defensor en las casillas de fuera que dan a las puertas de la sala (tres por puerta, máximo una ficha por puerta).<br>
     ${b('4. Moneda:')} se lanza una moneda al aire para decidir quién empieza.<br>
     ${b('5. Rondas:')} cada jugador juega su turno completo y pasa al rival.`)}
 
@@ -2808,13 +2959,16 @@ function renderConstruct() {
   document.getElementById('walls-placed').textContent = G.wallsPlaced;
   document.getElementById('wall-turn-label').textContent = G.wallTurn==='atk' ? 'ATACANTE' : 'DEFENSOR';
   const badge = document.getElementById('construct-turn-badge');
+  const leftTurn = WALLS_PER_TURN - (G.wallsPlaced % WALLS_PER_TURN);
+  const leftTxt = leftTurn===1 ? 'coloca 1 pared más' : 'coloca '+leftTurn+' paredes';
   badge.innerHTML = G.wallTurn==='atk'
-    ? '<span class="role-badge atk">⚔ ATACANTE — coloca una pared</span>'
-    : '<span class="role-badge def">🛡 DEFENSOR — coloca una pared</span>';
+    ? '<span class="role-badge atk">⚔ ATACANTE — '+leftTxt+'</span>'
+    : '<span class="role-badge def">🛡 DEFENSOR — '+leftTxt+'</span>';
   VIEW3D_C.sync();
 }
 
 function isOuterRingSurco(key) {
+  return false;   // ya no hay anillo exterior: todos los surcos fuera de la sala se pueden construir
   if(key.startsWith('h_')) {
     const parts=key.split('_'); const r=parseInt(parts[1]),c=parseInt(parts[2]);
     return (r===0||r===13)&&c>=1&&c<=13;
@@ -2885,7 +3039,7 @@ function isSurcoPuerta(key) {
 // Surco colocable más cercano a un punto del canvas de construcción (vista 3D: los surcos son
 // muy finos para acertarlos con el dedo, así que se admite una tolerancia).
 function nearestPlaceableSurco(px, py) {
-  if(G.wallsPlaced>=32) return null;
+  if(G.wallsPlaced>=WALL_TOTAL) return null;
   if(ONLINE.enabled && G.wallTurn!==ONLINE.myRole) return null;   // no es tu turno
   const tol = CS*0.34;
   let best = null;
@@ -2907,7 +3061,7 @@ function nearestPlaceableSurco(px, py) {
 }
 
 function onConstructClick(e) {
-  if(G.wallsPlaced>=32) return;
+  if(G.wallsPlaced>=WALL_TOTAL) return;
   // Acepta un evento de ratón (vista 2D) o {__xy:[x,y]} con coordenadas de canvas (vista 3D)
   let mx, my;
   if(e && e.__xy) { mx=e.__xy[0]; my=e.__xy[1]; }
@@ -2946,11 +3100,11 @@ function onConstructClick(e) {
 function placeWall(key) {
   G.walls.add(key);
   G.wallsPlaced++;
-  G.wallTurn = G.wallTurn==='atk' ? 'def' : 'atk';
+  if(G.wallsPlaced % WALLS_PER_TURN === 0) G.wallTurn = G.wallTurn==='atk' ? 'def' : 'atk';
   renderConstruct();
-  if(G.wallsPlaced>=32) {
+  if(G.wallsPlaced>=WALL_TOTAL) {
     setTimeout(()=>{
-      showModal('CONSTRUCCIÓN COMPLETA','Todas las <b>32 paredes</b> han sido colocadas. La fase de despliegue comenzará ahora.',
+      showModal('CONSTRUCCIÓN COMPLETA','Todas las <b>'+WALL_TOTAL+' paredes</b> han sido colocadas. La fase de despliegue comenzará ahora.',
         [{label:'CONTINUAR', action:startSpawn}]);
     }, 300);
   }
@@ -2963,6 +3117,22 @@ const SCS = 36;
 const SWS = 6;
 const SOF = 16;
 let spCanvas, spCtx;
+
+
+// Despliegue del defensor: las 3 casillas de fuera que dan a cada puerta de la sala (máx. una ficha por puerta)
+function defSpawnDoor(r,c) {
+  if(r===4  && c>=6 && c<=8) return 'N';
+  if(r===10 && c>=6 && c<=8) return 'S';
+  if(c===4  && r>=6 && r<=8) return 'W';
+  if(c===10 && r>=6 && r<=8) return 'E';
+  return null;
+}
+function defSpawnCheck(r,c,placed) {
+  const d = defSpawnDoor(r,c);
+  if(!d) return '⚠ El defensor despliega en las casillas frente a las puertas de la sala';
+  if(Object.values(placed).some(p=>defSpawnDoor(p.row,p.col)===d)) return '⚠ Ya hay una ficha tuya en esa puerta (máximo una por puerta)';
+  return null;
+}
 
 function startSpawn() {
   G.spawnPhase = 'atk';
@@ -2984,8 +3154,8 @@ function renderSpawnScreen() {
   const side = G.spawnPhase;
   const badge = document.getElementById('spawn-turn-badge');
   badge.innerHTML = side==='atk'
-    ? '<span class="role-badge atk">⚔ ATACANTE — elige casillas externas</span>'
-    : '<span class="role-badge def">🛡 DEFENSOR — elige casillas en la sala de la bomba</span>';
+    ? '<span class="role-badge atk">⚔ ATACANTE — elige casillas del borde del tablero</span>'
+    : '<span class="role-badge def">🛡 DEFENSOR — elige casillas frente a las puertas de la sala (una por puerta)</span>';
   const help = document.getElementById('spawn-help');
   const unitIds = side==='atk' ? G.atkPick : G.defPick;
   const placed = G.spawnPlacements[side];
@@ -3014,13 +3184,14 @@ function drawSpawnBoard() {
     const isEdge = r===0||r===14||c===0||c===14;
     let bg = inBomb ? '#1a1a0a' : '#0f1218';
     if(side==='atk'&&isEdge) bg='rgba(212,80,63,.08)';
-    if(side==='def'&&inBomb) bg='rgba(91,143,208,.08)';
+    const defOk = side==='def' && defSpawnDoor(r,c) && !Object.values(G.spawnPlacements.def||{}).some(p=>defSpawnDoor(p.row,p.col)===defSpawnDoor(r,c)&&!(p.row===r&&p.col===c));
+    if(defOk) bg='rgba(91,143,208,.16)';
     if(P3) {
       // Paleta 3D: opaca y más clara, con las zonas válidas bien marcadas
       bg = inBomb ? '#4a4527' : '#3b3f48';
       if(isCentralCell(r,c)) bg = '#1a1213';
       else if(side==='atk'&&isEdge) bg='#7a3b36';
-      else if(side==='def'&&inBomb) bg='#35618a';
+      else if(defOk) bg='#35618a';
     }
     ctx.fillStyle=bg; ctx.fillRect(x,y,SCS,SCS);
     ctx.strokeStyle=P3?'rgba(0,0,0,.35)':'rgba(255,255,255,.06)'; ctx.lineWidth=1; ctx.strokeRect(x,y,SCS,SCS);
@@ -3104,7 +3275,7 @@ function onSpawnClick(e) {
     if(side==='atk') {
       if(r!==0&&r!==14&&c!==0&&c!==14) { toast('⚠ El atacante debe colocar en casillas externas'); return; }
     } else {
-      if(r<5||r>9||c<5||c>9) { toast('⚠ El defensor debe colocar dentro de la sala de la bomba'); return; }
+      { const msg = defSpawnCheck(r,c,placed); if(msg) { toast(msg); return; } }
     }
     // Central cell always blocked
     if(isCentralCell(r,c)) { toast('⚠ La casilla central está bloqueada'); return; }
@@ -3170,10 +3341,10 @@ function playCoinToss(winner, opts = {}) {
   const scr = document.getElementById('coin-screen');
   const coin = document.getElementById('cs-coin');
   if (!coin.dataset.built) {
+    // Canto: discos dorados apilados entre las dos caras (siempre concéntricos con ellas)
     let edge = '';
-    const N = 36, R = 80, w = (2 * Math.PI * R / N + 0.8).toFixed(2);
-    for (let i = 0; i < N; i++) edge += `<i style="width:${w}px;margin-left:${(-w / 2).toFixed(2)}px;transform:rotateZ(${(360 / N * i).toFixed(2)}deg) translateY(${R - 0.5}px) rotateX(90deg)"></i>`;
-    coin.innerHTML = `<div class="cs-face front">${coinFaceSVG('atk')}</div><div class="cs-face back">${coinFaceSVG('def')}</div><div class="cs-edge">${edge}</div>`;
+    for (let z = -4.5; z <= 4.51; z += 1) edge += `<i style="transform:translateZ(${z.toFixed(1)}px)"></i>`;
+    coin.innerHTML = `<div class="cs-face front">${coinFaceSVG('atk')}</div><div class="cs-face back">${coinFaceSVG('def')}</div>${edge}`;
     coin.dataset.built = '1';
   }
   const who = document.getElementById('cs-who'), sub = document.getElementById('cs-sub'), btn = document.getElementById('cs-btn');
@@ -5527,9 +5698,9 @@ function endTurn() {
   if(G.shotsFired && G.shotsFired.length>0) {
     G.shotsFired.forEach(s=>{
       if(s.blocked) {
-        notifMsg += `🎯 Disparo desde (${s.fromRow+1},${s.fromCol+1}) — sin eliminación.<br>`;
+        notifMsg += `🎯 Disparo desde (${s.fromCol+1},${s.fromRow+1}) — sin eliminación.<br>`;
       } else {
-        notifMsg += `🎯 Disparo desde (${s.fromRow+1},${s.fromCol+1}) — <b>${s.toUnit.name}</b> eliminada en (${s.toUnit.col+1},${s.toUnit.row+1}).<br>`;
+        notifMsg += `🎯 Disparo desde (${s.fromCol+1},${s.fromRow+1}) — <b>${s.toUnit.name}</b> eliminada en (${s.toUnit.col+1},${s.toUnit.row+1}).<br>`;
       }
     });
   }
@@ -5751,7 +5922,7 @@ function onGameClick(e) {
     const tObj=targets.find(t=>t.target.row===cr&&t.target.col===cc);
     if(tObj) {
       showModal('CONFIRMAR DISPARO',
-        `<div class="shot-confirm"><span class="sc-label">Objetivo</span><b>${tObj.target.name}</b><span class="sc-cell">Casilla ${cr+1},${cc+1}</span></div>Una vez disparado no se puede deshacer.`,
+        `<div class="shot-confirm"><span class="sc-label">Objetivo</span><b>${tObj.target.name}</b><span class="sc-cell">Casilla (${cc+1},${cr+1})</span></div>Una vez disparado no se puede deshacer.`,
         [
           {label:'DISPARAR',cls:'btn-danger',action:()=>{ shootTarget(tObj); }},
           {label:'CANCELAR'}
@@ -6567,7 +6738,7 @@ function generateRandomMap() {
   // Only place interior walls (between ring and bomb zone, excluding fixed walls).
 
   // ── INTERIOR SCATTER ─────────────────────────────────────────────────────
-  const needed = 32;
+  const needed = WALL_TOTAL;
   const interiorPool = [];
 
   // Helper: returns true if a surco is inside or on the boundary of the bomb zone interior
@@ -6596,6 +6767,7 @@ function generateRandomMap() {
 
   // Helper: returns true if a surco is on the outer ring (regardless of whether it's a door)
   function isOuterRingSurco(key) {
+    return false;   // sin anillo exterior
     if(key.startsWith('h_')) {
       const parts=key.split('_'); const r=parseInt(parts[1]),c=parseInt(parts[2]);
       return (r===0||r===13)&&c>=1&&c<=13;
@@ -6605,8 +6777,8 @@ function generateRandomMap() {
     }
   }
 
-  // Horizontal surcos inside the ring: h_r_c with r in 1..12, c in 1..13
-  for(let r=1;r<=12;r++) for(let c=1;c<=13;c++) {
+  // Todos los surcos horizontales del tablero
+  for(let r=0;r<=GRID-2;r++) for(let c=0;c<=GRID-1;c++) {
     const key=`h_${r}_${c}`;
     if(G.walls.has(key)) continue;
     if(isOuterRingSurco(key)) continue;
@@ -6615,8 +6787,8 @@ function generateRandomMap() {
     if(isSurcoPuerta(key)) continue;
     interiorPool.push(key);
   }
-  // Vertical surcos inside the ring: v_r_c with r in 1..13, c in 1..12
-  for(let r=1;r<=13;r++) for(let c=1;c<=12;c++) {
+  // Todos los surcos verticales del tablero
+  for(let r=0;r<=GRID-1;r++) for(let c=0;c<=GRID-2;c++) {
     const key=`v_${r}_${c}`;
     if(G.walls.has(key)) continue;
     if(isOuterRingSurco(key)) continue;
@@ -6650,7 +6822,7 @@ function generateRandomMap() {
   document.getElementById('construct-help').textContent =
     `Mapa generado (${G.wallsPlaced} paredes). Puedes seguir añadiendo manualmente o continuar.`;
 
-  if(G.wallsPlaced>=32) {
+  if(G.wallsPlaced>=WALL_TOTAL) {
     setTimeout(()=>{
       showModal('MAPA GENERADO','Se han colocado <b>'+G.wallsPlaced+' paredes</b> automáticamente. Puedes continuar al despliegue.',
         [{label:'CONTINUAR', action:startSpawn}]);
@@ -7122,7 +7294,7 @@ window.placeWall=function(key){
   if(ONLINE.enabled&&G.wallTurn!==ONLINE.myRole){toast('⚠ No es tu turno');return;}
   _origPlaceWall(key);
   if(!ONLINE.enabled) return;
-  if(G.wallsPlaced>=32) pushState().then(()=>setStep('spawn_both'));
+  if(G.wallsPlaced>=WALL_TOTAL) pushState().then(()=>setStep('spawn_both'));
   else{ pushState(); updateConstructTurnUI(); }
 };
 
@@ -7130,7 +7302,7 @@ const _origGenerateRandomMap=generateRandomMap;
 window.generateRandomMap=function(){
   _origGenerateRandomMap();
   if(!ONLINE.enabled) return;
-  if(G.wallsPlaced>=32) pushState().then(()=>setStep('spawn_both'));
+  if(G.wallsPlaced>=WALL_TOTAL) pushState().then(()=>setStep('spawn_both'));
   else pushState();
 };
 
@@ -7301,7 +7473,7 @@ function isMyTurn(){return !ONLINE.enabled||G.currentSide===ONLINE.myRole;}
 function renderSpawnScreen(){
   const side=G.spawnPhase;
   const badge=document.getElementById('spawn-turn-badge');
-  badge.innerHTML=side==='atk'?'<span class="role-badge atk">⚔ ATACANTE — elige casillas externas</span>':'<span class="role-badge def">🛡 DEFENSOR — elige casillas en la sala de la bomba</span>';
+  badge.innerHTML=side==='atk'?'<span class="role-badge atk">⚔ ATACANTE — elige casillas del borde del tablero</span>':'<span class="role-badge def">🛡 DEFENSOR — elige casillas frente a las puertas de la sala (una por puerta)</span>';
   const help=document.getElementById('spawn-help');
   const unitIds=side==='atk'?G.atkPick:G.defPick;
   const placed=G.spawnPlacements[side];
@@ -7331,7 +7503,7 @@ function onSpawnClick(e){
     const {x,y}=spCellTL(r,c);
     if(mx<x||mx>x+SCS||my<y||my>y+SCS) continue;
     if(side==='atk'){if(r!==0&&r!==14&&c!==0&&c!==14){toast('⚠ El atacante debe colocar en casillas externas');return;}}
-    else{if(r<5||r>9||c<5||c>9){toast('⚠ El defensor debe colocar dentro de la sala de la bomba');return;}}
+    else{const msg=defSpawnCheck(r,c,placed);if(msg){toast(msg);return;}}
     if(isCentralCell(r,c)){toast('⚠ Casilla central bloqueada');return;}
     if(Object.values(placed).some(p=>p.row===r&&p.col===c)){toast('⚠ Casilla ocupada');return;}
     placed[remaining[0]]={row:r,col:c};
@@ -7343,7 +7515,8 @@ function onSpawnClick(e){
 function updateConstructTurnUI(){
   const isMe=G.wallTurn===ONLINE.myRole;
   const badge=document.getElementById('construct-turn-badge');
-  if(badge) badge.innerHTML=isMe?(ONLINE.myRole==='atk'?'<span class="role-badge atk">⚔ ATACANTE — coloca una pared (TU TURNO)</span>':'<span class="role-badge def">🛡 DEFENSOR — coloca una pared (TU TURNO)</span>'):(ONLINE.myRole==='atk'?'<span class="role-badge def" style="opacity:.5;">🛡 DEFENSOR está colocando...</span>':'<span class="role-badge atk" style="opacity:.5;">⚔ ATACANTE está colocando...</span>');
+  const leftTurn=WALLS_PER_TURN-(G.wallsPlaced%WALLS_PER_TURN), leftTxt=leftTurn===1?'coloca 1 pared más':'coloca '+leftTurn+' paredes';
+  if(badge) badge.innerHTML=isMe?(ONLINE.myRole==='atk'?'<span class="role-badge atk">⚔ ATACANTE — '+leftTxt+' (TU TURNO)</span>':'<span class="role-badge def">🛡 DEFENSOR — '+leftTxt+' (TU TURNO)</span>'):(ONLINE.myRole==='atk'?'<span class="role-badge def" style="opacity:.5;">🛡 DEFENSOR está colocando...</span>':'<span class="role-badge atk" style="opacity:.5;">⚔ ATACANTE está colocando...</span>');
   const helpEl=document.getElementById('construct-help');
   if(helpEl) helpEl.textContent=isMe?'Haz clic en un SURCO para colocar una pared':'Esperando al rival...';
 }
@@ -7981,6 +8154,7 @@ async function saveGameResult(result) {
       ts:Date.now(), won:result.won, myRole:result.myRole,
       rival:result.rivalName||'Desconocido', rounds:result.rounds||0,
       duration:result.duration||0, picks:result.myPick||[],
+      lost:result.lost==null?null:result.lost, bomb:!!result.bomb,
     });
   } catch(e){console.error('saveGameResult',e);}
 }
@@ -7990,14 +8164,19 @@ function saveOnlineGameResult(winner) {
   if(!user||!ONLINE.enabled||!ONLINE.myRole) return;
   const won = winner===ONLINE.myRole;
   const rivalRole = ONLINE.myRole==='atk'?'def':'atk';
+  // Datos extra para los logros: fichas propias perdidas y victoria por la bomba
+  const extra = {
+    lost: (G.units||[]).filter(u=>u.side===ONLINE.myRole && !u.alive).length,
+    bomb: winner==='atk' && (G.atkPick||[]).some(id=>(G.bombCounters||{})[id]>=5),
+  };
   window._fbGet(window._fbRef(window._db,'rooms/'+ONLINE.roomId+'/playerNames/'+rivalRole))
     .then(snap=>{
       saveGameResult({won, myRole:ONLINE.myRole, rivalName:snap.val()||'Desconocido',
         rounds:G.round, myPick:ONLINE.myRole==='atk'?G.atkPick:G.defPick,
-        duration:Date.now()-(ONLINE.gameStartTs||Date.now())});
+        duration:Date.now()-(ONLINE.gameStartTs||Date.now()), lost:extra.lost, bomb:extra.bomb});
     }).catch(()=>{
       saveGameResult({won, myRole:ONLINE.myRole, rivalName:'Desconocido',
-        rounds:G.round, myPick:ONLINE.myRole==='atk'?G.atkPick:G.defPick, duration:0});
+        rounds:G.round, myPick:ONLINE.myRole==='atk'?G.atkPick:G.defPick, duration:0, lost:extra.lost, bomb:extra.bomb});
     });
 }
 
@@ -8022,6 +8201,334 @@ async function openStats() {
   }
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REGISTRO DE PARTIDA — panel plegable con lo que ha pasado, ronda a ronda.
+// Cada entrada lleva a qué bando se le muestra (vis). Las que informan al rival
+// solo aparecen a partir de su siguiente turno (at), igual que los avisos de fin de turno,
+// así el registro nunca enseña nada que la niebla de guerra oculte.
+// Coordenadas siempre como (columna, fila).
+// ═══════════════════════════════════════════════════════════════════════════
+const LOG = { open:false, seen:{atk:0, def:0}, flash:null };
+(function(){
+  const KEEP_ROUNDS = 10;
+  const turnIdx = (round, side) => (round||1)*2 + (side==='def'?1:0);
+  const curTurn = () => turnIdx(G.round, G.currentSide);
+  const viewer  = () => (ONLINE.enabled && ONLINE.myRole) ? ONLINE.myRole : G.currentSide;
+  const myTurn  = () => !ONLINE.enabled || G.currentSide===ONLINE.myRole;
+  const other   = s => s==='atk' ? 'def' : 'atk';
+  const C = (r,c) => `(${c+1},${r+1})`;
+  const esc = t => String(t==null?'':t).replace(/[&<>"]/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+  const plain = t => String(t||'').replace(/<[^>]*>/g,'').replace(/[\u{1F000}-\u{1FAFF}☀-➿️]/gu,'').replace(/^[\s⚠]+/,'').trim();
+  let pushT = 0;
+
+  function add(e) {
+    if (!Array.isArray(G.log)) G.log = [];
+    G.logSeq = (G.logSeq||0) + 1;
+    G.log.push(Object.assign({ n:G.logSeq, r:G.round||1, s:G.currentSide, t:curTurn() }, e));
+    const minR = (G.round||1) - KEEP_ROUNDS + 1;
+    if (G.log[0] && G.log[0].r < minR) G.log = G.log.filter(x => x.r >= minR);
+    if (ONLINE.enabled && myTurn() && typeof pushState==='function') { clearTimeout(pushT); pushT = setTimeout(pushState, 120); }
+  }
+  window.gameLogAdd = add;
+
+  const wrap = (name, fn) => { const o = window[name]; if (typeof o !== 'function') return; window[name] = function(){ return fn(o, this, arguments); }; };
+
+  // Movimientos propios (y si la ficha cae en una trampa al moverse)
+  wrap('moveUnit', (o,t,a) => {
+    const u = typeof getUnit==='function' ? getUnit(a[0]) : null;
+    const before = u ? { r:u.row, c:u.col, alive:u.alive } : null;
+    const res = o.apply(t,a);
+    if (u && before && myTurn()) {
+      if (u.row!==before.r || u.col!==before.c)
+        add({ k:'move', vis:u.side, cell:[u.row,u.col], txt:`${u.name} se movió a ${C(u.row,u.col)}` });
+      if (before.alive && !u.alive)
+        add({ k:'elim', vis:u.side, cell:[u.row,u.col], txt:`${u.name} cayó en una trampa y fue eliminada` });
+    }
+    return res;
+  });
+
+  // Disparos propios
+  wrap('shootTarget', (o,t,a) => {
+    const to = a[0] || {}, sh = to.shooter, tg = to.target;
+    const n0 = (G.shotsFired||[]).length;
+    const res = o.apply(t,a);
+    if (sh && tg && myTurn()) {
+      const last = (G.shotsFired||[])[n0];
+      const name = (last && last.toUnit && last.toUnit.name) || tg.name || 'un dispositivo';
+      let txt;
+      if (last && last.blocked) txt = `${sh.name} disparó a ${name} en ${C(tg.row,tg.col)}: resistió el disparo`;
+      else if (tg.isDevice) txt = `${sh.name} disparó a ${name} en ${C(tg.row,tg.col)}: impacto`;
+      else txt = `${sh.name} disparó a ${name} en ${C(tg.row,tg.col)}: eliminada`;
+      add({ k:'shot', vis:sh.side, cell:[tg.row,tg.col], txt });
+    }
+    return res;
+  });
+
+  // Habilidades propias
+  wrap('executeAbility', (o,t,a) => {
+    const u = typeof getUnit==='function' ? getUnit(a[0]) : null;
+    const res = o.apply(t,a);
+    if (u && myTurn() && (u.abilityUsed || G.abilityMode)) {
+      const d = UNIT_DEFS[u.id] || {};
+      add({ k:'ability', vis:u.side, cell:[u.row,u.col], txt:`${u.name} usó ${d.abilityName||'su habilidad'}` });
+    }
+    return res;
+  });
+
+  // Fichas enemigas vistas (una vez por turno y posición)
+  wrap('computeVision', (o,t,a) => {
+    const res = o.apply(t,a);
+    if (!myTurn() || !G.units) return res;
+    const side = viewSide(), tn = curTurn();
+    G.units.filter(u => u.side!==side && u.alive).forEach(u => {
+      if (!G.revealedCells.has(`${u.row}_${u.col}`) || isUnitInvisibleTo(u, side)) return;
+      const dup = (G.log||[]).some(e => e.k==='seen' && e.t===tn && e.uid===u.id && e.cell && e.cell[0]===u.row && e.cell[1]===u.col);
+      if (!dup) add({ k:'seen', vis:side, uid:u.id, cell:[u.row,u.col], txt:`Viste a ${u.name} en ${C(u.row,u.col)}` });
+    });
+    return res;
+  });
+
+  // Fin de turno: lo que se le notifica al rival pasa a su registro desde su próximo turno
+  wrap('endTurn', (o,t,a) => {
+    if (G.gameOver || (ONLINE.enabled && !myTurn())) return o.apply(t,a);
+    const rival = other(G.currentSide), at = curTurn() + 1;
+    (G.shotsFired||[]).forEach(sf => {
+      const from = C(sf.fromRow, sf.fromCol);
+      let txt;
+      if (sf.blocked) txt = `Disparo enemigo desde ${from}: sin eliminación`;
+      else if (sf.toUnit) txt = `Disparo enemigo desde ${from}: ${sf.toUnit.name} eliminada`;
+      else txt = `Disparo enemigo desde ${from}`;
+      add({ k:'enemyShot', vis:rival, at, cell:[sf.fromRow, sf.fromCol], txt });
+    });
+    (G.pendingNotifs||[]).forEach(nt => { const tx = plain(nt); if (tx) add({ k:'notice', vis:rival, at, txt:tx }); });
+    return o.apply(t,a);
+  });
+
+  // ── Panel ──
+  const ICON = { move:'➜', seen:'◉', shot:'✕', enemyShot:'✕', ability:'✦', elim:'☠', notice:'!' };
+  function visibleEntries() {
+    const v = viewer(), now = curTurn();
+    return (G.log||[]).filter(e => e.vis===v && (e.s===v || now >= (e.at||0)));
+  }
+  function panelHTML() {
+    const v = viewer(), list = visibleEntries();
+    const maxN = list.reduce((m,e) => Math.max(m,e.n), 0);
+    const unseen = LOG.open ? 0 : list.filter(e => e.n > (LOG.seen[v]||0)).length;
+    if (LOG.open) LOG.seen[v] = Math.max(LOG.seen[v]||0, maxN);
+    let body = '';
+    if (!list.length) body = '<div class="log-empty">Aún no hay nada registrado.</div>';
+    else {
+      const groups = [];
+      [...list].sort((x,y) => y.n - x.n).forEach(e => {
+        const key = e.r + '|' + e.s;
+        let g = groups[groups.length-1];
+        if (!g || g.key !== key) groups.push(g = { key, r:e.r, s:e.s, items:[] });
+        g.items.push(e);
+      });
+      body = groups.map(g => {
+        const who = ONLINE.enabled ? (g.s===v ? 'Tu turno' : 'Turno rival') : (g.s==='atk' ? 'Turno atacante' : 'Turno defensor');
+        return `<div class="log-grp"><div class="log-gh ${g.s}"><b>RONDA ${g.r}</b><span>${who}</span></div>` +
+          g.items.map(e => `<div class="log-it k-${e.k}${e.cell?' has-cell':''}"${e.cell?` onclick="gameLogFlash(${e.cell[0]},${e.cell[1]})" title="Ver en el tablero"`:''}>
+            <i class="log-ic ${g.s}">${ICON[e.k]||'·'}</i><span>${esc(e.txt)}</span></div>`).join('') + `</div>`;
+      }).join('');
+    }
+    return `<div class="log-panel${LOG.open?' open':''}">
+      <button class="log-toggle" onclick="gameLogToggle()"><span>Registro${unseen?` <em>${unseen} nueva${unseen>1?'s':''}</em>`:''}</span><span class="arrow">▼</span></button>
+      <div class="log-body"><div class="log-bh"><b>Registro de partida</b><button class="log-x" onclick="gameLogToggle()" aria-label="Cerrar">✕</button></div>
+      <div class="log-scroll">${body}</div></div></div>`;
+  }
+  wrap('updateSidebar', (o,t,a) => {
+    const res = o.apply(t,a);
+    try {
+      const sb = document.getElementById('sidebar');
+      if (sb && G.units && G.units.length) {
+        const keep = sb.querySelector('.log-scroll'), top = keep ? keep.scrollTop : 0;
+        const old = sb.querySelector('.log-panel'); if (old) old.remove();
+        sb.insertAdjacentHTML('beforeend', panelHTML());
+        const sc = sb.querySelector('.log-scroll'); if (sc) sc.scrollTop = top;
+      }
+    } catch (e) { console.warn('[registro]', e); }
+    return res;
+  });
+  window.gameLogToggle = () => { LOG.open = !LOG.open; updateSidebar(); };
+
+  // Resaltar en el tablero la casilla de una entrada (2D y 3D: el canvas es la textura del suelo)
+  wrap('renderGame', (o,t,a) => {
+    const res = o.apply(t,a);
+    const f = LOG.flash;
+    if (f && gCtx) {
+      const el = performance.now() - f.t0;
+      if (el > 1800) LOG.flash = null;
+      else {
+        const k = 0.5 + 0.5*Math.sin(el/1800*Math.PI*6);
+        const {x,y} = gCellTL(f.r, f.c);
+        gCtx.save();
+        gCtx.fillStyle = `rgba(232,196,90,${(0.18+0.25*k).toFixed(3)})`; gCtx.fillRect(x, y, GCS, GCS);
+        gCtx.strokeStyle = `rgba(255,222,120,${(0.55+0.45*k).toFixed(3)})`; gCtx.lineWidth = 3; gCtx.strokeRect(x-2, y-2, GCS+4, GCS+4);
+        gCtx.restore();
+        try { if (VIEW3D.on) VIEW3D.sync(); } catch(_) {}
+      }
+    }
+    return res;
+  });
+  window.gameLogFlash = (r, c) => {
+    LOG.flash = { r, c, t0: performance.now() };
+    if (window.matchMedia && matchMedia('(orientation:landscape) and (max-height:600px)').matches) { LOG.open = false; updateSidebar(); }
+    const tick = () => { renderGame(); if (LOG.flash) setTimeout(tick, 70); };
+    tick();
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOGROS — se calculan a partir de las estadísticas y el historial online guardados.
+// ═══════════════════════════════════════════════════════════════════════════
+const ACHIEVEMENTS = [
+  { id:'primera',   g:'★',  name:'Primera victoria', desc:'Gana tu primera partida online',          f:(s,h)=>[s.wins||0, 1] },
+  { id:'veterano',  g:'Ⅹ',  name:'Veterano',          desc:'Juega 10 partidas',                       f:(s,h)=>[(s.wins||0)+(s.losses||0), 10] },
+  { id:'curtido',   g:'L',  name:'Curtido',           desc:'Juega 50 partidas',                       f:(s,h)=>[(s.wins||0)+(s.losses||0), 50] },
+  { id:'racha3',    g:'3',  name:'En racha',          desc:'Encadena 3 victorias seguidas',           f:(s,h)=>[s.maxStreak||0, 3] },
+  { id:'imparable', g:'5',  name:'Imparable',         desc:'Encadena 5 victorias seguidas',           f:(s,h)=>[s.maxStreak||0, 5] },
+  { id:'asaltante', g:'A',  name:'Asaltante',         desc:'Gana 10 partidas como atacante',          f:(s,h)=>[s.winsAtk||0, 10] },
+  { id:'guardian',  g:'D',  name:'Guardián',          desc:'Gana 10 partidas como defensor',          f:(s,h)=>[s.winsDef||0, 10] },
+  { id:'doblefilo', g:'⇄',  name:'Doble filo',        desc:'Gana con los dos bandos',                 f:(s,h)=>[((s.winsAtk||0)>0)+((s.winsDef||0)>0), 2] },
+  { id:'polivalente',g:'✦', name:'Polivalente',       desc:'Juega con 15 personajes distintos',       f:(s,h)=>[Object.keys(s.charUsage||{}).length, 15] },
+  { id:'intocable', g:'◆',  name:'Intocable',         desc:'Gana sin perder ninguna ficha',           f:(s,h)=>[h.some(x=>x.won&&x.lost===0)?1:0, 1] },
+  { id:'dinamitero',g:'✸',  name:'Dinamitero',        desc:'Gana haciendo estallar la bomba',         f:(s,h)=>[h.some(x=>x.won&&x.bomb)?1:0, 1] },
+  { id:'relampago', g:'ϟ',  name:'Relámpago',         desc:'Gana en 6 rondas o menos',                f:(s,h)=>[h.some(x=>x.won&&x.rounds>0&&x.rounds<=6)?1:0, 1] },
+  { id:'maraton',   g:'∞',  name:'Maratón',           desc:'Juega una partida de 20 rondas o más',    f:(s,h)=>[h.some(x=>(x.rounds||0)>=20)?1:0, 1] },
+];
+function achievementState(s, history) {
+  return ACHIEVEMENTS.map(a => { let [cur, max] = a.f(s||{}, history||[]); cur = Math.min(cur, max); return Object.assign({}, a, { cur, max, done: cur >= max }); });
+}
+function achievementsHTML(s, history) {
+  const st = achievementState(s, history), n = st.filter(a => a.done).length;
+  return `<section class="st-card"><div class="st-ct">Logros <small>${n} de ${st.length}</small></div><div class="ach-grid">` +
+    st.map(a => `<div class="ach${a.done?' done':''}" title="${a.desc}">
+      <div class="ach-medal"><span>${a.g}</span></div>
+      <div class="ach-tx"><b>${a.name}</b><span>${a.desc}</span>
+      ${a.done ? '' : (a.max > 1 ? `<div class="ach-bar"><i style="width:${Math.round(a.cur/a.max*100)}%"></i></div><em>${a.cur} / ${a.max}</em>` : '')}</div></div>`).join('') +
+    `</div></section>`;
+}
+(function(){
+  // Insertar los logros en las pantallas de estadísticas (tras «Por bando»)
+  const o = statsHTML;
+  window.statsHTML = statsHTML = function(s, history, own) {
+    let html = o(s, history, own);
+    const ach = achievementsHTML(s, history);
+    const marker = '</div><div class="st-col">';
+    if (html.includes(marker)) return html.replace(marker, ach + marker);
+    return html + ach;
+  };
+  // Aviso al desbloquear logros al guardar una partida
+  const o2 = saveGameResult;
+  const read = async uid => {
+    const [a, b] = await Promise.all([
+      window._fbGet(window._fbRef(window._db, 'users/'+uid+'/stats')),
+      window._fbGet(window._fbRef(window._db, 'users/'+uid+'/history')),
+    ]);
+    return achievementState(a.val() || {}, Object.values(b.val() || {}));
+  };
+  window.saveGameResult = saveGameResult = async function(result) {
+    const user = window._currentUser;
+    let before = null;
+    try { if (user) before = await read(user.uid); } catch (e) {}
+    await o2(result);
+    try {
+      if (!user || !before) return;
+      const after = await read(user.uid);
+      const fresh = after.filter((a, i) => a.done && !before[i].done);
+      fresh.forEach((a, i) => setTimeout(() => {
+        toast('Logro desbloqueado: ' + a.name, 4200);
+        try { SFX.play('confirm'); } catch (_) {}
+      }, 1400 + i * 4400));
+    } catch (e) { console.warn('[logros]', e); }
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REVANCHA (online) — los dos jugadores la piden desde la pantalla final.
+// Se crea una sala nueva con los papeles intercambiados; el antiguo atacante la crea.
+// ═══════════════════════════════════════════════════════════════════════════
+const REMATCH = { ref:null, room:null, asked:false, joining:false };
+function rematchStatus(t, cls) { const el = document.getElementById('rematch-status'); if (el) { el.textContent = t || ''; el.className = 'rematch-status' + (cls ? ' ' + cls : ''); } }
+function rematchButton(label, show) { const b = document.getElementById('btn-rematch'); if (!b) return; b.style.display = show ? '' : 'none'; if (label) b.textContent = label; }
+function watchRematch() {
+  if (!ONLINE.enabled || !ONLINE.roomId) { rematchButton(null, false); return; }
+  if (REMATCH.room === ONLINE.roomId) return;
+  if (REMATCH.ref) window._fbOff(REMATCH.ref);
+  REMATCH.room = ONLINE.roomId; REMATCH.asked = false; REMATCH.joining = false;
+  rematchButton('REVANCHA', true); rematchStatus('');
+  const oldRoom = ONLINE.roomId, myOldRole = ONLINE.myRole, rival = myOldRole === 'atk' ? 'def' : 'atk';
+  REMATCH.ref = window._fbRef(window._db, 'rooms/' + oldRoom + '/rematch');
+  window._fbOnValue(REMATCH.ref, snap => {
+    const r = snap.val() || {};
+    if (REMATCH.room !== oldRoom || REMATCH.joining) return;
+    if (r.next && myOldRole === 'def') { REMATCH.joining = true; joinRematchRoom(r.next, oldRoom); return; }
+    if (r.cancel && r.cancel !== myOldRole) { rematchStatus('El rival ha salido. No habrá revancha.', 'off'); rematchButton(null, false); return; }
+    if (r[rival] && r[myOldRole]) {
+      rematchStatus('¡Revancha aceptada! Preparando partida…', 'ok'); rematchButton(null, false);
+      if (myOldRole === 'atk' && !r.next) { REMATCH.joining = true; hostRematchRoom(oldRoom); }
+    } else if (r[rival]) { rematchStatus('El rival quiere la revancha.', 'ask'); rematchButton('ACEPTAR REVANCHA', true); }
+    else if (r[myOldRole]) { rematchStatus('Esperando a que el rival acepte…'); rematchButton('CANCELAR', true); }
+  });
+}
+async function requestRematch() {
+  if (!ONLINE.enabled || !ONLINE.roomId) return;
+  const path = 'rooms/' + ONLINE.roomId + '/rematch/' + ONLINE.myRole;
+  try {
+    if (REMATCH.asked) { REMATCH.asked = false; await window._fbSet(window._fbRef(window._db, path), null); rematchButton('REVANCHA', true); rematchStatus('Revancha cancelada.'); return; }
+    REMATCH.asked = true;
+    await window._fbSet(window._fbRef(window._db, path), Date.now());
+  } catch (e) { REMATCH.asked = false; rematchStatus('No se pudo pedir la revancha: ' + (e.message || e), 'off'); }
+}
+function leaveOldRoom(oldRoom) {
+  ['state', 'step', 'winner', 'picks', 'coinWinner', 'presence', 'chat'].forEach(k => { try { window._fbOff(window._fbRef(window._db, 'rooms/' + oldRoom + '/' + k)); } catch (_) {} });
+  if (REMATCH.ref) { try { window._fbOff(REMATCH.ref); } catch (_) {} REMATCH.ref = null; }
+}
+function enterRematchGame() {
+  const w = document.getElementById('screen-winner'); if (w) w.style.cssText = '';
+  ONLINE.gameOver = false; ONLINE.currentStep = null;
+  rematchStatus(''); rematchButton(null, false);
+  startOnlineGame();
+}
+async function hostRematchRoom(oldRoom) {
+  const code = genRoomCode(), newRole = 'def';   // el antiguo atacante defiende en la revancha
+  const myName = window._currentUser ? (window._currentUser.displayName || window._currentUser.email) : 'Jugador';
+  try {
+    await window._fbSet(window._fbRef(window._db, 'rooms/' + code), { created: Date.now(), host: newRole, guest: null, state: null, step: null, picks: null, coinWinner: null });
+    await window._fbSet(window._fbRef(window._db, 'rooms/' + code + '/playerNames/' + newRole), myName);
+    leaveOldRoom(oldRoom);
+    ONLINE.roomId = code; ONLINE.myRole = newRole; ONLINE.enabled = true;
+    const gref = window._fbRef(window._db, 'rooms/' + code + '/guest');
+    window._fbOnValue(gref, snap => { if (!snap.val()) return; window._fbOff(gref); enterRematchGame(); });
+    await window._fbSet(window._fbRef(window._db, 'rooms/' + oldRoom + '/rematch/next'), code);
+  } catch (e) { REMATCH.joining = false; rematchStatus('No se pudo crear la revancha: ' + (e.message || e), 'off'); }
+}
+async function joinRematchRoom(code, oldRoom) {
+  const newRole = 'atk';   // el antiguo defensor ataca en la revancha
+  const myName = window._currentUser ? (window._currentUser.displayName || window._currentUser.email) : 'Jugador';
+  try {
+    leaveOldRoom(oldRoom);
+    ONLINE.roomId = code; ONLINE.myRole = newRole; ONLINE.enabled = true;
+    await window._fbSet(window._fbRef(window._db, 'rooms/' + code + '/guest'), newRole);
+    await window._fbSet(window._fbRef(window._db, 'rooms/' + code + '/playerNames/' + newRole), myName);
+    enterRematchGame();
+  } catch (e) { REMATCH.joining = false; rematchStatus('No se pudo entrar en la revancha: ' + (e.message || e), 'off'); }
+}
+(function(){
+  const o = window.endGame;
+  window.endGame = function(winner, reason) {
+    const r = o.apply(this, arguments);
+    try { watchRematch(); } catch (e) { console.warn('[revancha]', e); }
+    return r;
+  };
+  // Si alguien sale de la pantalla final con revancha pedida, se avisa al rival
+  window.addEventListener('pagehide', () => {
+    try { if (REMATCH.room && ONLINE.enabled && document.getElementById('screen-winner').classList.contains('active'))
+      window._fbSet(window._fbRef(window._db, 'rooms/' + REMATCH.room + '/rematch/cancel'), ONLINE.myRole); } catch (_) {}
+  });
+})();
 </script>
 <script>
 if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) {
