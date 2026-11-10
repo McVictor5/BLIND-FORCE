@@ -1323,6 +1323,205 @@ body.bf-online #wait-notify { display:inline-block; }
   background:rgba(14,13,11,.86); border:1px solid rgba(242,210,122,.5); color:#f2e4bb; font:700 .72rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.14em; text-transform:uppercase; white-space:nowrap; }
 #follow-chip.on { display:flex; }
 #follow-chip button { border:1px solid rgba(242,210,122,.4); background:rgba(242,210,122,.12); color:#f2e4bb; border-radius:12px; padding:3px 9px; font:inherit; cursor:pointer; letter-spacing:.1em; }
+
+/* ══ Pantalla online: individual / cooperativo ══ */
+.lobby-modes { display:grid; grid-template-columns:1fr 1fr; gap:16px; width:100%; max-width:660px; }
+.lmode { position:relative; display:flex; flex-direction:column; align-items:center; gap:6px; padding:26px 14px 22px; cursor:pointer; text-align:center; color:var(--text);
+  background:linear-gradient(165deg,#1d1a15,#12110e); border:1px solid rgba(201,168,74,.28); border-radius:4px; overflow:hidden;
+  transition:transform .25s ease, border-color .25s ease, box-shadow .25s ease; }
+.lmode::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,#c9a84a,transparent); opacity:.7; }
+.lmode:hover, .lmode:focus-visible { transform:translateY(-3px); border-color:rgba(201,168,74,.6); box-shadow:0 14px 34px rgba(0,0,0,.45), 0 0 26px rgba(201,168,74,.08); outline:none; }
+.lmode .lm-art { width:min(150px,34vw); aspect-ratio:1; display:block; margin-bottom:6px; filter:drop-shadow(0 0 14px rgba(201,168,74,.18)); }
+.lmode .lm-art svg { width:100%; height:100%; display:block; }
+.lmode .lm-ring { transform-origin:100px 100px; animation:lmSpin 26s linear infinite; }
+.lmode .lm-e { animation:lmBlink 6s ease-in-out infinite; transform-box:fill-box; transform-origin:center; }
+@keyframes lmSpin { to { transform:rotate(360deg); } }
+@keyframes lmBlink { 0%,92%,100% { opacity:1; } 95% { opacity:.35; } }
+.lmode b { font:700 1.15rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.24em; text-transform:uppercase; color:#ecdcae; }
+.lmode small { font-size:.76rem; line-height:1.4; color:var(--text-dim); max-width:220px; }
+.lm-soon { position:absolute; top:24px; right:-46px; width:170px; text-align:center; transform:rotate(38deg); padding:3px 0; background:#c9a84a; color:#1a1408; font:800 .58rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.16em; text-transform:uppercase; font-style:normal; }
+.lobby-pane { display:flex; flex-direction:column; align-items:center; gap:20px; width:100%; }
+.lobby-pane-head { width:100%; max-width:860px; display:flex; justify-content:center; }
+.lm-tag { display:inline-flex; align-items:center; gap:8px; padding:5px 14px; border:1px solid rgba(201,168,74,.35); border-radius:16px; font:700 .74rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.2em; text-transform:uppercase; color:#ecdcae; }
+.lm-tag svg { width:20px; height:20px; }
+@media (max-width:420px) { .lobby-modes { gap:10px; } .lmode { padding:20px 8px 16px; } .lmode b { font-size:.98rem; letter-spacing:.16em; } .lmode small { font-size:.7rem; } }
+@media (prefers-reduced-motion: reduce) { .lmode .lm-ring, .lmode .lm-e { animation:none; } }
+@media (orientation:landscape) and (max-height:520px) {
+  #screen-lobby { gap:10px !important; padding-top:10px !important; }
+  #screen-lobby .title-glow { font-size:1.3rem !important; }
+  .lobby-modes { max-width:560px; }
+  .lmode { padding:12px 10px 12px; gap:2px; }
+  .lmode .lm-art { width:min(84px,22vh); margin-bottom:2px; }
+  .lmode b { font-size:.95rem; }
+  .lmode small { font-size:.68rem; }
+}
+
+/* ══ Mapas predefinidos con vista previa ══ */
+.pm-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:12px; margin-top:12px; }
+.pm-card { display:flex; flex-direction:column; gap:8px; padding:10px; cursor:pointer; text-align:left; color:var(--text);
+  background:rgba(255,255,255,.03); border:1px solid rgba(201,168,74,.25); border-radius:6px; transition:border-color .2s, transform .2s, background .2s; }
+.pm-card:hover, .pm-card:focus-visible { border-color:#c9a84a; background:rgba(201,168,74,.08); transform:translateY(-2px); outline:none; }
+.pm-card svg { width:100%; height:auto; display:block; border-radius:3px; }
+.pm-card b { font:700 .9rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.14em; text-transform:uppercase; color:#ecdcae; }
+.pm-card small { font-size:.72rem; color:var(--text-dim); }
+.pm-intro { font-size:.85rem; color:var(--text-dim); line-height:1.5; }
+
+/* ══ MODO COOPERATIVO · sala y selección ══ */
+.coop-panels { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; width:100%; max-width:900px; }
+@media (max-width:760px) { .coop-panels { grid-template-columns:1fr; max-width:420px; } }
+.coop-card { background:linear-gradient(165deg,#1d1a15,#12110e); border:1px solid rgba(201,168,74,.25); border-radius:4px; padding:18px 16px; display:flex; flex-direction:column; gap:10px; }
+.cc-title { font:700 .8rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.2em; text-transform:uppercase; color:#ecdcae; }
+.cc-hint { font-size:.72rem; color:var(--text-dim); line-height:1.4; }
+.cc-status { min-height:16px; font:600 .74rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.06em; color:var(--text-dim); text-align:center; }
+.coop-seg { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.coop-seg button { padding:11px 6px; cursor:pointer; text-align:center; color:var(--text-dim); background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.1);
+  font:700 .74rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.1em; text-transform:uppercase; transition:all .2s; }
+.coop-seg button span { display:block; font-size:1.25rem; margin-bottom:2px; }
+.coop-seg button b { display:block; font-size:.9rem; }
+.coop-seg button small { display:block; font-weight:500; letter-spacing:.02em; text-transform:none; font-size:.68rem; margin-top:2px; }
+.coop-seg button.on { color:#f3d48a; border-color:#c9a84a; background:rgba(201,168,74,.12); }
+.coop-seg button.atk.on { color:#ffb3a8; border-color:var(--atk); background:rgba(212,80,63,.14); }
+.coop-seg button.def.on { color:#a9c4ea; border-color:var(--def); background:rgba(91,143,208,.14); }
+.coop-go { padding:12px; cursor:pointer; background:rgba(201,168,74,.12); border:1px solid #c9a84a; color:#f3d48a;
+  font:700 .8rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.2em; text-transform:uppercase; transition:background .2s; }
+.coop-go:hover { background:rgba(201,168,74,.22); }
+.coop-go:disabled { opacity:.4; cursor:default; }
+.coop-code { width:100%; padding:12px; text-align:center; font:700 1.5rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.5em; text-transform:uppercase;
+  background:rgba(201,168,74,.06); border:1px solid rgba(201,168,74,.3); color:#f3e7c4; outline:none; }
+.coop-code:focus { border-color:#c9a84a; }
+#coop-room { width:100%; max-width:980px; display:flex; flex-direction:column; align-items:center; gap:16px; }
+.cr-head { display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center; }
+.cr-kicker { font:700 .72rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.24em; text-transform:uppercase; color:var(--text-dim); }
+.cr-code { font:900 2.6rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.45em; padding-left:.45em; color:#f3d48a; text-shadow:0 0 26px rgba(201,168,74,.45); line-height:1.1; }
+.cr-sub { font-size:.8rem; color:var(--text-dim); }
+.cr-teams { display:grid; grid-template-columns:1fr 1fr; gap:14px; width:100%; }
+@media (max-width:600px) { .cr-teams { grid-template-columns:1fr; } }
+.cr-team { border:1px solid rgba(255,255,255,.08); border-radius:4px; padding:14px; background:rgba(255,255,255,.02); }
+.cr-team.atk { border-color:rgba(212,80,63,.35); } .cr-team.def { border-color:rgba(91,143,208,.35); }
+.cr-team h4 { margin:0 0 10px; font:700 .8rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.2em; text-transform:uppercase; display:flex; justify-content:space-between; }
+.cr-team.atk h4 { color:#f0a49a; } .cr-team.def h4 { color:#a9c4ea; }
+.cr-team h4 small { color:var(--text-dim); letter-spacing:.08em; font-weight:600; }
+.cr-slot { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:4px; background:rgba(255,255,255,.03); margin-bottom:6px; min-height:44px; }
+.cr-slot.empty { border:1px dashed rgba(255,255,255,.12); background:none; color:var(--text-dim); font-size:.8rem; }
+.cr-slot.me { box-shadow:inset 0 0 0 1px rgba(201,168,74,.5); }
+.cr-av { flex:0 0 30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font:800 .85rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; color:#fff; }
+.cr-av.atk { background:#b8402f; } .cr-av.def { background:#3f6fae; }
+.cr-slot.empty .cr-av { background:none; border:1px dashed rgba(255,255,255,.2); color:var(--text-dim); }
+.cr-nm { flex:1; min-width:0; font-size:.88rem; color:#efe6cf; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cr-nm small { display:block; font-size:.7rem; color:var(--text-dim); white-space:normal; }
+.cr-badge { font:700 .62rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.14em; text-transform:uppercase; padding:2px 7px; border-radius:10px; border:1px solid rgba(201,168,74,.5); color:#f3d48a; }
+.cr-badge.ok { border-color:rgba(157,179,138,.6); color:#b9cfa6; }
+.cr-badge.wait { border-color:rgba(255,255,255,.15); color:var(--text-dim); }
+.cr-actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+.cr-btn { padding:10px 22px; cursor:pointer; background:transparent; border:1px solid rgba(255,255,255,.18); color:var(--text-dim);
+  font:700 .76rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.18em; text-transform:uppercase; }
+.cr-btn.main { border-color:#c9a84a; color:#f3d48a; background:rgba(201,168,74,.12); }
+.cr-btn.main:disabled { opacity:.4; cursor:default; }
+.cr-radar .scan-radar { width:min(120px,30vw); }
+/* selección */
+.cp-wrap { display:grid; grid-template-columns:minmax(0,1fr) 270px; gap:16px; width:100%; align-items:start; }
+@media (max-width:760px) { .cp-wrap { grid-template-columns:1fr; } .cp-side { order:-1; position:static; } #screen-coop { padding-top:52px !important; } }
+.cp-cat { margin-bottom:14px; }
+.cp-cat h5 { margin:0 0 8px; font:700 .72rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.2em; text-transform:uppercase; color:var(--text-dim); }
+.cp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+.cp-card { position:relative; display:flex; flex-direction:column; gap:4px; padding:10px; text-align:left; cursor:pointer; color:var(--text);
+  background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.1); border-radius:4px; transition:border-color .2s, background .2s; }
+.cp-card:hover { border-color:rgba(201,168,74,.5); }
+.cp-card .cp-top { display:flex; align-items:center; gap:8px; }
+.cp-card .cp-ic { flex:0 0 26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font:800 .8rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; border:1.5px solid; }
+.cp-card.atk .cp-ic { color:#ff8a7a; border-color:#d4503f; } .cp-card.def .cp-ic { color:#8fb6ea; border-color:#5b8fd0; }
+.cp-card b { font-size:.9rem; color:#f0e7cf; }
+.cp-card .cp-ab { font:700 .66rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.12em; text-transform:uppercase; color:#c9a84a; }
+.cp-card .cp-ds { font-size:.7rem; line-height:1.35; color:var(--text-dim); }
+.cp-card.mine { border-color:#c9a84a; background:rgba(201,168,74,.12); box-shadow:0 0 0 1px rgba(201,168,74,.4); }
+.cp-card.mine::after { content:'✓ TUYO'; position:absolute; top:8px; right:8px; font:800 .6rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.14em; color:#f3d48a; }
+.cp-card.taken { opacity:.42; cursor:not-allowed; }
+.cp-card.taken .cp-own { font:700 .64rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.1em; text-transform:uppercase; color:#e8dcbc; }
+.cp-side { position:sticky; top:10px; display:flex; flex-direction:column; gap:12px; }
+.cp-box { border:1px solid rgba(255,255,255,.08); border-radius:4px; padding:12px; background:rgba(255,255,255,.02); }
+.cp-box h5 { margin:0 0 8px; font:700 .72rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.2em; text-transform:uppercase; color:#ecdcae; }
+.cp-mate { display:flex; align-items:center; gap:8px; padding:5px 0; font-size:.8rem; color:#e6dcc3; border-top:1px solid rgba(255,255,255,.05); }
+.cp-mate:first-of-type { border-top:none; }
+.cp-mate .cr-av { flex:0 0 24px; width:24px; height:24px; font-size:.72rem; }
+.cp-mate .cr-badge { flex:0 0 auto; }
+.cp-mate span { flex:1; min-width:0; }
+.cp-mate small { display:block; color:var(--text-dim); font-size:.68rem; }
+.cp-ready-ov { position:fixed; inset:0; z-index:900; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:20px; text-align:center;
+  background:radial-gradient(ellipse at center, rgba(10,11,9,.86) 0%, rgba(6,6,5,.95) 75%); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); }
+
+/* coop · barras de construcción y despliegue */
+.coop-bar { width:min(640px,94vw); margin:0 auto 8px; display:flex; flex-direction:column; gap:8px; }
+.cb-row { display:flex; align-items:center; gap:10px; }
+.cb-order { flex:1; display:flex; flex-wrap:wrap; gap:5px; }
+.cb-chip { font:700 .66rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.08em; padding:3px 8px; border-radius:10px; border:1px solid rgba(255,255,255,.12); color:var(--text-dim); max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cb-chip.atk { border-color:rgba(212,80,63,.35); } .cb-chip.def { border-color:rgba(91,143,208,.35); }
+.cb-chip.me { text-decoration:underline; text-underline-offset:2px; }
+.cb-chip.on.atk { background:rgba(212,80,63,.3); color:#ffd0c9; border-color:#d4503f; }
+.cb-chip.on.def { background:rgba(91,143,208,.3); color:#d5e4f7; border-color:#5b8fd0; }
+.cb-timer { font:800 1.05rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; color:#f3d48a; min-width:44px; text-align:right; }
+.cb-timer.warn { color:#ff8a7a; }
+.cb-foot { font-size:.72rem; color:var(--text-dim); justify-content:space-between; }
+.cb-foot .cr-btn { padding:6px 14px; font-size:.66rem; }
+.cb-vote { display:flex; gap:12px; align-items:center; padding:10px; border:1px solid rgba(201,168,74,.45); background:rgba(201,168,74,.07); border-radius:4px; }
+.cb-prev { flex:0 0 96px; } .cb-prev svg { width:96px; height:auto; display:block; }
+.cb-vbody { flex:1; display:flex; flex-direction:column; gap:4px; }
+.cb-vt { font:700 .82rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.14em; text-transform:uppercase; color:#f3d48a; }
+.cb-vs { font-size:.74rem; color:var(--text-dim); }
+.cb-tally { font-size:.8rem; color:#e6dcc3; } .cb-tally .y { color:#b9cfa6; } .cb-tally .n { color:#f0a49a; }
+.cb-vbtns { display:flex; gap:8px; } .cb-vbtns .cr-btn { padding:7px 18px; }
+.cb-zones { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+@media (max-width:520px) { .cb-zones { grid-template-columns:repeat(2,1fr); } }
+.cb-zone { padding:6px 8px; border:1px dashed rgba(255,255,255,.15); border-radius:4px; display:flex; flex-direction:column; gap:1px; min-width:0; }
+.cb-zone small { font:700 .6rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.12em; text-transform:uppercase; color:var(--text-dim); }
+.cb-zone b { font-size:.8rem; color:#9c958a; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cb-zone span { font-size:.66rem; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cb-zone.full { border-style:solid; } .cb-zone.full b { color:#efe6cf; }
+.cb-zone.atk.full { border-color:rgba(212,80,63,.5); } .cb-zone.def.full { border-color:rgba(91,143,208,.5); }
+.cb-zone.me { box-shadow:inset 0 0 0 1px #c9a84a; }
+
+/* coop · partida */
+body.coop-game .log-panel, body.coop-game #chat-feed, body.coop-game #chat-btn-bar { display:none !important; }
+.cg-phase { font:700 .74rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.12em; color:var(--text-dim); margin:0 8px; }
+.cg-phase.on { color:var(--accent-green); } .cg-phase b.warn { color:#ff8a7a; }
+.btn-primary.cg-ready { background:rgba(157,179,138,.18); border-color:#9db38a; color:#cfe0bf; }
+.cg-mate { display:flex; align-items:center; gap:8px; padding:5px 0; border-top:1px solid rgba(255,255,255,.05); font-size:.8rem; color:#e6dcc3; }
+.cg-mate:first-of-type { border-top:none; }
+.cm-panel { padding:10px 12px; }
+.cm-head { font:700 .72rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.16em; text-transform:uppercase; color:#b9cfa6; margin-bottom:8px; display:flex; justify-content:space-between; gap:6px; }
+.cm-head small { color:var(--text-dim); letter-spacing:.06em; }
+.cm-row { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+.cm-lbl { flex:1; font-size:.74rem; color:var(--text-dim); }
+.cm-dot { width:28px; height:28px; border-radius:50%; cursor:pointer; font-size:.8rem; line-height:1; color:#9fdc8a; background:rgba(127,194,106,.06); border:1.5px dashed rgba(127,194,106,.5); }
+.cm-dot.on { background:rgba(127,194,106,.28); border-style:solid; }
+.cm-dot.sel { box-shadow:0 0 0 2px #f3d48a; }
+.cm-dot.i { color:#fff; }
+.cm-hint { font-size:.7rem; color:var(--text-dim); line-height:1.35; }
+.cm-hint b { color:var(--accent-green); }
+body.coop-game #btn-replay, body.coop-game #btn-rematch { display:none !important; }
+body.coop-game #btn-coop-exit { display:inline-block !important; }
+.cg-spect { margin-top:8px; padding:6px 8px; font-size:.72rem; color:#cfe0bf; background:rgba(157,179,138,.1); border:1px solid rgba(157,179,138,.3); border-radius:4px; }
+.cg-leave { margin-top:8px; width:100%; padding:7px; cursor:pointer; background:transparent; border:1px solid rgba(212,80,63,.35); color:#e8a49a; font:700 .64rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.16em; text-transform:uppercase; }
+.coop-stats { display:flex; flex-direction:column; gap:10px; width:min(560px,94vw); margin:0 auto; }
+.cs-meta { text-align:center; font:700 .72rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.18em; text-transform:uppercase; color:var(--text-dim); }
+.cs-team { border:1px solid rgba(255,255,255,.1); border-radius:6px; padding:8px 10px; background:rgba(0,0,0,.25); }
+.cs-team.atk { border-color:rgba(212,80,63,.35); } .cs-team.def { border-color:rgba(91,143,208,.35); }
+.cs-team.won { box-shadow:0 0 0 1px rgba(201,168,74,.5); }
+.cs-team h4 { margin:0 0 6px; font:700 .78rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.16em; text-transform:uppercase; color:#ecdcae; display:flex; justify-content:space-between; }
+.cs-team h4 i { font-style:normal; color:#f3d48a; }
+.cs-team table { width:100%; border-collapse:collapse; font-size:.76rem; color:#e6dcc3; }
+.cs-team th { font:700 .6rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.12em; text-transform:uppercase; color:var(--text-dim); text-align:center; padding:3px 4px; }
+.cs-team th:first-child, .cs-team td:first-child { text-align:left; }
+.cs-team td { text-align:center; padding:5px 4px; border-top:1px solid rgba(255,255,255,.06); }
+.cs-team td small { display:block; font-size:.66rem; color:var(--text-dim); }
+.cs-team td small .dead { text-decoration:line-through; opacity:.6; }
+.cs-team tr.me td:first-child b { color:#f3d48a; }
+.cs-prof-h { font:700 .8rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.2em; text-transform:uppercase; color:#ecdcae; margin-bottom:10px; }
+.cs-prof { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; text-align:center; }
+.cs-prof b { display:block; font:800 1.3rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; color:#f0e4bb; }
+.cs-prof span { font-size:.66rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; }
+.unit-list-item.cg-other { opacity:.55; }
+.cg-owner { flex-shrink:0; font:700 .6rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.1em; text-transform:uppercase; color:var(--text-dim); max-width:70px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .cg-mate.me .cg-nm { color:#f3d48a; }
+.cg-nm { flex:1; min-width:0; } .cg-nm small { display:block; color:var(--text-dim); font-size:.68rem; }
 </style>
 
 <!-- Firebase -->
@@ -1403,7 +1602,7 @@ body.bf-online #wait-notify { display:inline-block; }
     <button class="btn-primary ttl-start" id="ttl-start" onclick="leaveSplash()">Comenzar</button>
     <div class="ttl-menu">
       <button class="btn-primary ttl-main" onclick="startGame()"><b>Partida local</b><small>Dos jugadores, un dispositivo</small></button>
-      <button class="btn-primary ttl-main ttl-blue" onclick="showScreen('lobby')"><b>Partida online</b><small>Cada jugador en su dispositivo</small></button>
+      <button class="btn-primary ttl-main ttl-blue" onclick="openOnline()"><b>Partida online</b><small>Cada jugador en su dispositivo</small></button>
       <button class="btn-primary ttl-main" id="btn-stats" onclick="openStats()" style="display:none;"><b>Mis estadísticas</b><small>Tu historial online</small></button>
       <div class="ttl-row">
         <button class="btn-secondary" onclick="openRanking()">Ranking</button>
@@ -1497,6 +1696,22 @@ body.bf-online #wait-notify { display:inline-block; }
   <div class="title-glow" style="font-size:clamp(1.4rem,3.5vw,2.5rem);margin-bottom:0;">BLIND-FORCE</div>
   <div class="title-sub" style="margin-bottom:0;">ONLINE</div>
 
+  <!-- Elegir modo: individual (izq.) / cooperativo (dcha.) -->
+  <div id="lobby-modes" class="lobby-modes">
+    <button type="button" class="lmode" onclick="lobbyView('solo')">
+      <span class="lm-art"><svg viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="92" fill="none" stroke="#302c26" stroke-width="1.5"/><circle class="lm-ring" cx="100" cy="100" r="82" fill="none" stroke="#8a7a50" stroke-width="1.2" stroke-dasharray="2 7" opacity=".7"/><path d="M100 4V22M100 178V196M4 100H22M178 100H196" stroke="#c9a84a" stroke-width="3" stroke-linecap="round"/><path d="M34 100 Q100 52 166 100 Q100 148 34 100Z" fill="#181613" stroke="#c9a84a" stroke-width="4" stroke-linejoin="round"/><circle cx="100" cy="100" r="27" fill="#c9a84a"/><circle cx="100" cy="100" r="12" fill="#100f0d"/><circle cx="100" cy="100" r="4.5" fill="#d4503f"/><circle cx="92" cy="92" r="3.6" fill="#e8e0cc" opacity=".85"/></svg></span>
+      <b>Individual</b><small>1 contra 1 · sala con código o búsqueda de rival</small>
+    </button>
+    <button type="button" class="lmode coop" onclick="lobbyView('coop')">
+      <span class="lm-art"><svg viewBox="0 0 200 200" aria-hidden="true"><circle class="lm-ring" cx="100" cy="100" r="58" fill="none" stroke="#8a7a50" stroke-width="1.2" stroke-dasharray="2 7" opacity=".7"/><path d="M100 4V18M100 182V196M4 100H18M182 100H196" stroke="#c9a84a" stroke-width="3" stroke-linecap="round"/><g transform="translate(100 46) scale(.42)" class="lm-e" style="animation-delay:0s"><circle cx="0" cy="0" r="92" fill="#14120f" stroke="#3a342b" stroke-width="3"/><path d="M-66 0 Q0 -48 66 0 Q0 48 -66 0Z" fill="#181613" stroke="#c9a84a" stroke-width="7" stroke-linejoin="round"/><circle cx="0" cy="0" r="27" fill="#c9a84a"/><circle cx="0" cy="0" r="12" fill="#100f0d"/><circle cx="0" cy="0" r="5" fill="#d4503f"/><circle cx="-8" cy="-8" r="4" fill="#e8e0cc" opacity=".85"/></g><g transform="translate(46 100) scale(.42)" class="lm-e" style="animation-delay:0.6s"><circle cx="0" cy="0" r="92" fill="#14120f" stroke="#3a342b" stroke-width="3"/><path d="M-66 0 Q0 -48 66 0 Q0 48 -66 0Z" fill="#181613" stroke="#c9a84a" stroke-width="7" stroke-linejoin="round"/><circle cx="0" cy="0" r="27" fill="#c9a84a"/><circle cx="0" cy="0" r="12" fill="#100f0d"/><circle cx="0" cy="0" r="5" fill="#d4503f"/><circle cx="-8" cy="-8" r="4" fill="#e8e0cc" opacity=".85"/></g><g transform="translate(154 100) scale(.42)" class="lm-e" style="animation-delay:1.2s"><circle cx="0" cy="0" r="92" fill="#14120f" stroke="#3a342b" stroke-width="3"/><path d="M-66 0 Q0 -48 66 0 Q0 48 -66 0Z" fill="#181613" stroke="#c9a84a" stroke-width="7" stroke-linejoin="round"/><circle cx="0" cy="0" r="27" fill="#c9a84a"/><circle cx="0" cy="0" r="12" fill="#100f0d"/><circle cx="0" cy="0" r="5" fill="#d4503f"/><circle cx="-8" cy="-8" r="4" fill="#e8e0cc" opacity=".85"/></g><g transform="translate(100 154) scale(.42)" class="lm-e" style="animation-delay:1.8s"><circle cx="0" cy="0" r="92" fill="#14120f" stroke="#3a342b" stroke-width="3"/><path d="M-66 0 Q0 -48 66 0 Q0 48 -66 0Z" fill="#181613" stroke="#c9a84a" stroke-width="7" stroke-linejoin="round"/><circle cx="0" cy="0" r="27" fill="#c9a84a"/><circle cx="0" cy="0" r="12" fill="#100f0d"/><circle cx="0" cy="0" r="5" fill="#d4503f"/><circle cx="-8" cy="-8" r="4" fill="#e8e0cc" opacity=".85"/></g></svg></span>
+      <b>Cooperativo</b><small>2 contra 2 o 4 contra 4 · por equipos</small>
+      <i class="lm-soon">Beta</i>
+    </button>
+  </div>
+
+  <div id="lobby-solo" class="lobby-pane" style="display:none;">
+  <div class="lobby-pane-head"><span class="lm-tag"><svg viewBox="0 0 200 200" aria-hidden="true"><path d="M34 100 Q100 52 166 100 Q100 148 34 100Z" fill="#181613" stroke="#c9a84a" stroke-width="12" stroke-linejoin="round"/><circle cx="100" cy="100" r="30" fill="#c9a84a"/></svg>Individual</span></div>
+
   <!-- Matchmaking -->
   <div style="width:100%;max-width:860px;background:rgba(74,124,89,.06);border:1px solid rgba(74,124,89,.3);padding:18px 22px;text-align:center;">
     <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:.75rem;font-weight:700;color:var(--accent-green);letter-spacing:.2em;margin-bottom:6px;">BUSCAR PARTIDA AUTOMÁTICAMENTE</div>
@@ -1581,11 +1796,45 @@ body.bf-online #wait-notify { display:inline-block; }
     </div>
 
   </div>
+  </div><!-- /lobby-solo -->
 
-  <button onclick="showScreen('title')" style="background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--text-dim);font-family:Barlow,sans-serif;font-size:.9rem;font-weight:600;padding:9px 24px;cursor:pointer;letter-spacing:.1em;transition:all .2s;" onmouseover="this.style.borderColor='rgba(255,255,255,.4)';this.style.color='var(--text)'" onmouseout="this.style.borderColor='rgba(255,255,255,.15)';this.style.color='var(--text-dim)'">↩ VOLVER</button>
+  <div id="lobby-coop" class="lobby-pane" style="display:none;">
+    <div class="lobby-pane-head"><span class="lm-tag">Cooperativo</span></div>
+    <div class="coop-panels">
+      <div class="coop-card">
+        <div class="cc-title">Tu bando</div>
+        <div class="coop-seg" id="coop-side">
+          <button type="button" data-v="atk" class="on atk" onclick="coopSel('side','atk')"><span>⚔</span>Atacantes</button>
+          <button type="button" data-v="def" class="def" onclick="coopSel('side','def')"><span>🛡</span>Defensores</button>
+        </div>
+        <div class="cc-hint">Se usa tanto para crear la sala como para unirte a una.</div>
+      </div>
+      <div class="coop-card">
+        <div class="cc-title">Crear sala</div>
+        <div class="coop-seg" id="coop-format">
+          <button type="button" data-v="2" onclick="coopSel('format',2)"><b>2 vs 2</b><small>2 personajes por jugador</small></button>
+          <button type="button" data-v="4" class="on" onclick="coopSel('format',4)"><b>4 vs 4</b><small>1 personaje por jugador</small></button>
+        </div>
+        <button type="button" class="coop-go" onclick="coopCreate()">Generar código</button>
+        <div class="cc-status" id="coop-create-status"></div>
+      </div>
+      <div class="coop-card">
+        <div class="cc-title">Unirse con código</div>
+        <input id="coop-code-input" class="coop-code" maxlength="4" placeholder="XXXX" autocomplete="off" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')coopJoin()">
+        <button type="button" class="coop-go" onclick="coopJoin()">Unirse</button>
+        <div class="cc-status" id="coop-join-status"></div>
+      </div>
+    </div>
+  </div><!-- /lobby-coop -->
+
+  <button onclick="lobbyBack()" style="background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--text-dim);font-family:Barlow,sans-serif;font-size:.9rem;font-weight:600;padding:9px 24px;cursor:pointer;letter-spacing:.1em;transition:all .2s;" onmouseover="this.style.borderColor='rgba(255,255,255,.4)';this.style.color='var(--text)'" onmouseout="this.style.borderColor='rgba(255,255,255,.15)';this.style.color='var(--text-dim)'">↩ VOLVER</button>
 </div>
 
 <!-- ══════════════════════════════ MATCHMAKING SCREEN ══════════════════════════════ -->
+<div id="screen-coop" class="screen" style="flex-direction:column;align-items:center;justify-content:flex-start;gap:16px;padding:22px 14px 28px;overflow-y:auto;background:radial-gradient(ellipse at top,#1c1914 0%,#0e0d0b 70%);">
+  <div id="coop-room"></div>
+</div>
+
 <div id="screen-matchmaking" class="screen" style="flex-direction:column;align-items:center;justify-content:center;gap:24px;background:#0e0d0c;">
   <div style="font-family:Barlow Condensed,Arial Narrow,Arial,sans-serif;font-size:1.1rem;font-weight:700;color:var(--text);letter-spacing:.1em;">BUSCANDO PARTIDA</div>
   <div style="text-align:center;">
@@ -1641,6 +1890,7 @@ body.bf-online #wait-notify { display:inline-block; }
     <span class="phase-title">CONSTRUCCIÓN DE PAREDES</span>
   </div>
   <div id="construct-turn-badge" style="margin-bottom:10px;text-align:center;"></div>
+  <div id="coop-build-bar" class="coop-bar" style="display:none;"></div>
   <div class="wall-info">Paredes colocadas: <b id="walls-placed">0</b> / <span id="walls-total">50</span> &nbsp;|&nbsp; Turno: <b id="wall-turn-label">—</b></div>
   <div style="margin:14px auto; position:relative;">
     <div id="view3d-bar-c" style="position:absolute;top:8px;right:8px;z-index:5;display:none;gap:6px;">
@@ -1664,6 +1914,7 @@ body.bf-online #wait-notify { display:inline-block; }
     <span class="phase-title">DESPLIEGUE DE UNIDADES</span>
   </div>
   <div id="spawn-turn-badge" style="margin-bottom:10px;text-align:center;"></div>
+  <div id="coop-deploy-bar" class="coop-bar" style="display:none;"></div>
   <div style="margin:14px auto; position:relative;">
     <div id="view3d-bar-s" style="position:absolute;top:8px;right:8px;z-index:5;display:none;gap:6px;">
         <button id="btn-view3d-s" onclick="VIEW3D_S.toggle()" title="Cambiar entre vista 2D y 3D" style="background:rgba(30,29,27,.85);border:1px solid var(--border);color:var(--text);font-family:Inter,sans-serif;font-size:.7rem;font-weight:600;letter-spacing:.08em;padding:6px 11px;cursor:pointer;">3D</button>
@@ -1735,7 +1986,8 @@ body.bf-online #wait-notify { display:inline-block; }
   <div id="winner-reason" class="winner-reason"></div>
   <div id="win-summary"></div>
   <div class="win-actions" style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center;">
-    <button class="btn-primary" onclick="openReplay()">RESUMEN</button>
+    <button class="btn-primary" id="btn-replay" onclick="openReplay()">RESUMEN</button>
+    <button class="btn-primary" id="btn-coop-exit" style="display:none;" onclick="coopLeaveFromEnd()">SALIR AL MENÚ</button>
     <button class="btn-primary" id="btn-rematch" style="display:none;" onclick="requestRematch()">REVANCHA</button>
     <button class="btn-primary" onclick="location.reload()">NUEVA PARTIDA</button>
   </div>
@@ -6768,6 +7020,7 @@ function executeAbility(uid) {
       updateSidebar();
       break;
     }
+    case 'koldo':
       G.koldoActive=true;
       toast('✓ Koldo: intercepción activa — los dispositivos defensores también desvelan casillas este turno');
       // Recompute vision with koldo active
@@ -7500,7 +7753,7 @@ function selectCreateRole(role){
   b.style.color=role==='def'?'var(--def)':'var(--text-dim)';
 }
 function selectJoinRole(role){ ONLINE.joinRole=role; }
-function genRoomCode(){ return Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*33)]).join(''); }
+function genRoomCode(){ return Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*32)]).join(''); }
 
 async function createRoom(){
   const status=document.getElementById('create-status'); status.textContent='Creando sala...';
@@ -8950,7 +9203,7 @@ function watchPresetProposals() {
     }
     if (mine || !m) return;
     if (!document.getElementById('screen-construct').classList.contains('active')) return;
-    showModal('PROPUESTA DE MAPA', `El rival propone jugar en <b>${m.name}</b> (${m.walls.length} paredes). Si aceptas, sustituye las paredes colocadas hasta ahora.`, [
+    showModal('PROPUESTA DE MAPA', `El rival propone jugar en <b>${m.name}</b> (${m.walls.length} paredes). Si aceptas, sustituye las paredes colocadas hasta ahora.<div style="max-width:240px;margin:14px auto 0;">${presetPreviewSVG(m)}</div>`, [
       { label:'RECHAZAR', cls:'', action: () => window._fbSet(ref, Object.assign({}, p, { answer:'no' })).catch(() => {}) },
       { label:'ACEPTAR', action: () => { applyPresetMap(m); window._fbSet(ref, Object.assign({}, p, { answer:'ok' })).catch(() => {}); } },
     ]);
@@ -10059,6 +10312,1713 @@ function camFollow(uid) {
   const eg = window.endGame;
   window.endGame = function() { try { if (VIEW3D.follow) VIEW3D.unfollow(true); VIEW3D.followChip(); } catch (_) {} return eg.apply(this, arguments); };
 })();
+
+// ═══ Pantalla online: individual / cooperativo ═══
+let LOBBY_VIEW = 'modes';
+function lobbyView(v) {
+  LOBBY_VIEW = (v === 'solo' || v === 'coop') ? v : 'modes';
+  const m = document.getElementById('lobby-modes'), so = document.getElementById('lobby-solo'), co = document.getElementById('lobby-coop');
+  if (m) m.style.display = LOBBY_VIEW === 'modes' ? '' : 'none';
+  if (so) so.style.display = LOBBY_VIEW === 'solo' ? '' : 'none';
+  if (co) co.style.display = LOBBY_VIEW === 'coop' ? '' : 'none';
+  const scr = document.getElementById('screen-lobby'); if (scr) scr.scrollTop = 0;
+}
+function openOnline() { lobbyView('modes'); showScreen('lobby'); }
+function lobbyBack() { if (LOBBY_VIEW !== 'modes') lobbyView('modes'); else showScreen('title'); }
+lobbyView('modes');
+
+// ═══ Mapas predefinidos: ventana con vista previa 2D de cada mapa ═══
+function presetPreviewSVG(m) {
+  const C = 12, N = GRID, W = N * C;
+  const line = k => { const [o, r, c] = k.split('_'), R = +r, Cc = +c;
+    return o === 'h' ? 'M' + Cc * C + ' ' + (R + 1) * C + 'h' + C : 'M' + (Cc + 1) * C + ' ' + R * C + 'v' + C; };
+  let fixed = ''; (G && G.fixedWalls ? [...G.fixedWalls] : []).forEach(k => { try { fixed += line(k); } catch (_) {} });
+  let walls = ''; (m.walls || []).forEach(k => { try { walls += line(k); } catch (_) {} });
+  let grid = ''; for (let i = 1; i < N; i++) grid += 'M' + i * C + ' 0V' + W + 'M0 ' + i * C + 'H' + W;
+  return '<svg viewBox="-3 -3 ' + (W + 6) + ' ' + (W + 6) + '" role="img" aria-label="Vista previa del mapa ' + m.name + '">'
+    + '<rect x="-3" y="-3" width="' + (W + 6) + '" height="' + (W + 6) + '" fill="#2a2620"/>'
+    + '<rect x="0" y="0" width="' + W + '" height="' + W + '" fill="#1d2026"/>'
+    + '<rect x="' + 5 * C + '" y="' + 5 * C + '" width="' + 5 * C + '" height="' + 5 * C + '" fill="rgba(201,168,74,.18)"/>'
+    + '<rect x="' + 7 * C + '" y="' + 7 * C + '" width="' + C + '" height="' + C + '" fill="rgba(212,80,63,.35)"/>'
+    + '<path d="' + grid + '" stroke="#2c3038" stroke-width=".6"/>'
+    + '<path d="' + fixed + '" stroke="#a49d8e" stroke-width="2.2" stroke-linecap="square"/>'
+    + '<path d="' + walls + '" stroke="#e8c76a" stroke-width="2.2" stroke-linecap="square"/></svg>';
+}
+window.openPresetMaps = function() {
+  if (!PRESET_MAPS.length) return;
+  const intro = ONLINE.enabled
+    ? 'Toca un mapa para proponérselo al rival. Si lo acepta, sustituye las paredes colocadas hasta ahora.'
+    : 'Toca un mapa para cargarlo. Sustituye las paredes colocadas hasta ahora.';
+  window.__pickPreset = i => { const m = PRESET_MAPS[i]; closeModal(); if (!m) return; ONLINE.enabled ? proposePresetMap(m) : applyPresetMap(m); };
+  const cards = PRESET_MAPS.map((m, i) => '<button type="button" class="pm-card" onclick="window.__pickPreset(' + i + ')">' + presetPreviewSVG(m)
+    + '<b>' + String(m.name).replace(/[<>&]/g, '') + '</b><small>' + m.walls.length + ' paredes</small></button>').join('');
+  showModal('MAPAS PREDEFINIDOS', '<div class="pm-intro">' + intro + '</div><div class="pm-grid">' + cards + '</div>', [{ label:'CANCELAR' }]);
+};
+
+// ═══ MODO COOPERATIVO · sala, completándose jugadores y selección (entrega 2) ═══
+// Datos en rooms/coop_{CODE}: { created, format:2|4, status:'lobby'|'pick'|'construct',
+//   players:{uid:{name,side,joinedAt,ready}}, claims:{atk:{charId:uid}, def:{charId:uid}} }
+// Anfitrión = jugador con joinedAt más antiguo (si se va, el siguiente toma el relevo solo).
+const COOP = { side:'atk', format:4, picking:false, code:null, uid:null, ref:null, connRef:null, room:null, gen:0, busy:false, wasIn:false, lastStatus:null };
+const coopRef = p => window._fbRef(window._db, p);
+const coopPath = (code, sub) => 'rooms/coop_' + code + (sub ? '/' + sub : '');
+const COOP_SIDE_LBL = { atk:'Atacantes', def:'Defensores' };
+function coopEsc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
+function coopPerPlayer(room) { return 4 / ((room && room.format) || 4); }
+function coopPlayers(room) {
+  const ps = (room && room.players) || {};
+  return Object.keys(ps).map(uid => Object.assign({ uid }, ps[uid])).sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0) || (a.uid < b.uid ? -1 : 1));
+}
+function coopSidePlayers(room, side) { return coopPlayers(room).filter(p => p.side === side); }
+// Reserva válida = su dueño sigue en la sala y en ese bando
+function coopClaimValid(room, side, uid) { const p = room && room.players && room.players[uid]; return !!(p && p.side === side); }
+function coopPicksOf(room, uid) {
+  const p = room && room.players && room.players[uid]; if (!p) return [];
+  const cl = (room.claims && room.claims[p.side]) || {};
+  return Object.keys(cl).filter(id => cl[id] === uid);
+}
+function coopRequireLogin() {
+  if (window._currentUser) return true;
+  showModal('Cuenta requerida', 'Necesitas iniciar sesión para jugar en modo cooperativo.', [
+    { label:'INICIAR SESIÓN', action:() => showScreen('auth') }, { label:'CANCELAR' }]);
+  return false;
+}
+function coopSel(k, v) {
+  COOP[k] = v;
+  const box = document.getElementById(k === 'side' ? 'coop-side' : 'coop-format');
+  if (box) box.querySelectorAll('button').forEach(b => b.classList.toggle('on', String(b.dataset.v) === String(v)));
+}
+function coopMsg(id, t, err) { const el = document.getElementById(id); if (el) { el.textContent = t || ''; el.style.color = err ? '#f0a49a' : ''; } }
+
+async function coopCreate() {
+  if (!coopRequireLogin() || COOP.busy) return;
+  const user = window._currentUser; COOP.busy = true;
+  coopMsg('coop-create-status', 'Creando sala...');
+  try {
+    let code = null;
+    for (let i = 0; i < 6 && !code; i++) {
+      const c = genRoomCode();
+      const s = await window._fbGet(coopRef(coopPath(c)));
+      if (!s.exists()) code = c;
+    }
+    if (!code) throw new Error('sin código libre');
+    await window._fbSet(coopRef(coopPath(code)), {
+      created: Date.now(), format: COOP.format, status: 'lobby',
+      players: { [user.uid]: { name: user.displayName || user.email || 'Jugador', side: COOP.side, joinedAt: Date.now(), ready: false } },
+    });
+    coopMsg('coop-create-status', '');
+    coopEnter(code);
+  } catch (e) { coopMsg('coop-create-status', 'No se pudo crear la sala. Revisa la conexión.', true); }
+  COOP.busy = false;
+}
+
+async function coopJoin() {
+  if (!coopRequireLogin() || COOP.busy) return;
+  const user = window._currentUser;
+  const inp = document.getElementById('coop-code-input');
+  const code = (inp && inp.value || '').trim().toUpperCase();
+  if (code.length !== 4) { coopMsg('coop-join-status', 'El código tiene 4 caracteres.', true); return; }
+  COOP.busy = true; coopMsg('coop-join-status', 'Buscando sala...');
+  try {
+    const s = await window._fbGet(coopRef(coopPath(code)));
+    const room = s.val();
+    if (!room || !room.players) { coopMsg('coop-join-status', 'No existe ninguna sala con ese código.', true); COOP.busy = false; return; }
+    const already = room.players[user.uid];
+    if (!already && room.status !== 'lobby') { coopMsg('coop-join-status', 'Esa sala ya está completa.', true); COOP.busy = false; return; }
+    const res = await coopTryJoin(code, room.format || 4, already ? already.side : COOP.side);
+    if (res === 'ok') { coopMsg('coop-join-status', ''); coopEnter(code); }
+    else if (res === 'full') coopMsg('coop-join-status', 'El bando de ' + COOP_SIDE_LBL[COOP.side].toLowerCase() + ' está completo. Prueba con el otro bando.', true);
+    else coopMsg('coop-join-status', 'No se pudo entrar en la sala.', true);
+  } catch (e) { coopMsg('coop-join-status', 'No se pudo entrar. Revisa la conexión.', true); }
+  COOP.busy = false;
+}
+// Entrada atómica: comprueba el hueco del bando dentro de la transacción
+async function coopTryJoin(code, format, side) {
+  const user = window._currentUser; let why = 'err';
+  const res = await window._fbTransaction(coopRef(coopPath(code, 'players')), cur => {
+    if (cur == null) { why = 'gone'; return undefined; }
+    if (cur[user.uid]) return cur;                                    // ya estaba (reconexión)
+    const n = Object.keys(cur).filter(k => cur[k] && cur[k].side === side).length;
+    if (n >= format) { why = 'full'; return undefined; }
+    cur[user.uid] = { name: user.displayName || user.email || 'Jugador', side, joinedAt: Date.now(), ready: false };
+    return cur;
+  });
+  return res && res.committed ? 'ok' : why;
+}
+
+function coopEnter(code) {
+  coopStopListen();
+  const user = window._currentUser;
+  COOP.code = code; COOP.uid = user.uid; COOP.room = null; COOP.wasIn = false; COOP.lastStatus = null; COOP.view = null; COOP.persist = false;
+  const gen = ++COOP.gen;
+  try { window._fbOnDisconnect && window._fbOnDisconnect(coopRef(coopPath(code, 'players/' + user.uid))).remove(); } catch (_) {}
+  showScreen('coop');
+  document.getElementById('coop-room').innerHTML = '<div class="cr-head"><div class="cr-kicker">Conectando con la sala...</div></div>';
+  COOP.ref = coopRef(coopPath(code));
+  window._fbOnValue(COOP.ref, snap => { if (gen === COOP.gen) coopOnRoom(snap.val()); });
+  COOP.offRef = coopRef('.info/serverTimeOffset');
+  window._fbOnValue(COOP.offRef, s => { COOP.offset = s.val() || 0; });
+  coopStartTick();
+  // si la conexión se corta, onDisconnect nos saca: al volver, reentramos
+  COOP.connRef = coopRef('.info/connected');
+  window._fbOnValue(COOP.connRef, s => {
+    if (gen !== COOP.gen || s.val() !== true || !COOP.room || !COOP.wasIn) return;
+    try { window._fbOnDisconnect(coopRef(coopPath(code, 'players/' + COOP.uid))).remove(); } catch (_) {}
+  });
+}
+function coopStopListen() {
+  if (COOP.ref) { try { window._fbOff(COOP.ref); } catch (_) {} COOP.ref = null; }
+  if (COOP.connRef) { try { window._fbOff(COOP.connRef); } catch (_) {} COOP.connRef = null; }
+  if (COOP.offRef) { try { window._fbOff(COOP.offRef); } catch (_) {} COOP.offRef = null; }
+  clearInterval(COOP.tick); COOP.tick = null; COOP.view = null; COOP.ability = null;
+  document.body.classList.remove('coop-game'); scanRemove('board-wait');
+  ['coop-build-bar', 'coop-deploy-bar'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  scanRemove('spawn-wait');
+  coopReadyOv(false);
+}
+
+async function coopOnRoom(room) {
+  const scr = document.getElementById('screen-coop');
+  if (!room || !room.players) {
+    coopStopListen(); COOP.room = null;
+    const act = document.querySelector('.screen.active');
+    if (act && /screen-(coop|construct|spawn)/.test(act.id)) { toast('La sala se ha cerrado'); showScreen('lobby'); lobbyView('coop'); }
+    return;
+  }
+  COOP.room = room;
+  const me = room.players[COOP.uid];
+  if (!me) {
+    if (COOP.wasIn && room.status === 'lobby') {           // nos sacó un corte: volver a entrar
+      const r = await coopTryJoin(COOP.code, room.format || 4, COOP.lastSide || COOP.side);
+      if (r === 'ok') return;
+    }
+    if (COOP.wasIn || room.status !== 'lobby') {
+      coopStopListen(); COOP.code = null;
+      toast(room.status === 'lobby' ? 'Has salido de la sala' : 'Has perdido tu plaza en la sala');
+      showScreen('lobby'); lobbyView('coop'); return;
+    }
+    return;                                                  // aún no ha llegado nuestra entrada
+  }
+  COOP.wasIn = true; COOP.lastSide = me.side;
+  if (!COOP.persist && room.status !== 'lobby' && room.status !== 'pick') {
+    COOP.persist = true;
+    try { window._fbOnDisconnect(coopRef(coopPath(COOP.code, 'players/' + COOP.uid))).cancel(); } catch (_) {}
+    try { window._fbOnDisconnect(coopRef(coopPath(COOP.code, 'players/' + COOP.uid + '/online'))).set(false); } catch (_) {}
+    coopSet('players/' + COOP.uid + '/online', true);
+  }
+  if (room.status === 'pick' && me.ready && !COOP.picking && coopPicksOf(room, COOP.uid).length !== coopPerPlayer(room))
+    window._fbSet(coopRef(coopPath(COOP.code, 'players/' + COOP.uid + '/ready')), false);
+  if (COOP.uid === coopHostUid(room)) coopHostDuties(room);
+  coopRender(room);
+}
+
+// Tareas del anfitrión: arrancar selección, volver a la sala si alguien se va, limpiar reservas, pasar a construcción
+function coopHostDuties(room) {
+  const base = coopPath(COOP.code);
+  const f = room.format || 4, per = coopPerPlayer(room);
+  const full = ['atk', 'def'].every(sd => coopSidePlayers(room, sd).length === f);
+  // reservas de jugadores que ya no están
+  ['atk', 'def'].forEach(sd => {
+    const cl = (room.claims && room.claims[sd]) || {};
+    if (Object.keys(cl).some(id => !coopClaimValid(room, sd, cl[id])))
+      window._fbTransaction(coopRef(base + '/claims/' + sd), cur => {
+        if (!cur) return undefined; let ch = false;
+        Object.keys(cur).forEach(id => { if (!coopClaimValid(COOP.room, sd, cur[id])) { delete cur[id]; ch = true; } });
+        return ch ? cur : undefined;
+      });
+  });
+  if (room.status === 'lobby' && full) { window._fbSet(coopRef(base + '/status'), 'pick'); return; }
+  if (room.status === 'pick' && !full) {
+    window._fbSet(coopRef(base + '/status'), 'lobby');
+    if (room.build) window._fbSet(coopRef(base + '/build'), null);
+    coopPlayers(room).forEach(p => { if (p.ready) window._fbSet(coopRef(base + '/players/' + p.uid + '/ready'), false); });
+    return;
+  }
+  if (room.status === 'pick') {   // "Listo" sin la cuenta exacta de personajes no vale
+    coopPlayers(room).forEach(p => { if (p.ready && coopPicksOf(room, p.uid).length !== per) window._fbSet(coopRef(base + '/players/' + p.uid + '/ready'), false); });
+  }
+  if (room.status === 'pick' && full) {
+    const allReady = coopPlayers(room).every(p => p.ready && coopPicksOf(room, p.uid).length === per);
+    if (allReady) {
+      if (!room.build) {   // orden de turnos: atacante, defensor, atacante, defensor…
+        const A = coopSidePlayers(room, 'atk').map(p => p.uid), D = coopSidePlayers(room, 'def').map(p => p.uid), order = [];
+        for (let i = 0; i < f; i++) order.push(A[i], D[i]);
+        window._fbSet(coopRef(base + '/build'), { order, n: 0, total: COOP_WALLS, walls: {}, deadline: coopNow() + COOP_T.turn + 4000 });
+      } else window._fbSet(coopRef(base + '/status'), 'construct');
+    }
+  }
+}
+
+function coopAvatar(p, side) { return '<span class="cr-av ' + side + '">' + coopEsc((p.name || '?').trim().charAt(0).toUpperCase() || '?') + '</span>'; }
+
+function coopRender(room) {
+  const host = document.getElementById('coop-room'); if (!host) return;
+  const st = room.status || 'lobby';
+  if (st !== COOP.lastStatus) { COOP.lastStatus = st; const scr = document.getElementById('screen-coop'); if (scr) scr.scrollTop = 0; }
+  const me = room.players[COOP.uid];
+  coopReadyOv(st === 'pick' && !!me.ready, room);
+  if (st === 'pick') { host.innerHTML = coopPickHTML(room); return; }
+  if (st === 'construct' && room.build) { coopShowBuild(room); return; }
+  if (st === 'deploy' && room.build) { coopShowDeploy(room); return; }
+  if (st === 'game' && room.game && room.game.state) { coopShowGame(room); return; }
+  if (st === 'construct' || st === 'deploy' || st === 'game') {
+    if (COOP.view !== 'done') { COOP.view = 'done'; showScreen('coop'); }
+    host.innerHTML = coopTeamsDoneHTML(room); return;
+  }
+  if (COOP.view) { COOP.view = null; showScreen('coop'); }
+  host.innerHTML = coopLobbyHTML(room);
+}
+
+function coopLobbyHTML(room) {
+  const f = room.format || 4, hostUid = coopHostUid(room);
+  const total = coopPlayers(room).length, missing = f * 2 - total;
+  const team = side => {
+    const ps = coopSidePlayers(room, side);
+    let h = '<div class="cr-team ' + side + '"><h4>' + COOP_SIDE_LBL[side] + '<small>' + ps.length + ' / ' + f + '</small></h4>';
+    for (let i = 0; i < f; i++) {
+      const p = ps[i];
+      if (!p) { h += '<div class="cr-slot empty"><span class="cr-av">?</span><span class="cr-nm">Esperando jugador...</span></div>'; continue; }
+      h += '<div class="cr-slot' + (p.uid === COOP.uid ? ' me' : '') + '">' + coopAvatar(p, side)
+        + '<span class="cr-nm">' + coopEsc(p.name) + (p.uid === COOP.uid ? ' <small>tú</small>' : '') + '</span>'
+        + (p.uid === hostUid ? '<span class="cr-badge">Anfitrión</span>' : '') + '</div>';
+    }
+    return h + '</div>';
+  };
+  return '<div class="cr-head"><div class="cr-kicker">Sala cooperativa · ' + f + ' vs ' + f + '</div>'
+    + '<div class="cr-code">' + coopEsc(COOP.code) + '</div>'
+    + '<div class="cr-sub">Comparte este código. ' + (missing > 0 ? 'Faltan ' + missing + ' jugador' + (missing === 1 ? '' : 'es') + '.' : 'Sala completa, empezando...') + '</div></div>'
+    + '<div class="cr-radar">' + scanSVG() + '</div>'
+    + '<div class="cr-teams">' + team('atk') + team('def') + '</div>'
+    + '<div class="cr-actions"><button type="button" class="cr-btn" onclick="coopLeave()">Salir de la sala</button></div>';
+}
+
+function coopPickHTML(room) {
+  const me = room.players[COOP.uid], side = me.side, per = coopPerPlayer(room);
+  const cl = (room.claims && room.claims[side]) || {};
+  const mine = coopPicksOf(room, COOP.uid);
+  const cats = (PICK_CATEGORIES[side] || []).map(cat => {
+    const cards = cat.ids.filter(id => UNIT_DEFS[id]).map(id => {
+      const d = UNIT_DEFS[id], owner = cl[id];
+      const valid = owner && coopClaimValid(room, side, owner);
+      const isMine = valid && owner === COOP.uid, taken = valid && !isMine;
+      const ownerName = taken ? (room.players[owner].name || 'compañero') : '';
+      return '<button type="button" class="cp-card ' + side + (isMine ? ' mine' : '') + (taken ? ' taken' : '') + '" data-id="' + id + '" onclick="coopPick(\'' + id + '\')">'
+        + '<span class="cp-top"><span class="cp-ic">' + coopEsc(d.icon) + '</span><b>' + coopEsc(d.name) + '</b></span>'
+        + '<span class="cp-ab">' + coopEsc(d.abilityName) + '</span>'
+        + (taken ? '<span class="cp-own">Ocupado por ' + coopEsc(ownerName) + '</span>' : '<span class="cp-ds">' + coopEsc(d.abilityDesc) + '</span>')
+        + '</button>';
+    }).join('');
+    return cards ? '<div class="cp-cat"><h5>' + coopEsc(cat.icon + ' ' + cat.label) + '</h5><div class="cp-grid">' + cards + '</div></div>' : '';
+  }).join('');
+  const mates = coopSidePlayers(room, side).map(p => {
+    const picks = coopPicksOf(room, p.uid).map(id => UNIT_DEFS[id] ? UNIT_DEFS[id].name : id);
+    return '<div class="cp-mate">' + coopAvatar(p, side) + '<span>' + coopEsc(p.name) + (p.uid === COOP.uid ? ' (tú)' : '')
+      + '<small>' + (picks.length ? coopEsc(picks.join(' · ')) : 'Eligiendo...') + '</small></span>'
+      + '<span class="cr-badge ' + (p.ready ? 'ok' : 'wait') + '">' + (p.ready ? 'Listo' : '...') + '</span></div>';
+  }).join('');
+  const rside = side === 'atk' ? 'def' : 'atk';
+  const rivals = coopSidePlayers(room, rside).map(p => '<div class="cp-mate">' + coopAvatar(p, rside) + '<span>' + coopEsc(p.name) + '</span>'
+    + '<span class="cr-badge ' + (p.ready ? 'ok' : 'wait') + '">' + (p.ready ? 'Listo' : '...') + '</span></div>').join('');
+  const canReady = mine.length === per;
+  return '<div class="cr-head"><div class="cr-kicker">Sala ' + coopEsc(COOP.code) + ' · ' + (room.format || 4) + ' vs ' + (room.format || 4) + ' · ' + COOP_SIDE_LBL[side] + '</div>'
+    + '<div class="cr-sub" style="font-size:.95rem;color:#efe6cf;">Elige ' + (per === 1 ? 'tu personaje' : 'tus 2 personajes') + ' (' + mine.length + ' / ' + per + ')</div>'
+    + '<div class="cr-sub">Los personajes de tus compañeros aparecen como ocupados.</div></div>'
+    + '<div class="cp-wrap"><div>' + cats + '</div><div class="cp-side">'
+    + '<div class="cp-box"><h5>Tu equipo</h5>' + mates + '</div>'
+    + '<div class="cp-box"><h5>Rivales</h5>' + rivals + '</div>'
+    + '<button type="button" class="cr-btn main" id="coop-ready-btn" ' + (canReady ? '' : 'disabled') + ' onclick="coopReady(true)">Listo</button>'
+    + '<button type="button" class="cr-btn" onclick="coopLeave()">Salir de la sala</button>'
+    + '</div></div>';
+}
+
+function coopTeamsDoneHTML(room) {
+  const team = side => '<div class="cr-team ' + side + '"><h4>' + COOP_SIDE_LBL[side] + '</h4>' + coopSidePlayers(room, side).map(p => {
+    const picks = coopPicksOf(room, p.uid).map(id => UNIT_DEFS[id] ? UNIT_DEFS[id].name : id);
+    return '<div class="cr-slot' + (p.uid === COOP.uid ? ' me' : '') + '">' + coopAvatar(p, side)
+      + '<span class="cr-nm">' + coopEsc(p.name) + '<small>' + coopEsc(picks.join(' · ')) + '</small></span></div>';
+  }).join('') + '</div>';
+  return '<div class="cr-head"><div class="cr-kicker">Sala ' + coopEsc(COOP.code) + '</div>'
+    + '<div class="cr-code" style="font-size:1.8rem;letter-spacing:.2em;padding-left:.2em;">' + (room.status === 'game' ? 'DESPLIEGUE COMPLETO' : 'EQUIPOS LISTOS') + '</div>'
+    + '<div class="cr-sub">' + (room.status === 'game' ? 'Mapa construido y equipos desplegados. La partida cooperativa llegará en la próxima actualización.' : 'Preparando el mapa...') + '</div></div>'
+    + '<div class="cr-teams">' + team('atk') + team('def') + '</div>'
+    + '<div class="cr-actions"><button type="button" class="cr-btn" onclick="coopLeave()">Salir de la sala</button></div>';
+}
+
+// Reservar / liberar personaje: transacción sobre el mapa entero del bando,
+// así nadie puede tener más personajes de la cuenta ni dos jugadores el mismo
+async function coopPick(id) {
+  const room = COOP.room; if (!room || room.status !== 'pick' || COOP.picking) return;
+  const me = room.players[COOP.uid]; if (!me || me.ready) return;
+  const side = me.side, per = coopPerPlayer(room), uid = COOP.uid;
+  const cl0 = (room.claims && room.claims[side]) || {};
+  if (cl0[id] && cl0[id] !== uid && coopClaimValid(room, side, cl0[id])) { toast('Ese personaje ya lo ha elegido ' + (room.players[cl0[id]].name || 'un compañero')); return; }
+  if (cl0[id] !== uid && per > 1 && coopPicksOf(room, uid).length >= per) { toast('Ya tienes ' + per + ' personajes: toca uno de los tuyos para soltarlo'); return; }
+  COOP.picking = true; let why = '';
+  try {
+    const res = await window._fbTransaction(coopRef(coopPath(COOP.code, 'claims/' + side)), cur => {
+      const r = COOP.room; cur = cur || {};
+      if (!r || !r.players[uid] || r.players[uid].ready) { why = 'x'; return undefined; }
+      if (cur[id] === uid) { delete cur[id]; return cur; }                          // soltar
+      if (cur[id] && coopClaimValid(r, side, cur[id])) { why = 'taken'; return undefined; }
+      const mine = Object.keys(cur).filter(k => cur[k] === uid);
+      if (mine.length >= per) { if (per === 1) mine.forEach(k => delete cur[k]); else { why = 'max'; return undefined; } }
+      cur[id] = uid; return cur;
+    });
+    if (!(res && res.committed) && why === 'taken') toast('Un compañero se te ha adelantado');
+  } catch (_) {}
+  COOP.picking = false;
+}
+
+async function coopReady(v) {
+  const room = COOP.room; if (!room || !COOP.code) return;
+  if (v && (COOP.picking || coopPicksOf(room, COOP.uid).length !== coopPerPlayer(room))) return;
+  coopReadyOv(!!v, room);   // respuesta inmediata
+  await window._fbSet(coopRef(coopPath(COOP.code, 'players/' + COOP.uid + '/ready')), !!v);
+}
+
+function coopReadyOv(show, room) {
+  let ov = document.getElementById('coop-ready-ov');
+  if (!show) { if (ov) ov.remove(); return; }
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'coop-ready-ov'; ov.className = 'cp-ready-ov';
+    ov.innerHTML = scanSVG() + '<div class="scan-title">Esperando al resto de jugadores</div><div class="scan-msg"></div><div class="scan-dots">Sondeando</div>'
+      + '<button type="button" class="cr-btn" onclick="coopReady(false)">Cambiar personaje</button>';
+    document.body.appendChild(ov);
+  }
+  if (room) {
+    const ps = coopPlayers(room), n = ps.filter(p => p.ready).length, tot = (room.format || 4) * 2;
+    ov.querySelector('.scan-msg').innerHTML = '<b>' + n + ' / ' + tot + '</b> jugadores listos';
+  }
+}
+
+async function coopLeave() {
+  const code = COOP.code, uid = COOP.uid, room = COOP.room;
+  COOP.gen++; coopStopListen(); COOP.code = null; COOP.room = null; COOP.wasIn = false;
+  showScreen('lobby'); lobbyView('coop');
+  if (!code || !uid) return;
+  try {
+    try { window._fbOnDisconnect(coopRef(coopPath(code, 'players/' + uid))).cancel(); } catch (_) {}
+    const side = room && room.players && room.players[uid] && room.players[uid].side;
+    if (side && room && (room.status === 'lobby' || room.status === 'pick')) {
+      const cl = (room.claims && room.claims[side]) || {};
+      await Promise.all(Object.keys(cl).filter(id => cl[id] === uid).map(id => window._fbSet(coopRef(coopPath(code, 'claims/' + side + '/' + id)), null)));
+    }
+    await window._fbSet(coopRef(coopPath(code, 'players/' + uid)), null);
+    const s = await window._fbGet(coopRef(coopPath(code, 'players')));
+    if (!s.exists()) await window._fbSet(coopRef(coopPath(code)), null);   // último en salir: borrar la sala
+  } catch (_) {}
+}
+
+// ═══ MODO COOPERATIVO · construcción por turnos, votación de mapa y despliegue (entrega 3) ═══
+// rooms/coop_{CODE}/build = { order:[uid…], n, total, walls:{key:uid|'map'}, deadline, done, vote, lastVote }
+//   Turno: order[floor(n/2) % order.length]; cada turno son 2 paredes; 30 s por turno (si se agota, paredes al azar).
+//   vote = { id, kind:'random'|'preset', mapId, name, walls:[…], by, ballots:{uid:'yes'|'no'}, deadline }
+// rooms/coop_{CODE}/deploy/{atk|def}/{charId} = { row, col, uid };  players/{uid}/deployed = true
+const COOP_WALLS = 48, COOP_T = { turn:30000, vote:25000, deploy:90000 };
+const COOP_ZONE_LBL = { N:'Norte', S:'Sur', W:'Oeste', E:'Este' };
+const COOP_ZONE_OPP = { N:'S', S:'N', W:'E', E:'W' };
+Object.assign(COOP, { view:null, offset:0, offRef:null, tick:null, persist:false, lastVoteAt:0, lastWalls:null });
+function coopNow() { return Date.now() + (COOP.offset || 0); }
+function coopSet(sub, v) { return window._fbSet(coopRef(coopPath(COOP.code, sub)), v); }
+function coopTx(sub, fn) { return window._fbTransaction(coopRef(coopPath(COOP.code, sub)), fn); }
+function coopName(room, uid) { const p = room && room.players && room.players[uid]; return p ? (p.name || 'Jugador') : 'Jugador ausente'; }
+function coopTurnUid(b) { return b && b.order && b.order.length ? b.order[Math.floor((b.n || 0) / 2) % b.order.length] : null; }
+function coopSideOfUid(room, uid) {
+  const p = room.players && room.players[uid]; if (p) return p.side;
+  for (const sd of ['atk', 'def']) { const cl = (room.claims && room.claims[sd]) || {}; if (Object.values(cl).includes(uid)) return sd; }
+  return 'atk';
+}
+// Personajes de un jugador (aunque se haya ido: las reservas guardan su uid)
+function coopCharsOf(room, uid, side) { const cl = (room.claims && room.claims[side]) || {}; return Object.keys(cl).filter(id => cl[id] === uid); }
+
+// ── Paredes ──
+function coopWallSetFrom(walls) { const s = new Set(G.fixedWalls); Object.keys(walls || {}).forEach(k => s.add(k)); return s; }
+function coopWallLegal(key) {   // con G.walls ya puesto
+  if (G.fixedWalls.has(key) || G.walls.has(key)) return false;
+  const [t, a, b] = key.split('_'); const r = +a, c = +b;
+  if (t === 'h' ? !(r >= 0 && r < GRID - 1 && c >= 0 && c < GRID) : !(r >= 0 && r < GRID && c >= 0 && c < GRID - 1)) return false;
+  return !isSurcoPuerta(key);
+}
+function coopAllSurcos() {
+  const out = [];
+  for (let r = 0; r < GRID - 1; r++) for (let c = 0; c < GRID; c++) out.push('h_' + r + '_' + c);
+  for (let r = 0; r < GRID; r++) for (let c = 0; c < GRID - 1; c++) out.push('v_' + r + '_' + c);
+  return out;
+}
+function coopShuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+// Paredes al azar que dejan el mapa conectado, a partir de un conjunto dado
+function coopRandomWallsFrom(baseWalls, k, opts) {
+  opts = opts || {};
+  const keep = G.walls; G.walls = coopWallSetFrom(baseWalls);
+  const added = [];
+  try {
+    const edge = key => { const [t, a, b] = key.split('_'); const r = +a, c = +b; const cells = t === 'h' ? [[r, c], [r + 1, c]] : [[r, c], [r, c + 1]];
+      return cells.some(([rr, cc]) => rr === 0 || cc === 0 || rr === GRID - 1 || cc === GRID - 1); };
+    const inBomb = key => { const [t, a, b] = key.split('_'); const r = +a, c = +b; return t === 'h' ? (r >= 4 && r <= 9 && c >= 5 && c <= 9) : (r >= 5 && r <= 9 && c >= 4 && c <= 9); };
+    const wasConnected = isMapConnected();   // si los jugadores ya han cerrado alguna zona, no se exige conexión
+    for (const key of coopShuffle(coopAllSurcos())) {
+      if (added.length >= k) break;
+      if ((opts.noEdge && edge(key)) || inBomb(key) || !coopWallLegal(key)) continue;
+      G.walls.add(key);
+      if (!wasConnected || isMapConnected()) added.push(key); else G.walls.delete(key);
+    }
+  } finally { G.walls = keep; }
+  return added;
+}
+
+// ── Vista de construcción ──
+function coopShowBuild(room) {
+  if (COOP.view !== 'build') {
+    COOP.view = 'build'; COOP.lastWalls = null;
+    initState(); setupFixedWalls();
+    try { const cv = document.getElementById('construct-canvas'); if (cv) cv.removeEventListener('click', onConstructClick); } catch (_) {}
+    startConstruction();
+    document.getElementById('walls-total').textContent = room.build.total || COOP_WALLS;
+  }
+  const b = room.build;
+  G.walls = coopWallSetFrom(b.walls);
+  G.wallsPlaced = b.n || 0;
+  const tu = coopTurnUid(b); G.wallTurn = coopSideOfUid(room, tu);
+  // destello en la última pared que ha llegado
+  const keys = Object.keys(b.walls || {});
+  if (COOP.lastWalls) { const nw = keys.filter(k => !COOP.lastWalls.has(k)); if (nw.length && nw.length <= 2) { VFX.placed = { key: nw[nw.length - 1], t0: performance.now() }; try { SFX.play('wall'); } catch (_) {} } }
+  COOP.lastWalls = new Set(keys);
+  renderConstruct();
+  coopBuildUI();
+  // votación: aviso de resultado una sola vez
+  const lv = b.lastVote;
+  if (lv && lv.at && lv.at !== COOP.lastVoteAt) { COOP.lastVoteAt = lv.at; if (coopNow() - lv.at < 8000) toast(lv.ok ? '✓ Mapa «' + lv.name + '» aceptado por mayoría' : '✗ «' + lv.name + '» no ha tenido mayoría: seguid construyendo', 3500); }
+}
+
+function coopBuildUI() {
+  const room = COOP.room; if (!room || !room.build || COOP.view !== 'build') return;
+  const b = room.build, tu = coopTurnUid(b), side = coopSideOfUid(room, tu), mine = tu === COOP.uid;
+  const left = 2 - ((b.n || 0) % 2), secs = Math.max(0, Math.ceil(((b.deadline || 0) - coopNow()) / 1000));
+  document.getElementById('walls-placed').textContent = b.n || 0;
+  document.getElementById('wall-turn-label').textContent = coopName(room, tu);
+  const badge = document.getElementById('construct-turn-badge');
+  if (badge) badge.innerHTML = '<span class="role-badge ' + side + '"' + (mine ? '' : ' style="opacity:.6;"') + '>'
+    + (side === 'atk' ? '⚔ ' : '🛡 ') + (mine ? 'TU TURNO — coloca ' + left + (left === 1 ? ' pared' : ' paredes') : coopEsc(coopName(room, tu)).toUpperCase() + ' está colocando...') + '</span>';
+  const help = document.getElementById('construct-help');
+  if (help) help.textContent = b.vote ? 'Votación en curso: la construcción está en pausa.' : (mine ? 'Haz clic en un SURCO para colocar una pared · ' + secs + ' s' : 'Turno de ' + coopName(room, tu) + ' · ' + secs + ' s');
+  const bar = document.getElementById('coop-build-bar'); if (!bar) return;
+  bar.style.display = '';
+  const L = b.order.length, cur = Math.floor((b.n || 0) / 2) % L;
+  const chips = b.order.map((uid, i) => '<span class="cb-chip ' + coopSideOfUid(room, uid) + (i === cur ? ' on' : '') + (uid === COOP.uid ? ' me' : '') + '">' + coopEsc(coopName(room, uid)) + '</span>').join('');
+  let h = '<div class="cb-row"><div class="cb-order">' + chips + '</div>'
+    + '<div class="cb-timer' + (secs <= 5 && !b.vote ? ' warn' : '') + '">' + (b.vote ? 'Pausa' : secs + ' s') + '</div></div>';
+  if (b.vote) h += coopVoteHTML(room, b.vote);
+  h += '<div class="cb-row cb-foot"><span>Mapa aleatorio o predefinido: se vota y pasa con mayoría (' + (Math.floor(L / 2) + 1) + ' de ' + L + ').</span>'
+    + '<button type="button" class="cr-btn" onclick="coopLeave()">Salir</button></div>';
+  bar.innerHTML = h;
+}
+function coopVoteHTML(room, v) {
+  const L = room.build.order.length, need = Math.floor(L / 2) + 1, bl = v.ballots || {};
+  const yes = Object.values(bl).filter(x => x === 'yes').length, no = Object.values(bl).filter(x => x === 'no').length;
+  const secs = Math.max(0, Math.ceil(((v.deadline || 0) - coopNow()) / 1000)), myVote = bl[COOP.uid];
+  return '<div class="cb-vote"><div class="cb-prev">' + presetPreviewSVG({ walls: v.walls || [] }) + '</div><div class="cb-vbody">'
+    + '<div class="cb-vt">Votación · ' + coopEsc(v.name) + '</div>'
+    + '<div class="cb-vs">Propuesto por ' + coopEsc(coopName(room, v.by)) + '. Si se acepta, sustituye las paredes colocadas.</div>'
+    + '<div class="cb-tally"><b class="y">Sí ' + yes + '</b> · <b class="n">No ' + no + '</b> · hacen falta ' + need + ' · ' + secs + ' s</div>'
+    + (myVote ? '<div class="cb-vs">Has votado <b>' + (myVote === 'yes' ? 'sí' : 'no') + '</b>.</div>'
+      : '<div class="cb-vbtns"><button type="button" class="cr-btn" onclick="coopVote(\'no\')">No</button><button type="button" class="cr-btn main" onclick="coopVote(\'yes\')">Sí</button></div>')
+    + '</div></div>';
+}
+
+async function coopWallClick(key) {
+  const room = COOP.room, b = room && room.build; if (!b || b.done) return;
+  if (b.vote) { toast('Hay una votación de mapa en curso'); return; }
+  if (coopTurnUid(b) !== COOP.uid) { toast('⚠ Es el turno de ' + coopName(room, coopTurnUid(b))); return; }
+  if (!coopWallLegal(key)) return;
+  const uid = COOP.uid;
+  await coopTx('build', cur => {
+    if (!cur || cur.done || cur.vote || coopTurnUid(cur) !== uid) return undefined;
+    cur.walls = cur.walls || {}; if (cur.walls[key]) return undefined;
+    cur.walls[key] = uid; cur.n = (cur.n || 0) + 1;
+    if (cur.n % 2 === 0) cur.deadline = coopNow() + COOP_T.turn;
+    if (cur.n >= cur.total) cur.done = true;
+    return cur;
+  });
+}
+
+async function coopPropose(kind, map) {
+  const room = COOP.room, b = room && room.build; if (!b || b.done) return;
+  if (b.vote) { toast('Ya hay una votación en curso'); return; }
+  const walls = kind === 'random' ? coopRandomWallsFrom({}, COOP_WALLS, { noEdge:true }) : map.walls.filter(k => !G.fixedWalls.has(k));
+  const v = { id: Math.random().toString(36).slice(2, 9), kind, mapId: map ? map.id : null, name: kind === 'random' ? 'Mapa aleatorio' : map.name,
+    walls, by: COOP.uid, ballots: { [COOP.uid]: 'yes' }, deadline: coopNow() + COOP_T.vote };
+  const res = await coopTx('build', cur => { if (!cur || cur.done || cur.vote) return undefined; cur.vote = v; return cur; });
+  if (!(res && res.committed)) toast('Ya hay una votación en curso');
+}
+function coopVote(x) {
+  const v = COOP.room && COOP.room.build && COOP.room.build.vote; if (!v) return;
+  coopSet('build/vote/ballots/' + COOP.uid, x);
+}
+// Anfitrión: cierra la votación (mayoría, imposible de alcanzar, todos han votado o tiempo agotado)
+function coopHostVote(room) {
+  const b = room.build, v = b && b.vote; if (!v) return;
+  const L = b.order.length, need = Math.floor(L / 2) + 1, bl = v.ballots || {};
+  const yes = Object.values(bl).filter(x => x === 'yes').length, no = Object.values(bl).filter(x => x === 'no').length;
+  const present = b.order.filter(u => room.players[u]).length;
+  let ok = null;
+  if (yes >= need) ok = true;
+  else if (no > L - need || yes + no >= present || coopNow() > v.deadline) ok = false;
+  if (ok === null) return;
+  coopTx('build', cur => {
+    if (!cur || !cur.vote || cur.vote.id !== v.id) return undefined;
+    if (ok) {
+      cur.walls = {}; (cur.vote.walls || []).forEach(k => { cur.walls[k] = 'map'; });
+      cur.n = Object.keys(cur.walls).length;
+      if (cur.n >= cur.total) cur.done = true;
+    }
+    cur.lastVote = { ok, name: cur.vote.name, at: coopNow() };
+    cur.vote = null; cur.deadline = coopNow() + COOP_T.turn;
+    return cur;
+  });
+}
+// Anfitrión: turno agotado → paredes al azar en nombre de quien tenía el turno
+function coopHostTimeout(room) {
+  const b = room.build; if (!b || b.done || b.vote || coopNow() <= b.deadline) return;
+  const tk = b.deadline + ':' + b.n;   // reintenta si la transacción choca con una pared recién puesta
+  if (COOP.hostTimeoutFor === tk) return;
+  COOP.hostTimeoutFor = tk;
+  const k = Math.min(2 - (b.n % 2), b.total - b.n), n0 = b.n, tu = coopTurnUid(b);
+  const add = coopRandomWallsFrom(b.walls, k);
+  coopTx('build', cur => {
+    if (!cur || cur.n !== n0 || cur.vote || cur.done) return undefined;
+    cur.walls = cur.walls || {};
+    add.forEach(key => { if (!cur.walls[key]) { cur.walls[key] = tu; cur.n++; } });
+    if (cur.n === n0) cur.n += k;   // sin hueco legal: se pasa el turno igualmente
+    cur.deadline = coopNow() + COOP_T.turn;
+    if (cur.n >= cur.total) cur.done = true;
+    return cur;
+  });
+}
+
+// ── Despliegue ──
+// Zona de una casilla: atacantes, el lateral (sin esquinas); defensores, la puerta de la sala que tiene delante
+function coopZone(side, r, c) {
+  if (side === 'def') return defSpawnDoor(r, c);
+  const corner = (r === 0 || r === GRID - 1) && (c === 0 || c === GRID - 1);
+  if (corner) return null;
+  if (r === 0) return 'N'; if (r === GRID - 1) return 'S'; if (c === 0) return 'W'; if (c === GRID - 1) return 'E';
+  return null;
+}
+// ¿Puede uid poner charId en (r,c)? team = deploy/{side} actual. Devuelve el motivo si no puede.
+function coopDeployCheck(room, team, side, uid, charId, r, c) {
+  if (isCentralCell(r, c)) return '⚠ La casilla central está bloqueada';
+  const z = coopZone(side, r, c);
+  if (!z) return side === 'atk' ? '⚠ Los atacantes despliegan en el borde del tablero (sin esquinas)' : '⚠ Los defensores despliegan frente a las puertas de la sala';
+  const others = Object.keys(team || {}).filter(id => id !== charId).map(id => Object.assign({ id }, team[id]));
+  if (others.some(o => o.row === r && o.col === c)) return '⚠ Casilla ocupada';
+  const inZone = others.find(o => coopZone(side, o.row, o.col) === z);
+  if (inZone) return '⚠ ' + (side === 'atk' ? 'El lateral ' : 'La puerta ') + COOP_ZONE_LBL[z] + ' ya la ocupa ' + coopName(room, inZone.uid);
+  if (coopPerPlayer(room) === 2) {
+    // en 2v2 cada jugador se queda una pareja de lados opuestos: no puedes coger el opuesto de un compañero
+    const oppOcc = others.find(o => o.uid !== uid && coopZone(side, o.row, o.col) === COOP_ZONE_OPP[z]);
+    if (oppOcc) return '⚠ ' + (side === 'atk' ? 'Los laterales ' : 'Las puertas ') + COOP_ZONE_LBL[z] + ' y ' + COOP_ZONE_LBL[COOP_ZONE_OPP[z]] + ' son de ' + coopName(room, oppOcc.uid) + ': usa la otra pareja';
+    const mineOther = others.find(o => o.uid === uid);
+    if (mineOther) { const oz = coopZone(side, mineOther.row, mineOther.col);
+      if (COOP_ZONE_OPP[oz] !== z) return '⚠ Tu segunda ficha va ' + (side === 'atk' ? 'en el lateral ' : 'en la puerta ') + COOP_ZONE_LBL[COOP_ZONE_OPP[oz]] + ' (la opuesta a la primera)'; }
+  }
+  return null;
+}
+function coopShowDeploy(room) {
+  const me = room.players[COOP.uid], side = me.side;
+  if (COOP.view !== 'deploy') {
+    COOP.view = 'deploy';
+    G.walls = coopWallSetFrom(room.build && room.build.walls);
+    G.wallsPlaced = (room.build && room.build.n) || 0;
+    G.atkPick = []; G.defPick = [];
+    G[side === 'atk' ? 'atkPick' : 'defPick'] = coopCharsOf(room, COOP.uid, side);
+    G.spawnPhase = side; G.spawnPlacements = { atk:{}, def:{} };
+    try { const cv = document.getElementById('spawn-canvas'); if (cv) cv.removeEventListener('click', onSpawnClick); } catch (_) {}
+    startSpawn();
+  }
+  const team = (room.deploy && room.deploy[side]) || {};
+  const pl = {}; Object.keys(team).forEach(id => { pl[id] = { row: team[id].row, col: team[id].col }; });
+  const before = G.spawnPlacements[side] || {};
+  Object.keys(pl).forEach(id => { const o = before[id]; if (!o || o.row !== pl[id].row || o.col !== pl[id].col) VFX.drops.push({ r: pl[id].row, c: pl[id].col, t0: performance.now() }); });
+  G.spawnPlacements[side] = pl;
+  renderSpawnScreen();
+}
+function coopDeployUI() {
+  const room = COOP.room; if (!room || COOP.view !== 'deploy') return;
+  const me = room.players[COOP.uid]; if (!me) return;
+  const side = me.side, mine = coopCharsOf(room, COOP.uid, side), team = (room.deploy && room.deploy[side]) || {};
+  const left = mine.filter(id => !team[id]);
+  const secs = Math.max(0, Math.ceil(((room.deployDeadline || 0) - coopNow()) / 1000));
+  const badge = document.getElementById('spawn-turn-badge');
+  if (badge) badge.innerHTML = side === 'atk'
+    ? '<span class="role-badge atk">⚔ ATACANTES — un jugador por lateral' + (coopPerPlayer(room) === 2 ? '; tu 2.ª ficha en el lateral opuesto' : '') + ' (sin esquinas)</span>'
+    : '<span class="role-badge def">🛡 DEFENSORES — un jugador por puerta' + (coopPerPlayer(room) === 2 ? '; tu 2.ª ficha en la puerta opuesta' : '') + '</span>';
+  const help = document.getElementById('spawn-help');
+  if (help) help.textContent = me.deployed ? '✓ Despliegue confirmado' : (left.length ? 'Coloca a ' + UNIT_DEFS[left[0]].name + ' · toca una ficha tuya para recogerla · ' + secs + ' s' : 'Todas tus fichas colocadas · ' + secs + ' s');
+  const btn = document.getElementById('spawn-confirm');
+  if (btn) btn.style.display = !me.deployed && !left.length ? 'block' : 'none';
+  const zones = side === 'atk' ? ['N', 'E', 'S', 'W'] : ['N', 'E', 'S', 'W'];
+  const occ = {}; Object.keys(team).forEach(id => { const z = coopZone(side, team[id].row, team[id].col); if (z) occ[z] = { id, uid: team[id].uid }; });
+  const bar = document.getElementById('coop-deploy-bar');
+  if (bar) {
+    bar.style.display = '';
+    bar.innerHTML = '<div class="cb-zones">' + zones.map(z => {
+      const o = occ[z];
+      return '<div class="cb-zone ' + side + (o ? ' full' : '') + (o && o.uid === COOP.uid ? ' me' : '') + '"><small>' + (side === 'atk' ? 'Lateral ' : 'Puerta ') + COOP_ZONE_LBL[z] + '</small>'
+        + (o ? '<b>' + coopEsc(UNIT_DEFS[o.id] ? UNIT_DEFS[o.id].name : o.id) + '</b><span>' + coopEsc(coopName(room, o.uid)) + '</span>' : '<b>Libre</b>') + '</div>';
+    }).join('') + '</div><div class="cb-row cb-foot"><span>' + coopSidePlayers(room, side).map(p => coopEsc(p.name) + (p.deployed ? ' ✓' : '')).join(' · ')
+      + '</span><span class="cb-timer' + (secs <= 10 ? ' warn' : '') + '">' + secs + ' s</span><button type="button" class="cr-btn" onclick="coopLeave()">Salir</button></div>';
+  }
+  const host = document.getElementById('spawn-canvas') && document.getElementById('spawn-canvas').parentNode;
+  if (me.deployed && host) {
+    const ps = coopPlayers(room), n = ps.filter(p => p.deployed).length;
+    scanOverlay(host, 'spawn-wait', 'Despliegue confirmado', '<b>' + n + ' / ' + room.build.order.length + '</b> jugadores desplegados');
+  } else scanRemove('spawn-wait');
+}
+async function coopSpawnClickCell(r, c) {
+  const room = COOP.room; if (!room || room.status !== 'deploy') return;
+  const me = room.players[COOP.uid]; if (!me || me.deployed) return;
+  const side = me.side, uid = COOP.uid, mine = coopCharsOf(room, uid, side), team = (room.deploy && room.deploy[side]) || {};
+  const here = Object.keys(team).find(id => team[id].row === r && team[id].col === c);
+  if (here && team[here].uid === uid) {   // recoger una ficha propia
+    await coopTx('deploy/' + side, cur => { if (!cur || !cur[here] || cur[here].uid !== uid) return undefined; delete cur[here]; return cur; });
+    return;
+  }
+  const next = mine.find(id => !team[id]); if (!next) return;
+  const msg = coopDeployCheck(room, team, side, uid, next, r, c); if (msg) { toast(msg); return; }
+  let why = '';
+  const res = await coopTx('deploy/' + side, cur => {
+    cur = cur || {}; if (cur[next]) return undefined;
+    const m = coopDeployCheck(COOP.room, cur, side, uid, next, r, c); if (m) { why = m; return undefined; }
+    cur[next] = { row: r, col: c, uid }; return cur;
+  });
+  if (!(res && res.committed) && why) toast(why);
+}
+function coopConfirmDeploy() {
+  const room = COOP.room; if (!room) return;
+  const me = room.players[COOP.uid], team = (room.deploy && room.deploy[me.side]) || {};
+  if (coopCharsOf(room, COOP.uid, me.side).some(id => !team[id])) return;
+  coopSet('players/' + COOP.uid + '/deployed', true);
+}
+// Anfitrión: coloca al azar lo que falte (jugadores ausentes al momento; el resto al acabar el tiempo)
+function coopHostDeploy(room) {
+  const order = room.build.order, now = coopNow(), late = now > (room.deployDeadline || Infinity);
+  const pending = order.filter(uid => { const p = room.players[uid]; return p ? (late && !p.deployed) : true; });
+  ['atk', 'def'].forEach(side => {
+    const who = pending.filter(uid => coopSideOfUid(room, uid) === side);
+    const missing = who.some(uid => coopCharsOf(room, uid, side).some(id => !((room.deploy && room.deploy[side]) || {})[id]));
+    if (!who.length || !missing) return;
+    const key = side + ':' + who.join(',') + ':' + JSON.stringify((room.deploy && room.deploy[side]) || {});
+    if (COOP.hostDeployKey === key) return; COOP.hostDeployKey = key;
+    coopTx('deploy/' + side, cur => {
+      cur = cur || {};
+      who.forEach(uid => coopCharsOf(COOP.room, uid, side).forEach(id => {
+        if (cur[id]) return;
+        const cells = []; for (let r = 0; r < GRID; r++) for (let c = 0; c < GRID; c++) if (!coopDeployCheck(COOP.room, cur, side, uid, id, r, c)) cells.push([r, c]);
+        if (cells.length) { const [r, c] = cells[Math.floor(Math.random() * cells.length)]; cur[id] = { row: r, col: c, uid }; }
+      }));
+      return cur;
+    });
+  });
+  if (late) order.forEach(uid => { const p = room.players[uid]; if (p && !p.deployed) {
+    const sd = p.side, team = (room.deploy && room.deploy[sd]) || {};
+    if (coopCharsOf(room, uid, sd).every(id => team[id])) coopSet('players/' + uid + '/deployed', true);
+  } });
+}
+function coopDeployComplete(room) {
+  return room.build.order.every(uid => {
+    const sd = coopSideOfUid(room, uid), team = (room.deploy && room.deploy[sd]) || {}, p = room.players[uid];
+    return coopCharsOf(room, uid, sd).every(id => team[id]) && (!p || p.deployed);
+  });
+}
+
+// ── Anfitrión: avance de estados construct → deploy → game ──
+function coopHostFlow(room) {
+  const st = room.status, b = room.build;
+  if (st === 'construct' && b) {
+    if (b.vote) coopHostVote(room);
+    if (b.done) { if (!room.deployDeadline) coopSet('deployDeadline', coopNow() + COOP_T.deploy); else coopSet('status', 'deploy'); }
+    else coopHostTimeout(room);
+  } else if (st === 'deploy' && b) {
+    if (coopDeployComplete(room)) {
+      if (!room.game) { try { coopSet('game', coopBuildInitialState(room)); } catch (e) { console.warn('[coop]', e); } }
+      else coopSet('status', 'game');
+    } else coopHostDeploy(room);
+  } else if (st === 'game' && room.game) coopHostGame(room);
+}
+function coopStartTick() {
+  clearInterval(COOP.tick);
+  COOP.tick = setInterval(() => {
+    const room = COOP.room; if (!room || !COOP.code) return;
+    try {
+      if (COOP.uid === coopHostUid(room) && (room.status === 'construct' || room.status === 'deploy' || room.status === 'game')) coopHostFlow(room);
+      if (COOP.view === 'build') coopBuildUI(); else if (COOP.view === 'deploy') coopDeployUI();
+      else if (COOP.view === 'game') { updateTurnBanner(); if (G.currentSide !== COOP.mySide && !G.coopWinner) coopBoardWait(true); }
+    } catch (e) { console.warn('[coop]', e); }
+  }, 500);
+}
+
+// ── Enganches con las pantallas existentes (solo actúan dentro de una sala cooperativa) ──
+(function() {
+  const oPW = window.placeWall;
+  window.placeWall = function(key) { if (COOP.code && COOP.view === 'build') { coopWallClick(key); return; } return oPW.apply(this, arguments); };
+  const oRM = window.generateRandomMap;
+  window.generateRandomMap = function() { if (COOP.code && COOP.view === 'build') { coopPropose('random'); return; } return oRM.apply(this, arguments); };
+  const oAP = window.applyPresetMap;
+  window.applyPresetMap = function(m) { if (COOP.code && COOP.view === 'build') { coopPropose('preset', m); return; } return oAP.apply(this, arguments); };
+  const oRC = window.renderConstruct;
+  window.renderConstruct = function() { const r = oRC.apply(this, arguments); if (COOP.code && COOP.view === 'build') { try { coopBuildUI(); } catch (_) {} } else { const bb = document.getElementById('coop-build-bar'); if (bb) bb.style.display = 'none'; } return r; };
+  const oSC = window.onSpawnClick;
+  window.onSpawnClick = function(e) {
+    if (!(COOP.code && COOP.view === 'deploy')) return oSC.apply(this, arguments);
+    let mx, my;
+    if (e && e.__xy) { mx = e.__xy[0]; my = e.__xy[1]; }
+    else { const rc = spCanvas.getBoundingClientRect(); mx = (e.clientX - rc.left) * (spCanvas.width / rc.width); my = (e.clientY - rc.top) * (spCanvas.height / rc.height); }
+    for (let r = 0; r < GRID; r++) for (let c = 0; c < GRID; c++) { const p = spCellTL(r, c); if (mx >= p.x && mx <= p.x + SCS && my >= p.y && my <= p.y + SCS) { coopSpawnClickCell(r, c); return; } }
+  };
+  const oRS = window.renderSpawnScreen;
+  window.renderSpawnScreen = function() { const r = oRS.apply(this, arguments); if (COOP.code && COOP.view === 'deploy') { try { coopDeployUI(); } catch (_) {} } else { const bb = document.getElementById('coop-deploy-bar'); if (bb) bb.style.display = 'none'; } return r; };
+  const oDS = window.drawSpawnBoard;
+  window.drawSpawnBoard = function() {
+    const r = oDS.apply(this, arguments);
+    if (!(COOP.code && COOP.view === 'deploy') || !spCtx || (VIEW3D_S && VIEW3D_S.on)) return r;
+    try {   // 2D: tus fichas con aro dorado y las zonas ya ocupadas por compañeros atenuadas
+      const room = COOP.room, side = G.spawnPhase, team = (room.deploy && room.deploy[side]) || {}, ctx = spCtx;
+      const used = new Set(Object.keys(team).map(id => coopZone(side, team[id].row, team[id].col)));
+      ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.45)';
+      for (let rr = 0; rr < GRID; rr++) for (let cc = 0; cc < GRID; cc++) { const z = coopZone(side, rr, cc);
+        const corner = side === 'atk' && (rr === 0 || rr === GRID - 1) && (cc === 0 || cc === GRID - 1);
+        if (corner || (z && used.has(z) && !Object.values(team).some(t => t.row === rr && t.col === cc))) { const p = spCellTL(rr, cc); ctx.fillRect(p.x, p.y, SCS, SCS); } }
+      ctx.strokeStyle = '#f3d48a'; ctx.lineWidth = 2.5;
+      Object.keys(team).forEach(id => { if (team[id].uid !== COOP.uid) return; const p = spCellTL(team[id].row, team[id].col); ctx.beginPath(); ctx.arc(p.x + SCS / 2, p.y + SCS / 2, SCS * 0.56, 0, Math.PI * 2); ctx.stroke(); });
+      ctx.restore();
+    } catch (_) {}
+    return r;
+  };
+  const oCS = window.confirmSpawn;
+  window.confirmSpawn = function() { if (COOP.code && COOP.view === 'deploy') { coopConfirmDeploy(); return; } return oCS.apply(this, arguments); };
+})();
+
+// ═══ MODO COOPERATIVO · partida (entrega 4) ═══
+// rooms/coop_{CODE}/game = { state:<G serializado, revealedCells = visión del EQUIPO>, ver, lock:{uid,until}|null, phaseKey, deadline }
+// rooms/coop_{CODE}/ready/{uid} = phaseKey   (pulsó «Avanzar fase» en esa fase)
+// · Cada jugador ejecuta el motor de siempre sobre el estado más reciente dentro de una transacción
+//   (mover, disparar). Las habilidades, que piden varios toques, toman un cerrojo corto del estado.
+// · El anfitrión avanza las fases (todos listos o 40 s) y cierra el turno.
+// · Visión individual: cada jugador solo ve lo que desvelan sus fichas, sus dispositivos y sus habilidades.
+COOP_T.phase = 40000; COOP_T.ability = 30000;
+Object.assign(COOP, { mySide:null, gameVer:0, inEngine:false, engineSide:null, ability:null, acting:false, lastRev:new Set(), winnerShown:false, hostAdvKey:null, lastTurnKey:null });
+const COOP_ATK_DEV = new Set(['tarantino', 'francisco', 'zorro', 'iarramendi', 'daniel']);
+const coopSleep = ms => new Promise(r => setTimeout(r, ms));
+function coopOwner(charId) { return (G.coopOwner || {})[charId] || null; }
+function coopMine(charId) { return coopOwner(charId) === COOP.uid; }
+function coopInGame() { return !!(COOP.code && COOP.view === 'game'); }
+function coopMyTurn() { return coopInGame() && G.currentSide === COOP.mySide && !G.coopWinner; }
+function coopModalOpen() { const m = document.getElementById('modal'); return !!(m && m.classList.contains('active')); }
+const COOP_PHASE_LBL = { movement:'Movimiento', vision:'Visión', shoot:'Disparo' };
+
+// ── Visión individual ──
+function coopRadiusCells(r0, c0, rad, cells, noWalls) {
+  cells.add(r0 + '_' + c0);
+  for (let dr = -rad; dr <= rad; dr++) for (let dc = -rad; dc <= rad; dc++) {
+    if (!dr && !dc) continue; const tr = r0 + dr, tc = c0 + dc;
+    if (tr < 0 || tr >= GRID || tc < 0 || tc >= GRID || isCentralCell(tr, tc)) continue;
+    if (noWalls || canSee(r0, c0, tr, tc)) cells.add(tr + '_' + tc);
+  }
+}
+// Casillas que desvela un jugador concreto (sus fichas, sus dispositivos, sus habilidades), dentro de la visión del equipo
+function coopPersonalCells(uid, side) {
+  const team = G.coopTeamRev || new Set();
+  if (!team.size || G.currentSide !== side) return new Set();
+  const own = G.units.filter(u => u.side === side && coopOwner(u.id) === uid);
+  if (own.length && !own.some(u => u.alive)) return new Set(team);          // eliminado: ve lo del equipo
+  const cells = new Set();
+  const teamUnits = G.units.filter(u => u.alive && u.side === side);
+  const rivalN = G.units.filter(u => u.alive && u.side !== side).length;
+  const allInBomb = teamUnits.length > 0 && teamUnits.every(u => inBombZone(u.row, u.col)) && teamUnits.length < rivalN;
+  const catalina = side === 'def' && G.catalinaVisionRound === G.round && G.units.find(u => u.id === 'catalina' && u.alive);
+  const limitDev = side === 'atk' ? G.devices.find(d => d.type === 'facundo' && d.alive) : G.devices.find(d => d.type === 'zorro' && d.alive);
+  own.filter(u => u.alive).forEach(u => {
+    const c = new Set(); coopRadiusCells(u.row, u.col, (inBombZone(u.row, u.col) && !allInBomb) ? 1 : 2, c, !!catalina);
+    if (limitDev && c.has(limitDev.row + '_' + limitDev.col)) { c.clear(); c.add(u.row + '_' + u.col); c.add(limitDev.row + '_' + limitDev.col); }
+    c.forEach(k => cells.add(k));
+  });
+  G.devices.filter(d => d.alive && coopOwner(d.unitId) === uid).forEach(d => {
+    if (d.type === 'esteban' || d.type === 'dario') coopRadiusCells(d.row, d.col, 1, cells);
+    if ((d.type === 'melania' || d.type === 'francisco') && d.wallKey) getMuralSensorCells(d.row, d.col, d.wallKey).forEach(x => cells.add(x.row + '_' + x.col));
+  });
+  if (G.koldoActive && coopOwner('koldo') === uid) G.devices.filter(d => d.alive && !COOP_ATK_DEV.has(d.type)).forEach(d => {
+    coopRadiusCells(d.row, d.col, 1, cells);
+    if (d.type === 'melania' && d.wallKey) getMuralSensorCells(d.row, d.col, d.wallKey).forEach(x => cells.add(x.row + '_' + x.col));
+  });
+  if (G.rocinanteLegacyActive && G.rocinanteFallCell && coopOwner('rocinante') === uid) coopRadiusCells(G.rocinanteFallCell.row, G.rocinanteFallCell.col, 1, cells, true);
+  if (G.hectorBlindCell && G.hectorAbilityRound === G.round && coopOwner('hector') === uid) cells.add(G.hectorBlindCell.row + '_' + G.hectorBlindCell.col);
+  const out = new Set([...cells].filter(k => team.has(k)));
+  ((G.coopRev || {})[uid] || []).forEach(k => out.add(k));   // lo que desvelaron sus habilidades
+  return out;
+}
+// Prepara el G recién deserializado: visión del equipo aparte y visión propia en revealedCells
+function coopPrepG(uid, side) {
+  if (!G.coopRev) G.coopRev = {};
+  if (!G.coopOwner) G.coopOwner = {};
+  G.coopTeamRev = new Set(G.revealedCells);
+  G.revealedCells = coopPersonalCells(uid, side);
+}
+function coopSerialize() {
+  const keep = G.revealedCells, team = G.coopTeamRev;
+  G.revealedCells = team || new Set(); delete G.coopTeamRev;
+  try { return serializeG(); } finally { G.revealedCells = keep; G.coopTeamRev = team; }
+}
+
+// ── Arranque (anfitrión): estado inicial a partir de paredes, selección y despliegue ──
+function coopBuildInitialState(room) {
+  initState(); setupFixedWalls();
+  Object.keys(room.build.walls || {}).forEach(k => G.walls.add(k));
+  G.wallsPlaced = room.build.n || 0;
+  const cl = room.claims || {}, dep = room.deploy || {};
+  G.atkPick = Object.keys(cl.atk || {}); G.defPick = Object.keys(cl.def || {});
+  G.coopOwner = Object.assign({}, cl.atk || {}, cl.def || {});
+  G.spawnPlacements = { atk:{}, def:{} };
+  ['atk', 'def'].forEach(sd => Object.keys(dep[sd] || {}).forEach(id => { G.spawnPlacements[sd][id] = { row: dep[sd][id].row, col: dep[sd][id].col }; }));
+  buildUnitsLocally();
+  G.currentSide = 'atk'; G.round = 1; G.gamePhase = 'movement'; G.coopRev = {};
+  G.revealedCells = new Set(); G.movedUnits = new Set(); G.shotUnits = new Set();
+  return { state: (G.coopTeamRev = new Set(), coopSerialize()), ver: 1, lock: null, phaseKey: '1-atk-movement', deadline: coopNow() + COOP_T.phase + 6000 };
+}
+
+// ── Aplicar el estado recibido ──
+function coopApplyState(state, force) {
+  if (!state) return;
+  if (COOP.ability) return;   // usando una habilidad: el estado es nuestro hasta soltar el cerrojo
+  const prevSide = G.currentSide, prevRound = G.round, prevPhase = G.gamePhase, started = COOP.gameVer > 0;
+  const sel = G.selectedUnit;
+  G = deserializeG(state);
+  coopPrepG(COOP.uid, COOP.mySide);
+  G.selectedUnit = null;
+  if (sel && G.currentSide === COOP.mySide && G.gamePhase === 'movement') {
+    const ok = sel === 'esteban_drone' ? coopMine('esteban') : sel === 'iarramendi_decoy' ? coopMine('iarramendi') : (coopMine(sel) && getUnit(sel) && getUnit(sel).alive);
+    if (ok && !G.movedUnits.has(sel)) G.selectedUnit = sel;
+  }
+  const mine = G.currentSide === COOP.mySide;
+  if (mine) COOP.lastRev = new Set(G.revealedCells);
+  const turnKey = G.round + '-' + G.currentSide;
+  if (started && turnKey !== COOP.lastTurnKey && mine && !G.coopWinner) {   // empieza el turno de mi equipo
+    try { coopBoardWait(false); showTurnNotification(COOP.mySide === 'atk' ? 'def' : 'atk'); } catch (e) { console.warn('[coop]', e); }
+    if (G.currentSide === 'def' && G.ucheBlockRound === G.round && G.ucheBlockedUnit && coopMine(G.ucheBlockedUnit)) {
+      const bu = getUnit(G.ucheBlockedUnit);
+      setTimeout(() => toast('⚠ Bloqueo de Uche: ' + (bu ? bu.name : 'tu ficha') + ' no puede moverse esta ronda', 5000), 600);
+    }
+  }
+  COOP.lastTurnKey = turnKey;
+  if (!mine) G.revealedCells = new Set(COOP.lastRev);   // turno rival: el tablero tal como lo dejamos
+  if (prevPhase !== G.gamePhase && mine && G.gamePhase === 'vision') { try { checkRevealAlert(); } catch (_) {} }
+  renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
+  coopGameHelp();
+  if (G.coopWinner && !COOP.winnerShown) coopShowWinner();
+}
+function coopGameHelp() {
+  if (!coopInGame() || G.coopWinner) return;
+  if (G.currentSide !== COOP.mySide) { coopBoardWait(true); return; }
+  coopBoardWait(false);
+  const own = G.units.filter(u => u.side === COOP.mySide && coopMine(u.id));
+  if (own.length && !own.some(u => u.alive)) { setHelp('Tus fichas han caído: ves lo que ve tu equipo.'); return; }
+  const ph = G.gamePhase;
+  setHelp(ph === 'movement' ? 'Mueve tus fichas (las del halo). Cuando termines, pulsa AVANZAR FASE.'
+    : ph === 'vision' ? 'Fase de VISIÓN: solo ves lo que desvelan tus fichas, dispositivos y habilidades.'
+    : 'Fase de DISPARO: solo puedes disparar a enemigos que has desvelado tú.');
+}
+function coopBoardWait(on) {
+  const host = document.querySelector('#screen-game .board-wrap');
+  if (!on || !host) { scanRemove('board-wait'); return; }
+  const g = COOP.room && COOP.room.game, secs = g ? Math.max(0, Math.ceil(((g.deadline || 0) - coopNow()) / 1000)) : 0;
+  const rl = COOP.mySide === 'atk' ? 'defensores' : 'atacantes';
+  scanOverlay(host, 'board-wait', 'Turno de los ' + rl, 'Fase de ' + (COOP_PHASE_LBL[G.gamePhase] || '').toLowerCase() + ' · ' + secs + ' s');
+  const rm = document.querySelector('#board-wait .scan-room'); if (rm) rm.textContent = 'SALA ' + COOP.code;
+}
+
+// ── Acciones simples: se aplican con el motor sobre el estado más reciente (transacción) ──
+function coopApplyAction(act, uid, side) {
+  if (G.coopWinner || G.currentSide !== side) return false;
+  if (act.t === 'move') {
+    if (G.gamePhase !== 'movement') return false;
+    const u = getUnit(act.uid);
+    if (!u || !u.alive || coopOwner(u.id) !== uid || G.movedUnits.has(u.id)) return false;
+    if (!getValidMoves(u).find(m => m.r === act.r && m.c === act.c)) return false;
+    COOP.fn.moveUnit(act.uid, act.r, act.c); return true;
+  }
+  if (act.t === 'dmove') {
+    if (G.gamePhase !== 'movement') return false;
+    const type = act.key === 'esteban_drone' ? 'esteban' : 'iarramendi';
+    const d = G.devices.find(x => x.type === type && x.alive);
+    if (!d || coopOwner(type) !== uid || G.movedUnits.has(act.key)) return false;
+    if (!getDroneValidMoves(d).find(m => m.r === act.r && m.c === act.c)) return false;
+    d.row = act.r; d.col = act.c; if (type === 'iarramendi') d.arr = (G.arrSeq = (G.arrSeq || 0) + 1);
+    G.movedUnits.add(act.key); return true;
+  }
+  if (act.t === 'shoot') {
+    if (G.gamePhase !== 'shoot') return false;
+    const ts = getShootableTargets();
+    const t = ts.find(x => x.shooter.id === act.shooter && x.target.row === act.r && x.target.col === act.c) || ts.find(x => x.target.row === act.r && x.target.col === act.c);
+    if (!t) return false;
+    COOP.fn.shootTarget(t); return true;
+  }
+  return false;
+}
+async function coopAction(act) {
+  if (COOP.acting || COOP.ability) return;
+  COOP.acting = true;
+  const uid = COOP.uid, side = COOP.mySide;
+  try {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      let why = '';
+      const res = await coopTx('game', cur => {
+        if (!cur || !cur.state) { why = 'x'; return undefined; }
+        if (cur.lock && cur.lock.uid !== uid && cur.lock.until > coopNow()) { why = 'lock'; return undefined; }
+        COOP.inEngine = true;
+        try {
+          G = deserializeG(cur.state); coopPrepG(uid, side);
+          if (!coopApplyAction(act, uid, side)) { why = 'bad'; return undefined; }
+          cur.state = coopSerialize(); cur.ver = (cur.ver || 0) + 1;
+          return cur;
+        } catch (e) { console.warn('[coop]', e); why = 'err'; return undefined; }
+        finally { COOP.inEngine = false; }
+      });
+      if (res && res.committed) break;
+      if (why === 'lock') {
+        if (!attempt) { const g = COOP.room && COOP.room.game; toast('Espera: ' + coopName(COOP.room, g && g.lock && g.lock.uid) + ' está usando una habilidad', 2500); }
+        await coopSleep(600); continue;
+      }
+      if (why === 'bad') toast('⚠ Ya no se puede: el estado ha cambiado');
+      break;
+    }
+  } finally {
+    COOP.acting = false; COOP.gameVer = -1;
+    if (COOP.room && COOP.room.game) { coopApplyState(COOP.room.game.state, true); COOP.gameVer = COOP.room.game.ver; }
+  }
+}
+
+// ── Habilidades: cerrojo corto sobre el estado mientras dura la selección ──
+async function coopAbilityStart(uid0) {
+  if (!coopMyTurn()) { toast('⚠ No es el turno de tu equipo'); return; }
+  if (!coopMine(uid0)) { toast('⚠ Esa ficha la lleva ' + coopName(COOP.room, coopOwner(uid0))); return; }
+  if (COOP.ability || COOP.acting) return;
+  const me = COOP.uid, side = COOP.mySide; let base = null, ver = 0;
+  const res = await coopTx('game', cur => {
+    if (!cur || !cur.state) return undefined;
+    if (cur.lock && cur.lock.uid !== me && cur.lock.until > coopNow()) return undefined;
+    cur.lock = { uid: me, until: coopNow() + COOP_T.ability }; base = cur.state; ver = cur.ver;
+    return cur;
+  });
+  if (!(res && res.committed) || !base) { toast('Espera: un compañero está usando una habilidad'); return; }
+  G = deserializeG(base); coopPrepG(me, side);
+  COOP.ability = { uid: uid0, base: new Set(G.revealedCells), teamBase: new Set(G.coopTeamRev), t0: Date.now(), until: coopNow() + COOP_T.ability };
+  renderGame(); updateSidebar();
+  COOP.fn.triggerAbility(uid0);
+  const watch = setInterval(() => {
+    const ab = COOP.ability; if (!ab) { clearInterval(watch); return; }
+    if (coopNow() > ab.until - 1500) {   // se agota el cerrojo: se descarta lo que estaba a medias
+      clearInterval(watch); G.abilityMode = null; try { closeModal(); } catch (_) {}
+      COOP.ability = null; toast('⏱ Se agotó el tiempo para usar la habilidad');
+      coopTx('game', cur => { if (!cur || !cur.lock || cur.lock.uid !== me) return undefined; cur.lock = null; return cur; });
+      if (COOP.room && COOP.room.game) { coopApplyState(COOP.room.game.state, true); COOP.gameVer = COOP.room.game.ver; }
+      return;
+    }
+    if (!G.abilityMode && !coopModalOpen() && Date.now() - ab.t0 > 250) { clearInterval(watch); coopAbilityCommit(); }
+  }, 200);
+}
+async function coopAbilityCommit() {
+  const ab = COOP.ability; if (!ab) return;
+  const me = COOP.uid, cur0 = G.revealedCells;
+  let added, team;
+  if (ab.teamBase.size && [...ab.teamBase].every(k => cur0.has(k))) { team = new Set(cur0); added = [...cur0].filter(k => !ab.teamBase.has(k)); }   // se recalculó la visión (Koldo)
+  else { added = [...cur0].filter(k => !ab.base.has(k)); team = new Set([...ab.teamBase, ...added]); }
+  if (added.length) G.coopRev[me] = [...new Set([...(G.coopRev[me] || []), ...added])];
+  G.coopTeamRev = team;
+  const st = coopSerialize();
+  const res = await coopTx('game', cur => {
+    if (!cur || !cur.lock || cur.lock.uid !== me) return undefined;
+    cur.state = st; cur.ver = (cur.ver || 0) + 1; cur.lock = null; return cur;
+  });
+  COOP.ability = null;
+  if (!(res && res.committed)) toast('⚠ No se pudo guardar la habilidad (se agotó el tiempo)');
+  if (COOP.room && COOP.room.game) { COOP.gameVer = -1; coopApplyState(COOP.room.game.state, true); COOP.gameVer = COOP.room.game.ver; }
+}
+
+// ── Avanzar fase: cada jugador marca «listo»; el anfitrión avanza ──
+function coopToggleReady() {
+  const g = COOP.room && COOP.room.game; if (!g || !coopMyTurn()) { toast('⚠ No es el turno de tu equipo'); return; }
+  if (G.abilityMode || COOP.ability) { toast('⚠ Termina primero la habilidad activa'); return; }
+  const mine = (COOP.room.ready || {})[COOP.uid] === g.phaseKey;
+  coopSet('ready/' + COOP.uid, mine ? null : g.phaseKey);
+}
+function coopActiveUids(room, side) {   // jugadores que deben pulsar Avanzar: conectados y con alguna ficha viva
+  const st = room.game.state || {}, units = st.units || [], owner = st.coopOwner || {};
+  return (room.build.order || []).filter(uid => {
+    const p = room.players[uid]; if (!p || p.online === false || coopSideOfUid(room, uid) !== side) return false;
+    return units.some(u => u.alive && owner[u.id] === uid);
+  });
+}
+function coopHostGame(room) {
+  const g = room.game; if (!g || !g.state || g.state.coopWinner) return;
+  if (g.lock && g.lock.until > coopNow()) return;
+  const side = g.state.currentSide, act = coopActiveUids(room, side), rd = room.ready || {};
+  const all = act.every(uid => rd[uid] === g.phaseKey);
+  if (!all && coopNow() <= g.deadline) return;
+  const key = g.phaseKey + ':' + g.ver; if (COOP.hostAdvKey === key) return; COOP.hostAdvKey = key;
+  coopTx('game', cur => {
+    if (!cur || !cur.state || cur.phaseKey !== g.phaseKey) return undefined;
+    if (cur.lock && cur.lock.until > coopNow()) return undefined;
+    COOP.inEngine = true;
+    try {
+      G = deserializeG(cur.state); G.coopTeamRev = new Set(G.revealedCells);
+      if (!G.coopRev) G.coopRev = {};
+      COOP.engineSide = G.currentSide;
+      if (G.gamePhase === 'movement') {
+        G.jorgeRevealPending = false;
+        computeVision(); G.coopTeamRev = new Set(G.revealedCells);
+        G.gamePhase = 'vision';
+      } else if (G.gamePhase === 'vision') G.gamePhase = 'shoot';
+      else coopEndTurn();
+      cur.state = coopSerialize(); cur.ver = (cur.ver || 0) + 1; cur.lock = null;
+      cur.phaseKey = G.round + '-' + G.currentSide + '-' + G.gamePhase; cur.deadline = coopNow() + COOP_T.phase;
+      return cur;
+    } catch (e) { console.warn('[coop]', e); return undefined; }
+    finally { COOP.inEngine = false; COOP.engineSide = null; }
+  }).then(() => { if (COOP.room && COOP.room.game) { COOP.gameVer = -1; coopApplyState(COOP.room.game.state, true); COOP.gameVer = COOP.room.game.ver; } });
+}
+// Fin de turno de equipo (el mismo cálculo que el online 1v1, sin ventanas)
+function coopEndTurn() {
+  const prevSide = G.currentSide;
+  if (G.currentSide === 'atk') {
+    const dib = G.units.some(u => u.side === 'def' && u.alive && inBombZone(u.row, u.col));
+    G.atkPick.forEach(uid => { const u = getUnit(uid); if (!u || !u.alive) return;
+      if (inBombZone(u.row, u.col)) { if (!dib) G.bombCounters[uid] = (G.bombCounters[uid] || 0) + 1; } else G.bombCounters[uid] = 0; });
+    checkWinConditions();
+  }
+  if (G.olayaKilledThisRound) { G.olayaBoostRound = G.round + 1; G.olayaKilledThisRound = false; G.olayaAbilityActive = false; }
+  G.pendingBulletMarkers = (G.shotsFired || []).filter(s => !s.blocked).map(s => ({ row: s.fromRow, col: s.fromCol }));
+  const alive = G.units.filter(u => u.side === prevSide && u.alive);
+  G.lastTurnUnmovedCount = alive.filter(u => !G.movedUnits.has(u.id)).length;
+  G.lastTurnSide = prevSide; G.lastTurnShots = [...(G.shotsFired || [])];
+  G.lastTurnAbilitiesUsedForSummary = G.lastTurnAbilitiesUsed || 0;
+  G.currentSide = G.currentSide === 'atk' ? 'def' : 'atk';
+  if (G.currentSide === 'atk') G.round++;
+  if (G.currentSide === 'def' && G.ucheBlockPending && G.ucheBlockedUnit) { G.ucheBlockRound = G.round; G.ucheBlockPending = false; }
+  G.gamePhase = 'movement';
+  G.bulletMarkers = G.pendingBulletMarkers || []; G.pendingBulletMarkers = [];
+  G.movedUnits = new Set();
+  if (G.currentSide === 'def' && G.ucheBlockRound === G.round && G.ucheBlockedUnit) G.movedUnits.add(G.ucheBlockedUnit);
+  G.shotFired = null; G.shotsFired = []; G.shotUnits = new Set();
+  G.curroExtendedShot = false; G.morientesSilentElim = false; G.hectorBlindCell = null;
+  G.koldoActive = false; G.olayaKilledThisRound = false;
+  G.revealedCells = new Set(); G.coopTeamRev = new Set(); G.coopRev = {};
+  G.selectedUnit = null; G.shootingUnit = null; G.lastTurnAbilitiesUsed = 0;
+}
+
+function coopShowWinner() {
+  COOP.winnerShown = true; coopBoardWait(false);
+  const w = G.coopWinner;
+  try { COOP.fn.endGame(w.winner, w.reason); } catch (e) { console.warn('[coop]', e); }
+  const res = document.getElementById('winner-result');
+  if (res) { const won = w.winner === COOP.mySide; res.textContent = won ? '🏆 VICTORIA DEL EQUIPO' : '💀 DERROTA DEL EQUIPO'; res.style.color = won ? 'var(--accent-green)' : 'rgba(212,80,63,.8)'; }
+  const wt = document.getElementById('winner-text'); if (wt) wt.textContent = w.winner === 'atk' ? 'GANAN LOS ATACANTES' : 'GANAN LOS DEFENSORES';
+}
+
+// ── Vista de partida ──
+function coopShowGame(room) {
+  const g = room.game;
+  if (COOP.view !== 'game') {
+    COOP.view = 'game'; COOP.mySide = room.players[COOP.uid].side; COOP.gameVer = 0; COOP.lastRev = new Set();
+    COOP.winnerShown = false; COOP.lastTurnKey = null; COOP.ability = null;
+    document.body.classList.add('coop-game');
+    try { if (gCanvas) gCanvas.removeEventListener('click', onGameClick); } catch (_) {}
+    initState(); G = deserializeG(g.state); coopPrepG(COOP.uid, COOP.mySide);
+    startGameLoop();
+  }
+  const msig = JSON.stringify(room.marks || {});
+  if (g.ver !== COOP.gameVer && !COOP.acting) { COOP.marksSig = msig; coopApplyState(g.state); if (!COOP.ability) COOP.gameVer = g.ver; }
+  else if (msig !== COOP.marksSig && !COOP.ability) { COOP.marksSig = msig; renderGame(); updateSidebar(); updateTurnBanner(); }
+  else { updateTurnBanner(); coopSidebarPanel(); if (G.currentSide !== COOP.mySide) coopBoardWait(true); }
+  if (!COOP.ability && !COOP.acting) { try { coopMarksSweep(); } catch (_) {} }
+  if (COOP.markSel && !coopMarksVisible()) COOP.markSel = null;
+}
+function coopSidebarPanel() {
+  const sb = document.getElementById('sidebar'); if (!sb || !coopInGame() || !COOP.room || !COOP.room.game) return;
+  let box = document.getElementById('coop-team-panel');
+  if (!box) { box = document.createElement('div'); box.id = 'coop-team-panel'; box.className = 'sidebar-panel'; }
+  if (sb.firstChild !== box) sb.insertBefore(box, sb.firstChild);
+  const room = COOP.room, g = room.game, rd = room.ready || {}, side = COOP.mySide;
+  const rows = coopSidePlayers(room, side).map(p => {
+    const units = G.units.filter(u => coopOwner(u.id) === p.uid);
+    const alive = units.some(u => u.alive);
+    const st = !alive ? 'Caído' : p.online === false ? 'Desconectado' : (G.currentSide === side ? (rd[p.uid] === g.phaseKey ? 'Listo' : '...') : '');
+    return '<div class="cg-mate' + (p.uid === COOP.uid ? ' me' : '') + '"><span class="cg-nm">' + coopEsc(p.name) + (p.uid === COOP.uid ? ' (tú)' : '') + '<small>' + coopEsc(units.map(u => u.name).join(' · ')) + '</small></span>'
+      + (st ? '<span class="cr-badge ' + (st === 'Listo' ? 'ok' : 'wait') + '">' + st + '</span>' : '') + '</div>';
+  }).join('');
+  box.innerHTML = '<div class="sidebar-title">Tu equipo · ' + (side === 'atk' ? 'Atacantes' : 'Defensores') + '</div>' + rows;
+}
+
+// ── Enganches con el motor (solo actúan dentro de una partida cooperativa) ──
+(function() {
+  COOP.fn = { moveUnit: window.moveUnit, shootTarget: window.shootTarget, triggerAbility: window.triggerAbility, endGame: window.endGame };
+  const oVS = window.viewSide;
+  window.viewSide = function() { return coopInGame() ? (COOP.engineSide || COOP.mySide) : oVS.apply(this, arguments); };
+  window.moveUnit = function(uid, r, c) { if (coopInGame() && !COOP.inEngine && !COOP.ability) { coopAction({ t:'move', uid, r, c }); G.selectedUnit = null; return; } return COOP.fn.moveUnit.apply(this, arguments); };
+  window.shootTarget = function(t) {
+    if (coopInGame() && !COOP.inEngine && !COOP.ability) { coopAction({ t:'shoot', shooter: t.shooter.id, r: t.target.row, c: t.target.col }); return; }
+    return COOP.fn.shootTarget.apply(this, arguments);
+  };
+  window.triggerAbility = function(uid) {
+    if (coopInGame() && !COOP.ability) { coopAbilityStart(uid); return; }
+    return COOP.fn.triggerAbility.apply(this, arguments);
+  };
+  const oEG = window.endGame;
+  window.endGame = function(winner, reason) {
+    if (coopInGame() && COOP.inEngine) { if (!G.coopWinner) G.coopWinner = { winner, reason }; return; }
+    if (coopInGame() && COOP.ability) { if (!G.coopWinner) G.coopWinner = { winner, reason }; return; }   // se publica al soltar el cerrojo
+    return oEG.apply(this, arguments);
+  };
+  COOP.fn.endGame = oEG;
+  const oST = window.getShootableTargets;
+  window.getShootableTargets = function() {
+    const t = oST.apply(this, arguments);
+    if (!coopInGame()) return t;
+    return t.filter(x => coopOwner(x.shooter.id) === COOP.uid);   // solo disparan tus fichas
+  };
+  const oAA = window.isAbilityAvailable;
+  window.isAbilityAvailable = function(u, phase) {
+    if (coopInGame() && (!coopMine(u.id) || G.currentSide !== COOP.mySide || G.coopWinner)) return false;
+    return oAA.apply(this, arguments);
+  };
+  const oAP = window.advancePhase;
+  window.advancePhase = function() { if (coopInGame()) { coopToggleReady(); return; } return oAP.apply(this, arguments); };
+  const oTB = window.updateTurnBanner;
+  window.updateTurnBanner = function() {
+    if (!coopInGame()) return oTB.apply(this, arguments);
+    const room = COOP.room, g = room && room.game; if (!g) return;
+    const side = COOP.mySide, mine = G.currentSide === side, secs = Math.max(0, Math.ceil(((g.deadline || 0) - coopNow()) / 1000));
+    const act = coopActiveUids(room, G.currentSide), rd = room.ready || {}, n = act.filter(u => rd[u] === g.phaseKey).length, iReady = rd[COOP.uid] === g.phaseKey;
+    const el = document.getElementById('turn-banner'); if (!el) return;
+    el.innerHTML = '<span class="turn-player ' + side + '">' + (side === 'atk' ? '⚔ ATACANTES' : '🛡 DEFENSORES') + '</span>'
+      + '<span class="cg-phase' + (mine ? ' on' : '') + '">' + (mine ? 'TU EQUIPO · ' : 'RIVAL · ') + (COOP_PHASE_LBL[G.gamePhase] || '').toUpperCase() + ' · <b' + (secs <= 10 ? ' class="warn"' : '') + '>' + secs + ' s</b></span>'
+      + (mine && act.includes(COOP.uid) ? '<button onclick="advancePhase()" class="btn-primary' + (iReady ? ' cg-ready' : '') + '" style="padding:8px 16px;font-size:.78rem;">' + (iReady ? 'LISTO ✓ ' : 'AVANZAR FASE ▶ ') + n + '/' + act.length + '</button>' : '')
+      + '<span class="turn-round">RONDA ' + G.round + '</span>';
+  };
+  const oUS = window.updateSidebar;
+  window.updateSidebar = function() {
+    const r = oUS.apply(this, arguments);
+    if (coopInGame()) try {
+      coopSidebarPanel();
+      // lista de unidades: las de tus compañeros, atenuadas y con el nombre de quien las lleva
+      const items = document.querySelectorAll('#sidebar .unit-list-item'), us = G.units.filter(u => u.side === COOP.mySide);
+      items.forEach((it, i) => { const u = us[i]; if (!u || coopMine(u.id)) return;
+        it.classList.add('cg-other');
+        const b = it.querySelector('.unit-ability-btn'); if (b) b.remove();
+        const tag = document.createElement('span'); tag.className = 'cg-owner'; tag.textContent = coopName(COOP.room, coopOwner(u.id)); it.appendChild(tag); });
+    } catch (_) {}
+    return r;
+  };
+  if (typeof window.turnSweep === 'function') {
+    const oTS = window.turnSweep;
+    window.turnSweep = function() { const r = oTS.apply(this, arguments);
+      if (coopInGame()) { const w = document.querySelector('#turn-sweep .ts-who'); if (w) w.textContent = G.currentSide === COOP.mySide ? 'TURNO DE TU EQUIPO' : 'TURNO RIVAL'; }
+      return r; };
+  }
+  // Clic en el tablero: solo tus fichas; dron y doble los mueve su dueño
+  const oGC = window.onGameClick;
+  window.onGameClick = function(e) {
+    if (!coopInGame()) return oGC.apply(this, arguments);
+    if (G.coopWinner) return;
+    if (G.currentSide !== COOP.mySide) { toast('⚠ Es el turno del equipo rival'); return; }
+    if (COOP.acting) return;
+    let mx, my;
+    if (e && e.__xy) { mx = e.__xy[0]; my = e.__xy[1]; }
+    else { const rc = gCanvas.getBoundingClientRect(); mx = (e.clientX - rc.left) * (gCanvas.width / rc.width); my = (e.clientY - rc.top) * (gCanvas.height / rc.height); }
+    let cr = -1, cc = -1;
+    for (let r = 0; r < GRID && cr < 0; r++) for (let c = 0; c < GRID; c++) { const p = gCellTL(r, c); if (mx >= p.x && mx <= p.x + GCS && my >= p.y && my <= p.y + GCS) { cr = r; cc = c; break; } }
+    if (G.abilityMode || cr < 0 || G.gamePhase !== 'movement') return oGC.apply(this, arguments);
+    if (G.selectedUnit === 'esteban_drone' || G.selectedUnit === 'iarramendi_decoy') {
+      const type = G.selectedUnit === 'esteban_drone' ? 'esteban' : 'iarramendi', d = G.devices.find(x => x.type === type && x.alive);
+      if (d && getDroneValidMoves(d).find(m => m.r === cr && m.c === cc)) { const key = G.selectedUnit; G.selectedUnit = null; coopAction({ t:'dmove', key, r: cr, c: cc }); return; }
+    }
+    if (!G.selectedUnit) {
+      const u = G.units.find(x => x.alive && x.side === COOP.mySide && x.row === cr && x.col === cc);
+      if (u && !coopMine(u.id)) { toast('Esa ficha la lleva ' + coopName(COOP.room, coopOwner(u.id))); return; }
+      const dv = G.devices.find(x => x.alive && (x.type === 'esteban' || x.type === 'iarramendi') && x.row === cr && x.col === cc);
+      if (dv && !coopMine(dv.type) && !u) { toast('Ese dispositivo lo mueve ' + coopName(COOP.room, coopOwner(dv.type))); return; }
+    }
+    return oGC.apply(this, arguments);
+  };
+  // Jorge: lo que desvela su venganza solo lo ve quien lo lleva
+  const oRG = window.renderGame;
+  window.renderGame = function() {
+    if (!coopInGame()) return oRG.apply(this, arguments);
+    const jr = G.jorgeRevealPending;
+    if (jr && !coopMine('jorge')) G.jorgeRevealPending = false;
+    try { return oRG.apply(this, arguments); }
+    finally {
+      G.jorgeRevealPending = jr;
+      try {   // 2D: halo dorado en tus fichas
+        if (gCtx && !(VIEW3D && VIEW3D.on)) {
+          gCtx.save(); gCtx.strokeStyle = '#f3d48a'; gCtx.lineWidth = 2.5; gCtx.shadowColor = 'rgba(243,212,138,.8)'; gCtx.shadowBlur = 8;
+          G.units.filter(u => u.alive && coopMine(u.id)).forEach(u => { const p = gCellTL(u.row, u.col); gCtx.beginPath(); gCtx.arc(p.x + GCS / 2, p.y + GCS / 2, GCS * 0.6, 0, Math.PI * 2); gCtx.stroke(); });
+          gCtx.restore();
+        }
+      } catch (_) {}
+    }
+  };
+  // 3D: halo del color del bando bajo tus fichas
+  try {
+    const oSync = VIEW3D.sync.bind(VIEW3D);
+    VIEW3D.sync = function() { if (coopInGame() && this.frame && this.frame.units) this.frame.units.forEach(e => { if (e.u) e.halo = coopMine(e.u.id); }); return oSync.apply(this, arguments); };
+    const P = Object.getPrototypeOf(VIEW3D), oST2 = P.styleToken;
+    P.styleToken = function(g, o) {
+      const r = oST2.apply(this, arguments);
+      try {
+        const u = g.userData;
+        if (o && o.halo && !u.halo) {
+          const m = new THREE.Mesh(this.geo.ring, new THREE.MeshBasicMaterial({ color: 0xf3d48a, transparent: true, opacity: 0.75, side: THREE.DoubleSide }));
+          m.rotation.x = -Math.PI / 2; m.position.y = 0.02; m.scale.setScalar(1.45); g.add(m); u.halo = m;
+        }
+        if (u.halo) u.halo.visible = !!(o && o.halo);
+      } catch (_) {}
+      return r;
+    };
+  } catch (e) { console.warn('[coop] halo 3D', e); }
+})();
+
+// ═══ MODO COOPERATIVO · marcadores compartidos con el equipo (entrega 5) ═══
+// rooms/coop_{CODE}/marks/{uid} = { h:{0..3:'r_c'}, d:{0..1:'r_c'}, i:'r_c' }   (cada jugador solo escribe los suyos)
+// Se ven en la fase de movimiento del propio equipo. Los del equipo rival no se muestran nunca.
+const COOP_MARKS = { h:{ n:4, lbl:'Hipótesis', ic:'+' }, d:{ n:2, lbl:'Dispositivo', ic:'◆' }, i:{ n:1, lbl:'Intención', ic:'📍' } };
+Object.assign(COOP, { markSel:null, marksSig:'' });
+function coopMarkCell(v) { if (!v) return null; const [r, c] = String(v).split('_').map(Number); return { r, c }; }
+function coopPlayerAlive(uid) { return G.units.some(u => u.alive && coopOwner(u.id) === uid); }
+// Marcadores visibles para mí: solo de mi equipo y de jugadores con alguna ficha viva
+function coopTeamMarks() {
+  const room = COOP.room, all = (room && room.marks) || {}, out = [];
+  Object.keys(all).forEach(uid => {
+    if (coopSideOfUid(room, uid) !== COOP.mySide || !coopPlayerAlive(uid)) return;
+    const m = all[uid] || {};
+    ['h', 'd'].forEach(k => Object.keys(m[k] || {}).forEach(i => { const p = coopMarkCell(m[k][i]); if (p) out.push({ uid, k, i: +i, r: p.r, c: p.c }); }));
+    const p = coopMarkCell(m.i); if (p) out.push({ uid, k: 'i', i: 0, r: p.r, c: p.c });
+  });
+  return out;
+}
+function coopMarksVisible() { return coopInGame() && !G.coopWinner && G.gamePhase === 'movement' && G.currentSide === COOP.mySide; }
+function coopTeamOccupies(r, c) {
+  const side = COOP.mySide;
+  return G.units.some(u => u.alive && u.side === side && u.row === r && u.col === c)
+    || G.devices.some(d => d.alive && (COOP_ATK_DEV.has(d.type) ? 'atk' : 'def') === side && d.row === r && d.col === c);
+}
+function coopMyMarks() { return ((COOP.room && COOP.room.marks) || {})[COOP.uid] || {}; }
+function coopMarkPath(k, i) { return 'marks/' + COOP.uid + '/' + (k === 'i' ? 'i' : k + '/' + i); }
+function coopMarkGet(k, i) { const m = coopMyMarks(); return k === 'i' ? m.i : (m[k] || {})[i]; }
+function coopMarkPick(k, i) {   // panel: colocar (o retirar si ya está en el tablero)
+  if (!coopMarksVisible()) return;
+  if (coopMarkGet(k, i)) { coopSet(coopMarkPath(k, i), null); COOP.markSel = null; }
+  else COOP.markSel = (COOP.markSel && COOP.markSel.k === k && COOP.markSel.i === i) ? null : { k, i };
+  renderGame(); updateSidebar();
+}
+function coopMarkClickCell(r, c) {   // devuelve true si el clic era para los marcadores
+  if (!coopMarksVisible() || G.abilityMode) return false;
+  if (COOP.markSel) {
+    const { k, i } = COOP.markSel; COOP.markSel = null;
+    if (isCentralCell(r, c)) { toast('⚠ La casilla central está bloqueada'); }
+    else if (coopTeamOccupies(r, c)) { toast('⚠ Ahí ya hay una ficha o dispositivo de tu equipo'); }
+    else {
+      const m = coopMyMarks();   // un mismo jugador no repite casilla con el mismo tipo de marcador
+      if (k !== 'i') Object.keys(m[k] || {}).forEach(j => { if (m[k][j] === r + '_' + c && +j !== i) coopSet(coopMarkPath(k, +j), null); });
+      coopSet(coopMarkPath(k, i), r + '_' + c);
+    }
+    renderGame(); updateSidebar(); return true;
+  }
+  const mine = coopTeamMarks().filter(x => x.uid === COOP.uid && x.r === r && x.c === c);
+  if (mine.length && !G.selectedUnit) { mine.forEach(x => coopSet(coopMarkPath(x.k, x.i), null)); toast('Marcador recogido'); return true; }
+  return false;
+}
+// Mis marcadores vuelven a la mano si una ficha o dispositivo del equipo ocupa su casilla; si caigo, desaparecen
+function coopMarksSweep() {
+  if (!coopInGame() || !COOP.room || !COOP.room.marks || !COOP.room.marks[COOP.uid]) return;
+  if (!coopPlayerAlive(COOP.uid)) { coopSet('marks/' + COOP.uid, null); return; }
+  coopTeamMarks().filter(x => x.uid === COOP.uid && coopTeamOccupies(x.r, x.c)).forEach(x => coopSet(coopMarkPath(x.k, x.i), null));
+}
+// Camino más corto (pasos de una casilla, respetando paredes y esquinas) desde la ficha más cercana del dueño
+function coopIntentPath(uid, r, c) {
+  const starts = G.units.filter(u => u.alive && coopOwner(u.id) === uid);
+  if (!starts.length) return null;
+  const key = (a, b) => a + '_' + b, prev = new Map(), q = [];
+  starts.forEach(u => { prev.set(key(u.row, u.col), null); q.push([u.row, u.col]); });
+  while (q.length) {
+    const [cr, cc] = q.shift();
+    if (cr === r && cc === c) break;
+    getDroneValidMoves({ row: cr, col: cc }).forEach(m => { const k = key(m.r, m.c); if (!prev.has(k)) { prev.set(k, key(cr, cc)); q.push([m.r, m.c]); } });
+  }
+  if (!prev.has(key(r, c))) return null;
+  const path = []; let k = key(r, c);
+  while (k) { const [a, b] = k.split('_').map(Number); path.unshift({ r: a, c: b }); k = prev.get(k); }
+  return path;
+}
+function coopMarkGroups() {   // agrupado por casilla: hipótesis y dispositivo cuentan jugadores distintos
+  const g = {};
+  coopTeamMarks().forEach(x => {
+    if (x.k === 'i') return;
+    const id = x.k + '_' + x.r + '_' + x.c;
+    (g[id] = g[id] || { k: x.k, r: x.r, c: x.c, uids: new Set(), mine: false }).uids.add(x.uid);
+    if (x.uid === COOP.uid) g[id].mine = true;
+  });
+  return Object.values(g);
+}
+
+// ── Dibujo 2D ──
+function coopDrawMarks2D(ctx) {
+  const green = 'rgba(127,194,106,', side = COOP.mySide, sc = side === 'atk' ? '226,102,90' : '116,163,221';
+  coopMarkGroups().forEach(gr => {
+    const { x, y } = gCellTL(gr.r, gr.c), n = gr.uids.size;
+    ctx.save();
+    if (gr.k === 'h') {
+      ctx.fillStyle = green + '.14)'; ctx.fillRect(x + 1, y + 1, GCS - 2, GCS - 2);
+      ctx.strokeStyle = green + (gr.mine ? '.95)' : '.6)'); ctx.lineWidth = gr.mine ? 2 : 1.5; ctx.strokeRect(x + 1, y + 1, GCS - 2, GCS - 2);
+      ctx.fillStyle = green + '.95)'; ctx.font = 'bold ' + Math.floor(GCS * .55) + 'px Barlow Condensed,Arial Narrow,Arial,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('+', x + GCS / 2, y + GCS / 2 + 1);
+    } else {
+      const cx = x + GCS / 2, cy = y + GCS / 2, s = GCS * .3;
+      ctx.fillStyle = green + '.22)'; ctx.strokeStyle = green + (gr.mine ? '.95)' : '.65)'); ctx.lineWidth = gr.mine ? 2 : 1.5; ctx.setLineDash([3, 2]);
+      ctx.beginPath(); ctx.moveTo(cx, cy - s); ctx.lineTo(cx + s, cy); ctx.lineTo(cx, cy + s); ctx.lineTo(cx - s, cy); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    if (n > 1) {   // cartel con el número de jugadores
+      ctx.setLineDash([]); ctx.fillStyle = 'rgba(30,60,26,.95)'; ctx.beginPath(); ctx.arc(x + GCS - 7, y + 7, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#d9f2cf'; ctx.font = 'bold 10px Inter,Arial,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(n, x + GCS - 7, y + 7.5);
+    }
+    ctx.restore();
+  });
+  // intención: camino punteado y chincheta
+  const pins = coopTeamMarks().filter(x => x.k === 'i'), perCell = {};
+  pins.forEach(p => {
+    const path = coopIntentPath(p.uid, p.r, p.c), off = (perCell[p.r + '_' + p.c] = (perCell[p.r + '_' + p.c] || 0) + 1) - 1;
+    ctx.save();
+    if (path && path.length > 1) {
+      ctx.strokeStyle = 'rgba(' + sc + ',' + (p.uid === COOP.uid ? '.9' : '.55') + ')'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); path.forEach((q, j) => { const t = gCellTL(q.r, q.c); const px = t.x + GCS / 2, py = t.y + GCS / 2; j ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }); ctx.stroke();
+    }
+    const t = gCellTL(p.r, p.c), px = t.x + GCS / 2 + off * 9, py = t.y + GCS / 2 - 4;
+    ctx.setLineDash([]); ctx.fillStyle = 'rgb(' + sc + ')'; ctx.strokeStyle = '#111'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(px, py - 6, 8, Math.PI * 0.85, Math.PI * 2.15); ctx.lineTo(px, py + 8); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Inter,Arial,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(((COOP.room.players[p.uid] || {}).name || '?').trim().charAt(0).toUpperCase(), px, py - 6);
+    ctx.restore();
+  });
+  if (COOP.markSel) {   // casillas donde se puede soltar
+    ctx.save(); ctx.strokeStyle = green + '.25)'; ctx.lineWidth = 1;
+    for (let r = 0; r < GRID; r++) for (let c = 0; c < GRID; c++) { if (isCentralCell(r, c) || coopTeamOccupies(r, c)) continue; const q = gCellTL(r, c); ctx.strokeRect(q.x + .5, q.y + .5, GCS - 1, GCS - 1); }
+    ctx.restore();
+  }
+}
+
+// ── Dibujo 3D ──
+const COOP3D = new Map();
+function coopLabelTex(b, txt) {
+  b._coopTex = b._coopTex || new Map(); let t = b._coopTex.get(txt); if (t) return t;
+  const cv = document.createElement('canvas'); cv.width = 96; cv.height = 96; const cx = cv.getContext('2d');
+  cx.fillStyle = 'rgba(30,70,26,.95)'; cx.beginPath(); cx.arc(48, 48, 40, 0, Math.PI * 2); cx.fill();
+  cx.strokeStyle = '#9fdc8a'; cx.lineWidth = 5; cx.stroke();
+  cx.fillStyle = '#e6ffd9'; cx.font = '700 50px Inter, sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(txt, 48, 52);
+  t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding; b._coopTex.set(txt, t); return t;
+}
+function coopGreenify(g, op) {
+  const mats = g.userData.mats || [];
+  mats.forEach(x => { x.transparent = true; x.depthWrite = false; });
+  mats.slice(0, 3).forEach(x => { x.color.setHex(0x7fc26a).convertSRGBToLinear(); if (x.emissive) { x.emissive.setHex(0x2f6b2a).convertSRGBToLinear(); x.emissiveIntensity = 0.35; } x.opacity = op; });
+  if (g.userData.lab) g.userData.lab.visible = false;
+  if (g.userData.ring) g.userData.ring.visible = false;
+  g.traverse(o => { if (o.isMesh) o.castShadow = false; });
+}
+function coopMarks3D(b) {
+  if (b !== VIEW3D || !b.ready) return false;
+  const scene = b.scene; if (!scene) return false;
+  const want = new Map();
+  if (coopMarksVisible()) {
+    coopMarkGroups().forEach(gr => want.set(gr.k + ':' + gr.r + '_' + gr.c + ':' + gr.uids.size, gr));
+    const side = COOP.mySide;
+    coopTeamMarks().filter(x => x.k === 'i').forEach(p => {
+      const path = coopIntentPath(p.uid, p.r, p.c) || [];
+      want.set('i:' + p.uid + ':' + p.r + '_' + p.c + ':' + path.map(q => q.r + '.' + q.c).join('-'), { k: 'i', uid: p.uid, r: p.r, c: p.c, path, side });
+    });
+  }
+  let changed = false;
+  COOP3D.forEach((g, k) => { if (!want.has(k)) { scene.remove(g); g.traverse(o => { if (o.material) o.material.dispose(); }); COOP3D.delete(k); changed = true; } });
+  want.forEach((m, k) => {
+    if (COOP3D.has(k)) return;
+    let g;
+    const p = b.cellPos(m.r, m.c);
+    if (m.k === 'h' || m.k === 'd') {
+      g = m.k === 'h' ? b.makeSoldier('', 'def') : b.makeToken('', 'dev');
+      coopGreenify(g, m.k === 'h' ? 0.55 : 0.5);
+      g.scale.setScalar((g.userData.baseScale || 1.1) * (m.k === 'd' ? 1.35 : 1));
+      g.position.set(p.x, 0, p.z);
+      if (m.uids.size > 1) {
+        const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: coopLabelTex(b, String(m.uids.size)), depthTest: false, transparent: true }));
+        s.scale.set(0.75, 0.75, 1); s.position.set(0, m.k === 'h' ? 1.9 : 1.3, 0); s.renderOrder = 11; g.add(s);
+      }
+    } else {
+      g = new THREE.Group();
+      const col = m.side === 'atk' ? 0xe2665a : 0x74a3dd;
+      const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.4, emissive: col, emissiveIntensity: 0.25 }); mat.color.convertSRGBToLinear();
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), mat); head.position.set(p.x, 1.05, p.z);
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.7, 14), mat); cone.rotation.x = Math.PI; cone.position.set(p.x, 0.62, p.z);
+      g.add(head); g.add(cone);
+      const dotMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: m.uid === COOP.uid ? 0.85 : 0.5 });
+      const dg = new THREE.SphereGeometry(0.06, 8, 6);
+      for (let j = 0; j + 1 < m.path.length; j++) {
+        const a = b.cellPos(m.path[j].r, m.path[j].c), z = b.cellPos(m.path[j + 1].r, m.path[j + 1].c);
+        for (let s = 0; s < 4; s++) { const t = (s + 0.5) / 4; const d = new THREE.Mesh(dg, dotMat); d.position.set(a.x + (z.x - a.x) * t, 0.08, a.z + (z.z - a.z) * t); g.add(d); }
+      }
+    }
+    scene.add(g); COOP3D.set(k, g); changed = true;
+  });
+  if (changed) b.dirty = true;
+  return false;
+}
+(function() {
+  const hook = () => {
+    if (typeof VIEW3D === 'undefined' || !VIEW3D.extraFx) return setTimeout(hook, 300);
+    const o = VIEW3D.extraFx;
+    VIEW3D.extraFx = function(now) { const r = o.call(this, now); try { coopMarks3D(this); } catch (e) { console.warn('[coop marcadores 3D]', e); } return r; };
+  };
+  hook();
+})();
+
+// ── Panel de marcadores (sustituye al de hipótesis personal) ──
+function coopMarkPanelHTML() {
+  if (!coopMarksVisible()) return '';
+  const row = k => { const d = COOP_MARKS[k]; let h = '<div class="cm-row"><span class="cm-lbl">' + d.lbl + '</span>';
+    for (let i = 0; i < d.n; i++) { const on = !!coopMarkGet(k, i), sel = COOP.markSel && COOP.markSel.k === k && COOP.markSel.i === i;
+      h += '<button type="button" class="cm-dot ' + k + (on ? ' on' : '') + (sel ? ' sel' : '') + '" onclick="coopMarkPick(\'' + k + '\',' + i + ')" title="' + (on ? 'Retirar del tablero' : 'Colocar en el tablero') + '">' + d.ic + '</button>'; }
+    return h + '</div>'; };
+  const n = coopTeamMarks().length;
+  return '<div class="marker-panel cm-panel"><div class="cm-head">🔍 Marcadores del equipo <small>' + n + ' en el tablero</small></div>'
+    + row('h') + row('d') + row('i')
+    + '<div class="cm-hint">' + (COOP.markSel ? '<b>Elige una casilla…</b>' : 'Tus compañeros los ven. Toca uno tuyo en el tablero para recogerlo.') + '</div></div>';
+}
+(function() {
+  const oMS = window.markerSidebarHTML;
+  window.markerSidebarHTML = function(phase) { if (coopInGame()) return coopMarkPanelHTML(); return oMS.apply(this, arguments); };
+  const oRG = window.renderGame;
+  window.renderGame = function() {
+    const r = oRG.apply(this, arguments);
+    try { if (coopMarksVisible() && gCtx && !(VIEW3D && VIEW3D.on)) coopDrawMarks2D(gCtx); } catch (e) { console.warn('[coop marcadores]', e); }
+    try { if (coopInGame() && VIEW3D && VIEW3D.on) VIEW3D.dirty = true; } catch (_) {}
+    return r;
+  };
+  const oGC = window.onGameClick;
+  window.onGameClick = function(e) {
+    if (coopInGame() && coopMarksVisible() && !G.abilityMode && !COOP.acting) {
+      let mx, my;
+      if (e && e.__xy) { mx = e.__xy[0]; my = e.__xy[1]; }
+      else { const rc = gCanvas.getBoundingClientRect(); mx = (e.clientX - rc.left) * (gCanvas.width / rc.width); my = (e.clientY - rc.top) * (gCanvas.height / rc.height); }
+      for (let r = 0; r < GRID; r++) for (let c = 0; c < GRID; c++) { const p = gCellTL(r, c); if (mx >= p.x && mx <= p.x + GCS && my >= p.y && my <= p.y + GCS) { if (coopMarkClickCell(r, c)) return; r = GRID; break; } }
+    }
+    return oGC.apply(this, arguments);
+  };
+})();
+
+// ═══ MODO COOPERATIVO · desconexiones, espectador, final y estadísticas (entrega 6) ═══
+COOP_T.abandon = 180000;
+Object.assign(COOP, { onlineSnap:null, deadNotified:false, statsSaved:false });
+
+// ── Anfitrión: el jugador conectado que entró antes (si el anfitrión se cae, toma el relevo el siguiente) ──
+function coopHostUid(room) {
+  const ps = coopPlayers(room), on = ps.filter(p => p.online !== false);
+  return (on[0] || ps[0] || {}).uid || null;
+}
+
+// ── Avisos de conexión de los demás jugadores ──
+function coopPresenceNotices(room) {
+  const now = {};
+  coopPlayers(room).forEach(p => { now[p.uid] = p.online !== false; });
+  const prev = COOP.onlineSnap; COOP.onlineSnap = now;
+  if (!prev || !coopInGame()) return;
+  Object.keys(now).forEach(uid => {
+    if (uid === COOP.uid || prev[uid] === undefined || prev[uid] === now[uid]) return;
+    const p = room.players[uid], mate = p.side === COOP.mySide;
+    toast(now[uid] ? '🔌 ' + p.name + ' ha vuelto a la partida' : '⚠ ' + p.name + (mate ? ' se ha desconectado: sus fichas quedan quietas hasta que vuelva' : ' (equipo rival) se ha desconectado'), 4000);
+  });
+  Object.keys(prev).forEach(uid => { if (!(uid in now) && uid !== COOP.uid) { toast('🚪 Un jugador ha abandonado la partida: sus fichas siguen en el tablero', 4000); } });
+}
+
+// ── Anfitrión: si un equipo entero se va (o se desconecta) 3 minutos, gana el otro ──
+function coopHostAbandon(room) {
+  const g = room.game; if (!g || !g.state || g.state.coopWinner) return;
+  ['atk', 'def'].forEach(side => {
+    const here = (room.build.order || []).some(uid => { const p = room.players[uid]; return p && p.online !== false && coopSideOfUid(room, uid) === side; });
+    const since = (g.absent || {})[side];
+    if (here) { if (since) coopSet('game/absent/' + side, null); return; }
+    if (!since) { coopSet('game/absent/' + side, coopNow()); return; }
+    if (coopNow() - since < COOP_T.abandon) return;
+    const winner = side === 'atk' ? 'def' : 'atk';
+    coopTx('game', cur => {
+      if (!cur || !cur.state || cur.state.coopWinner) return undefined;
+      cur.state.coopWinner = { winner, reason: 'El equipo ' + (side === 'atk' ? 'atacante' : 'defensor') + ' abandonó la partida' };
+      cur.ver = (cur.ver || 0) + 1; cur.lock = null; return cur;
+    });
+  });
+}
+
+// ── Volver a una partida cooperativa en curso (al abrir la app) ──
+function coopSaveActive(code) { try { if (code) localStorage.setItem('bf_coop_room', code); else localStorage.removeItem('bf_coop_room'); } catch (_) {} }
+async function coopCheckResume() {
+  let code = null; try { code = localStorage.getItem('bf_coop_room'); } catch (_) {}
+  const user = window._currentUser;
+  if (!code || !user || COOP.code) return;
+  try {
+    const s = await window._fbGet(coopRef(coopPath(code)));
+    const room = s.val();
+    const p = room && room.players && room.players[user.uid];
+    if (!p || room.status === 'lobby' || room.status === 'pick' || (room.game && room.game.state && room.game.state.coopWinner)) { coopSaveActive(null); return; }
+    showModal('PARTIDA COOPERATIVA EN CURSO', 'Sigues en la sala <b>' + coopEsc(code) + '</b> (' + COOP_SIDE_LBL[p.side].toLowerCase() + '). Mientras no vuelvas, tus fichas se quedan quietas.', [
+      { label:'ABANDONAR', action: async () => { coopSaveActive(null); try { await window._fbSet(coopRef(coopPath(code, 'players/' + user.uid)), null); } catch (_) {} } },
+      { label:'VOLVER A LA PARTIDA', action: () => coopEnter(code) },
+    ]);
+  } catch (_) {}
+}
+(function() {   // al cargar, en cuanto haya sesión
+  let n = 0; const t = setInterval(() => { if (window._currentUser && window._db) { clearInterval(t); coopCheckResume(); } else if (++n > 40) clearInterval(t); }, 500);
+})();
+
+// ── Estadísticas por jugador (se guardan en el propio estado de la partida) ──
+function coopStat(uid, k, n) { if (!G.coopStats) G.coopStats = {}; const s = G.coopStats[uid] = G.coopStats[uid] || {}; s[k] = (s[k] || 0) + (n == null ? 1 : n); }
+function coopStatsHTML() {
+  const room = COOP.room, st = G.coopStats || {}, w = G.coopWinner || {};
+  const mins = G.coopStartTs ? Math.max(1, Math.round((Date.now() - G.coopStartTs) / 60000)) : null;
+  const rows = side => coopPlayers(room).filter(p => p.side === side).concat(
+      (room.build.order || []).filter(uid => !room.players[uid] && coopSideOfUid(room, uid) === side).map(uid => ({ uid, name: 'Jugador que salió', side })))
+    .map(p => {
+      const s = st[p.uid] || {}, units = G.units.filter(u => coopOwner(u.id) === p.uid);
+      const chars = units.map(u => '<span class="' + (u.alive ? '' : 'dead') + '">' + coopEsc(u.name) + '</span>').join(' · ');
+      return '<tr class="' + (p.uid === COOP.uid ? 'me' : '') + '"><td><b>' + coopEsc(p.name) + '</b><small>' + chars + '</small></td><td>' + (s.kills || 0) + '</td><td>' + (s.shots || 0) + '</td><td>' + (s.moves || 0) + '</td><td>' + (s.abil || 0) + '</td></tr>';
+    }).join('');
+  const team = side => '<div class="cs-team ' + side + (w.winner === side ? ' won' : '') + '"><h4>' + (side === 'atk' ? '⚔ Atacantes' : '🛡 Defensores') + (w.winner === side ? ' <i>Ganan</i>' : '') + '</h4>'
+    + '<table><thead><tr><th>Jugador</th><th title="Bajas causadas">Bajas</th><th>Disparos</th><th title="Movimientos">Movs.</th><th title="Habilidades usadas">Hab.</th></tr></thead><tbody>' + rows(side) + '</tbody></table></div>';
+  return '<div class="coop-stats"><div class="cs-meta">' + (room.format || 4) + ' vs ' + (room.format || 4) + ' · ' + (G.round || 1) + ' rondas' + (mins ? ' · ' + mins + ' min' : '') + '</div>' + team(COOP.mySide) + team(COOP.mySide === 'atk' ? 'def' : 'atk') + '</div>';
+}
+async function coopSaveProfile() {
+  if (COOP.statsSaved) return; COOP.statsSaved = true;
+  const user = window._currentUser; if (!user || !G.coopWinner) return;
+  const won = G.coopWinner.winner === COOP.mySide, s = (G.coopStats || {})[COOP.uid] || {};
+  const mine = G.units.filter(u => coopOwner(u.id) === COOP.uid);
+  try {
+    const ref = window._fbRef(window._db, 'users/' + user.uid + '/stats/coop');
+    const snap = await window._fbGet(ref), c = snap.val() || { games:0, wins:0, losses:0, kills:0, shots:0 };
+    c.games++; if (won) c.wins++; else c.losses++;
+    c.kills = (c.kills || 0) + (s.kills || 0); c.shots = (c.shots || 0) + (s.shots || 0);
+    await window._fbSet(ref, c);
+    await window._fbSet(window._fbRef(window._db, 'users/' + user.uid + '/coopHistory/' + Date.now()), {
+      ts: Date.now(), won, side: COOP.mySide, format: (COOP.room && COOP.room.format) || 4, rounds: G.round || 1,
+      picks: mine.map(u => u.id), lost: mine.filter(u => !u.alive).length, kills: s.kills || 0 });
+  } catch (e) { console.warn('[coop] estadísticas', e); }
+}
+function coopLeaveFromEnd() { coopSaveActive(null); coopLeave(); }
+
+(function() {
+  // estadísticas de acciones simples
+  const oAA = coopApplyAction;
+  coopApplyAction = function(act, uid, side) {
+    let before = null;
+    if (act.t === 'shoot') before = G.units.filter(u => u.alive && u.side !== side).map(u => u.id);
+    const ok = oAA.apply(this, arguments);
+    if (!ok) return ok;
+    if (act.t === 'move' || act.t === 'dmove') coopStat(uid, 'moves');
+    if (act.t === 'shoot') {
+      coopStat(uid, 'shots');
+      const killed = before.filter(id => { const u = getUnit(id); return u && !u.alive; }).length;
+      if (killed) coopStat(uid, 'kills', killed);
+    }
+    return ok;
+  };
+  // habilidades usadas
+  const oStart = coopAbilityStart;
+  coopAbilityStart = async function(uid0) {
+    await oStart.apply(this, arguments);
+    if (COOP.ability && COOP.ability.uid === uid0) { const u = getUnit(uid0); COOP.ability.usedBefore = !!(u && u.abilityUsed); }
+  };
+  const oCommit = coopAbilityCommit;
+  coopAbilityCommit = function() {
+    const ab = COOP.ability;
+    if (ab) { const u = getUnit(ab.uid); if (u && u.abilityUsed && !ab.usedBefore) coopStat(COOP.uid, 'abil'); }
+    return oCommit.apply(this, arguments);
+  };
+  // hora de inicio
+  const oInit = coopBuildInitialState;
+  coopBuildInitialState = function(room) {
+    const g = oInit.apply(this, arguments);
+    g.state.coopStartTs = Date.now(); g.state.coopStats = {};
+    return g;
+  };
+  // pantalla final con la tabla del equipo y guardado en el perfil
+  const oWin = coopShowWinner;
+  coopShowWinner = function() {
+    oWin.apply(this, arguments);
+    try {   // en cooperativo la victoria o derrota es la de tu equipo
+      const won = G.coopWinner.winner === COOP.mySide;
+      document.getElementById('screen-winner').classList.toggle('lost', !won);
+      try { const ok3d = END3D.show(COOP.mySide, won ? 'win' : 'lose'); document.getElementById('win-3d').classList.toggle('nogl', !ok3d); } catch (_) {}
+      if (!won) document.getElementById('win-confetti').innerHTML = '';
+    } catch (_) {}
+    try { const el = document.getElementById('win-summary'); if (el) el.innerHTML = coopStatsHTML(); } catch (e) { console.warn('[coop]', e); }
+    coopSaveActive(null); coopSaveProfile();
+  };
+  // anfitrión: abandono de un equipo entero
+  const oHG = coopHostGame;
+  coopHostGame = function(room) { try { coopHostAbandon(room); } catch (e) { console.warn('[coop]', e); } return oHG.apply(this, arguments); };
+  // recordar la sala para poder volver; avisos de conexión; espectador
+  const oEnter = coopEnter;
+  coopEnter = function(code) { COOP.onlineSnap = null; COOP.deadNotified = false; COOP.statsSaved = false; coopSaveActive(code); return oEnter.apply(this, arguments); };
+  const oLeave = coopLeave;
+  coopLeave = function() { coopSaveActive(null); return oLeave.apply(this, arguments); };
+  const oShow = coopShowGame;
+  coopShowGame = function(room) {
+    const r = oShow.apply(this, arguments);
+    try {
+      coopPresenceNotices(room);
+      if (!COOP.deadNotified && G.units && G.units.some(u => coopOwner(u.id) === COOP.uid) && !coopPlayerAlive(COOP.uid) && !G.coopWinner) {
+        COOP.deadNotified = true; toast('💀 Tus fichas han caído: pasas a ver la partida como espectador con la visión de tu equipo', 5000);
+      }
+    } catch (_) {}
+    return r;
+  };
+  // panel de marcadores: no para espectadores
+  const oMP = coopMarkPanelHTML;
+  coopMarkPanelHTML = function() { if (!coopPlayerAlive(COOP.uid)) return ''; return oMP.apply(this, arguments); };
+  // panel del equipo: botón para abandonar y estado de espectador
+  const oSP = coopSidebarPanel;
+  coopSidebarPanel = function() {
+    oSP.apply(this, arguments);
+    const box = document.getElementById('coop-team-panel'); if (!box || G.coopWinner) return;
+    const spect = !coopPlayerAlive(COOP.uid);
+    box.insertAdjacentHTML('beforeend', (spect ? '<div class="cg-spect">👁 Modo espectador: ves lo que ve tu equipo</div>' : '')
+      + '<button type="button" class="cg-leave" onclick="coopConfirmLeave()">Abandonar partida</button>');
+  };
+  const oTB = window.updateTurnBanner;
+  window.updateTurnBanner = function() {
+    const r = oTB.apply(this, arguments);
+    if (coopInGame() && !coopPlayerAlive(COOP.uid)) { const el = document.querySelector('#turn-banner .turn-player'); if (el && !/ESPECTADOR/.test(el.textContent)) el.textContent += ' · 👁 ESPECTADOR'; }
+    return r;
+  };
+  // perfil: bloque del modo cooperativo
+  if (typeof window.statsHTML === 'function') {
+    const oSH = window.statsHTML;
+    window.statsHTML = function(s) {
+      const h = oSH.apply(this, arguments), c = s && s.coop;
+      if (!c || !c.games) return h;
+      return h + '<section class="st-card"><div class="cs-prof-h">Modo cooperativo</div><div class="cs-prof">'
+        + '<div><b>' + c.games + '</b><span>partidas</span></div><div><b>' + (c.wins || 0) + '</b><span>victorias</span></div>'
+        + '<div><b>' + Math.round((c.wins || 0) / c.games * 100) + '%</b><span>ganadas</span></div><div><b>' + (c.kills || 0) + '</b><span>bajas</span></div></div></section>';
+    };
+  }
+})();
+function coopConfirmLeave() {
+  showModal('ABANDONAR PARTIDA', 'Si te vas, tus fichas se quedan en el tablero sin moverse y no podrás volver a esta partida.', [
+    { label:'CANCELAR' }, { label:'ABANDONAR', cls:'btn-danger', action: () => coopLeaveFromEnd() }]);
+}
 </script>
 <script>
 if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) {
