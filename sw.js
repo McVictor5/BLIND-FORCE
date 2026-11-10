@@ -1,6 +1,6 @@
 // Service worker de BLIND-FORCE: red primero (siempre la versión nueva), caché solo como respaldo.
 // No intercepta Firebase ni nada que no sea GET.
-const CACHE = 'blindforce-v1';
+const CACHE = 'blindforce-v2';
 const SHELL = ['./blind_force_online.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 const LIBS = /(^|\.)(cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net|fonts\.googleapis\.com|fonts\.gstatic\.com)$/;
 
@@ -22,4 +22,13 @@ self.addEventListener('fetch', e => {
       return res;
     }).catch(() => caches.match(req).then(m => m || (req.mode === 'navigate' ? caches.match('./blind_force_online.html') : Response.error())))
   );
+});
+
+// Al tocar un aviso de turno: volver a la app si ya está abierta, o abrirla
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
+    for (const c of cs) { if ('focus' in c) return c.focus(); }
+    return self.clients.openWindow('./blind_force_online.html');
+  }));
 });

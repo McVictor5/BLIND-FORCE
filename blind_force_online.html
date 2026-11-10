@@ -1249,12 +1249,40 @@ html { background:#0d0c0a; }
 }
 @media (max-width:520px) { .ts-shots { grid-template-columns:1fr; } .ts-map { max-width:220px; margin:0 auto; } }
 @media (prefers-reduced-motion: reduce) { .ts-pin { animation:none; } }
+
+/* ── Red: avisos de turno, estado de conexión ── */
+#notify-toggle { position:fixed; top:8px; right:88px; z-index:9999; width:34px; height:34px; border-radius:50%; border:1px solid rgba(200,168,75,.4); background:rgba(10,12,18,.75); color:#e0c36e; cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center; }
+#notify-toggle i { position:absolute; width:22px; height:2px; background:#e2665a; transform:rotate(-45deg); border-radius:1px; display:none; }
+/* la campana flotante solo en portada, sala y búsqueda; en partida va dentro de la espera */
+body:not(:has(#screen-title.active, #screen-lobby.active, #screen-matchmaking.active)) #notify-toggle { display:none; }
+#wait-notify { display:none; margin:16px auto 0; padding:9px 16px; border-radius:20px; border:1px solid rgba(200,168,75,.5); background:rgba(200,168,75,.1); color:#ecd9a0;
+  font:700 .74rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.14em; text-transform:uppercase; cursor:pointer; }
+#wait-notify.on { border-color:rgba(157,179,138,.5); background:rgba(157,179,138,.1); color:#b9cfa6; }
+body.bf-online #wait-notify { display:inline-block; }
+#notify-toggle.off { color:#7d7564; } #notify-toggle.off i { display:block; }
+#notify-toggle.nudge { animation:bellNudge 1.2s ease-in-out 3; }
+@keyframes bellNudge { 0%,100% { transform:none; } 15% { transform:rotate(-16deg); } 30% { transform:rotate(14deg); } 45% { transform:rotate(-8deg); } 60% { transform:none; } }
+@media (orientation:landscape) and (max-height:600px) {
+  html body #notify-toggle { top:max(4px,env(safe-area-inset-top)); right:calc(max(6px,env(safe-area-inset-right)) + 72px); width:30px; height:30px; }
+}
+#net-pill { position:fixed; left:50%; top:max(10px,env(safe-area-inset-top)); transform:translate(-50%,-160%); z-index:10050; display:flex; align-items:center; gap:8px;
+  padding:6px 14px; border-radius:20px; background:rgba(20,18,15,.94); border:1px solid #e0a53c; color:#f3e3bd; font:600 .74rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif;
+  letter-spacing:.14em; text-transform:uppercase; box-shadow:0 8px 24px rgba(0,0,0,.5); transition:transform .3s cubic-bezier(.2,.9,.3,1.1); pointer-events:none; white-space:nowrap; }
+#net-pill.on { transform:translate(-50%,0); }
+#net-pill i { width:8px; height:8px; border-radius:50%; background:#e0a53c; animation:netBlink 1.1s ease-in-out infinite; }
+#net-pill.me { border-color:#d4503f; } #net-pill.me i { background:#ff6b5a; }
+@keyframes netBlink { 50% { opacity:.25; } }
+.rc-card { display:flex; flex-direction:column; gap:10px; }
+.rc-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.rc-code { font:700 1.5rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.3em; color:#f4ead0; padding:2px 10px; border:1px dashed #5a5142; border-radius:4px; }
+.rc-turn { padding:8px 12px; border-radius:5px; background:rgba(255,255,255,.04); border-left:3px solid var(--tone); }
+.rc-turn.mine { border-left-color:#9db38a; background:rgba(157,179,138,.1); }
 </style>
 
 <!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, get, onValue, off, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getDatabase, ref, set, get, onValue, off, update, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   window._fbLoaded = true;
   window._fbApp = initializeApp({
@@ -1273,6 +1301,8 @@ html { background:#0d0c0a; }
   window._fbOnValue = onValue;
   window._fbOff = off;
   window._fbUpdate = update;
+  window._fbOnDisconnect = onDisconnect;
+  window._fbServerTs = serverTimestamp;
   // Auth
   window._auth = getAuth(window._fbApp);
   window._fbCreateUser = createUserWithEmailAndPassword;
@@ -1291,6 +1321,7 @@ html { background:#0d0c0a; }
 <script>if (typeof THREE === 'undefined') document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"><\/script>');</script>
 </head>
 <body>
+<button id="notify-toggle" class="off" onclick="NOTIFY.toggle()" title="Avisos de turno" aria-label="Avisos de turno" aria-pressed="false"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2z" fill="currentColor"/></svg><i></i></button>
 <button id="music-toggle" onclick="MUSIC.toggle()" title="Música" aria-label="Música" aria-pressed="true"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z" fill="currentColor"/></svg><i></i></button>
 <button id="sfx-toggle" onclick="SFX.toggle()" title="Sonido" style="position:fixed;top:8px;right:8px;z-index:9999;width:34px;height:34px;border-radius:50%;border:1px solid rgba(200,168,75,.4);background:rgba(10,12,18,.75);color:#fff;font-size:1rem;cursor:pointer;padding:0;line-height:1;">🔊</button>
 
@@ -1719,6 +1750,7 @@ html { background:#0d0c0a; }
   <div class="waiting-box">
     <div class="waiting-title" id="waiting-title">ESPERANDO</div>
     <div class="waiting-msg" id="waiting-msg"></div>
+    <button id="wait-notify" type="button" onclick="NOTIFY.toggle()"></button>
   </div>
 </div>
 
@@ -9385,6 +9417,279 @@ function markersFx(b, now) {
     };
   };
   hook();
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RED — presencia, reconexión robusta y avisos de turno.
+// · La presencia usa .info/connected: cada vez que la conexión vuelve se re-marca "presente"
+//   y se re-arma el onDisconnect (antes se usaba una API de Firebase que no existe en la v10).
+// · Si el rival se va durante TU turno solo se avisa; si se va en SU turno (o no vuelve cuando
+//   le toca), se cuenta ABANDON_SECS desde ese momento y después ganas por abandono.
+// · Al abrir la app con una partida en curso se ofrece volver a ella.
+// ═══════════════════════════════════════════════════════════════════════════
+const ABANDON_SECS = 180;
+const NET = { room:null, role:null, connRef:null, offRef:null, refs:[], offset:0, timer:null, offT:null,
+  meOffline:false, wasOffline:false, rival:{ p:true, discAt:null, absent:false }, lastSide:null, sideSince:0, cd:false };
+const fbr = p => window._fbRef(window._db, p);
+const fmtSecs = n => Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0');
+
+function netPill(text, kind) {
+  let el = document.getElementById('net-pill');
+  if (!el) { el = document.createElement('div'); el.id = 'net-pill'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+  if (!text) { el.classList.remove('on'); return; }
+  el.className = 'on ' + (kind || ''); el.innerHTML = '<i></i>' + text;
+}
+function showRivalTurnWaiting() {
+  const rl = ONLINE.myRole === 'atk' ? 'DEFENSOR' : 'ATACANTE';
+  showWaiting('TURNO DEL ' + rl, 'El ' + rl.toLowerCase() + ' está jugando su turno.');
+}
+setInterval(() => { try { document.body.classList.toggle('bf-online', !!(ONLINE.enabled && !ONLINE.gameOver) && 'Notification' in window); } catch (_) {} }, 700);
+function waitingForRival() { return !!(G && G.units && G.units.length && G.currentSide && G.currentSide !== ONLINE.myRole); }
+
+function teardownPresence() {
+  try { if (NET.connRef) window._fbOff(NET.connRef); } catch (_) {}
+  try { if (NET.offRef) window._fbOff(NET.offRef); } catch (_) {}
+  NET.refs.forEach(r => { try { window._fbOff(r); } catch (_) {} }); NET.refs = [];
+  if (NET.room && NET.role && window._fbOnDisconnect) {
+    try { window._fbOnDisconnect(fbr('rooms/' + NET.room + '/presence/' + NET.role)).cancel(); } catch (_) {}
+    try { window._fbOnDisconnect(fbr('rooms/' + NET.room + '/disconnectedAt/' + NET.role)).cancel(); } catch (_) {}
+  }
+  clearTimeout(NET.offT); clearInterval(NET.timer); NET.timer = null;
+  NET.room = null; NET.role = null; NET.meOffline = false; NET.wasOffline = false; NET.cd = false;
+  NET.rival = { p:true, discAt:null, absent:false };
+  netPill('');
+}
+
+window.setupPresence = function() {
+  if (!ONLINE.enabled || !ONLINE.roomId || !window._fbOnDisconnect) return;
+  teardownPresence();
+  const room = NET.room = ONLINE.roomId, role = NET.role = ONLINE.myRole;
+  const pres = fbr('rooms/' + room + '/presence/' + role), disc = fbr('rooms/' + room + '/disconnectedAt/' + role);
+  NET.connRef = fbr('.info/connected');
+  window._fbOnValue(NET.connRef, snap => {
+    if (NET.room !== room) return;
+    if (snap.val() === true) {
+      clearTimeout(NET.offT);
+      // Primero se arma el "testamento" y luego se marca presente (orden recomendado por Firebase)
+      window._fbOnDisconnect(pres).remove();
+      window._fbOnDisconnect(disc).set(window._fbServerTs());
+      window._fbSet(pres, true); window._fbSet(disc, null);
+      if (NET.wasOffline) { NET.wasOffline = false; toast('✓ Conexión recuperada'); }
+      NET.meOffline = false; netRefresh();
+    } else {
+      // Pequeño margen: al arrancar Firebase siempre emite "desconectado" un instante
+      clearTimeout(NET.offT);
+      NET.offT = setTimeout(() => { if (NET.room !== room) return; NET.meOffline = true; NET.wasOffline = true; netRefresh(); }, 2500);
+    }
+  });
+  NET.offRef = fbr('.info/serverTimeOffset');
+  window._fbOnValue(NET.offRef, s => { NET.offset = s.val() || 0; });
+  window._fbSet(fbr('rooms/' + room + '/gameStarted'), true);
+  saveActiveRoom();
+  NOTIFY.hint();
+};
+
+window.listenPresence = function() {
+  if (!ONLINE.enabled || !ONLINE.roomId) return;
+  const room = ONLINE.roomId, rr = ONLINE.myRole === 'atk' ? 'def' : 'atk';
+  NET.rival = { p:true, discAt:null, absent:false };
+  NET.lastSide = G.currentSide; NET.sideSince = Date.now();
+  const pRef = fbr('rooms/' + room + '/presence/' + rr), dRef = fbr('rooms/' + room + '/disconnectedAt/' + rr);
+  NET.refs.push(pRef, dRef);
+  const upd = () => {
+    const was = NET.rival.absent;
+    NET.rival.absent = !NET.rival.p && NET.rival.discAt != null;
+    if (was && !NET.rival.absent && !ONLINE.gameOver) toast('✓ El rival ha vuelto');
+    if (!was && NET.rival.absent && !ONLINE.gameOver) toast('⚠ El rival ha perdido la conexión');
+    netRefresh();
+  };
+  window._fbOnValue(pRef, s => { if (NET.room && NET.room !== room) return; NET.rival.p = s.val() === true; upd(); });
+  window._fbOnValue(dRef, s => { if (NET.room && NET.room !== room) return; NET.rival.discAt = s.val() || null; upd(); });
+  clearInterval(NET.timer); NET.timer = setInterval(netRefresh, 1000);
+};
+
+function netRefresh() {
+  if (!ONLINE.enabled || ONLINE.gameOver || !NET.room) { netPill(''); return; }
+  if (G.currentSide !== NET.lastSide) { NET.lastSide = G.currentSide; NET.sideSince = Date.now(); }
+  const absent = NET.rival.absent, theirTurn = waitingForRival();
+  if (NET.meOffline) netPill('Sin conexión · reintentando', 'me');
+  else if (absent && !theirTurn) netPill('Rival desconectado', 'rival');
+  else netPill('');
+  if (absent && theirTurn && !NET.meOffline) {
+    // La cuenta empieza cuando se fue o cuando le tocó jugar, lo que sea más tarde
+    const start = Math.max((NET.rival.discAt || Date.now()) - NET.offset, NET.sideSince || 0);
+    const left = Math.max(0, Math.ceil((start + ABANDON_SECS * 1000 - Date.now()) / 1000));
+    if (!NET.cd) {
+      NET.cd = true;
+      const rl = ONLINE.myRole === 'atk' ? 'defensor' : 'atacante';
+      showWaiting('RIVAL DESCONECTADO', 'El ' + rl + ' ha perdido la conexión.<br>Si no vuelve en <b id="reconnect-timer">' + fmtSecs(left) + '</b>, ganarás la partida por abandono.');
+    }
+    const el = document.getElementById('reconnect-timer'); if (el) el.textContent = fmtSecs(left);
+    if (left <= 0) { NET.cd = false; hideWaiting(); window.endGame(ONLINE.myRole, 'El rival abandonó la partida'); }
+  } else if (NET.cd) {
+    NET.cd = false;
+    if (theirTurn) showRivalTurnWaiting(); else hideWaiting();
+  }
+}
+
+window.saveActiveRoom = function() {
+  if (!ONLINE.enabled || !ONLINE.roomId) return;
+  try {
+    if (localStorage.getItem('bf_active_room') !== ONLINE.roomId) localStorage.setItem('bf_active_ts', String(ONLINE.gameStartTs || Date.now()));
+    localStorage.setItem('bf_active_room', ONLINE.roomId);
+    localStorage.setItem('bf_active_role', ONLINE.myRole);
+  } catch (_) {}
+};
+window.clearSavedRoom = function() {
+  try { ['bf_active_room', 'bf_active_role', 'bf_active_ts'].forEach(k => localStorage.removeItem(k)); } catch (_) {}
+};
+
+// Al abrir la app (con sesión iniciada): ¿hay una partida a medias?
+window.tryReconnect = async function() {
+  if (!window._currentUser || ONLINE.enabled) return;
+  let room, role; try { room = localStorage.getItem('bf_active_room'); role = localStorage.getItem('bf_active_role'); } catch (_) {}
+  if (!room || !role) return;
+  let d;
+  try { const snap = await window._fbGet(fbr('rooms/' + room)); if (!snap.exists()) { clearSavedRoom(); return; } d = snap.val(); }
+  catch (e) { return; }   // sin red: se conserva para el próximo intento
+  if (ONLINE.enabled) return;
+  if (d.winner) { recordMissedResult(room, role, d); clearSavedRoom(); return; }
+  if (!d.gameStarted || !d.state || !(d.state.units || []).length) { clearSavedRoom(); return; }
+  const rl = role === 'atk' ? '⚔ Atacante' : '🛡 Defensor', mine = d.state.currentSide === role;
+  const rr = role === 'atk' ? 'def' : 'atk', rivalName = (d.playerNames || {})[rr];
+  showModal('PARTIDA EN CURSO',
+    '<div class="rc-card"><div class="rc-row"><span class="rc-code">' + room + '</span><span>Juegas como <b>' + rl + '</b>' + (rivalName ? ' contra <b>' + String(rivalName).replace(/[<>&]/g, '') + '</b>' : '') + '</span></div>'
+    + '<div class="rc-turn' + (mine ? ' mine' : '') + '">Ronda ' + (d.state.round || 1) + ' · ' + (mine ? '<b>Es tu turno.</b>' : 'Es el turno del rival.') + '</div>'
+    + '<div>Si no vuelves, el rival ganará por abandono pasados ' + Math.round(ABANDON_SECS / 60) + ' minutos de espera en tu turno.</div></div>',
+    [{ label:'ABANDONAR', cls:'btn-danger', action:() => confirmAbandonSaved(room, role, d) },
+     { label:'VOLVER A LA PARTIDA', action:() => doReconnect(room, role) }]);
+};
+function confirmAbandonSaved(room, role, d) {
+  showModal('⚠ ABANDONAR LA PARTIDA', 'La partida contará como <b>derrota</b> y el rival ganará por abandono.', [
+    { label:'CANCELAR', action:() => tryReconnect() },
+    { label:'ABANDONAR', cls:'btn-danger', action:() => {
+      ONLINE.roomId = room; ONLINE.myRole = role; ONLINE.enabled = true; ONLINE.gameOver = false;
+      try { ONLINE.gameStartTs = +localStorage.getItem('bf_active_ts') || Date.now(); } catch (_) { ONLINE.gameStartTs = Date.now(); }
+      G = deserializeG(d.state);
+      window.endGame(role === 'atk' ? 'def' : 'atk', 'Abandono de la partida');
+    } }]);
+}
+// La partida terminó mientras no estabas (p. ej. perdiste por abandono): se registra una sola vez
+function recordMissedResult(room, role, d) {
+  const key = 'bf_rec_' + room + '_' + role;
+  try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch (_) {}
+  const w = d.winner && d.winner.winner, won = w === role;
+  try {
+    if (d.state && w && typeof saveGameResult === 'function') {
+      const st = deserializeG(d.state), rr = role === 'atk' ? 'def' : 'atk';
+      let t0 = 0; try { t0 = +localStorage.getItem('bf_active_ts') || 0; } catch (_) {}
+      saveGameResult({ won, myRole:role, rivalName:(d.playerNames || {})[rr] || 'Desconocido', rounds:st.round,
+        myPick: role === 'atk' ? st.atkPick : st.defPick, duration: t0 ? Date.now() - t0 : 0,
+        lost:(st.units || []).filter(u => u.side === role && !u.alive).length,
+        bomb: w === 'atk' && (st.atkPick || []).some(id => (st.bombCounters || {})[id] >= 5) });
+    }
+  } catch (e) { console.warn('[red] registrar resultado', e); }
+  const why = d.winner && d.winner.reason ? String(d.winner.reason).replace(/[<>&]/g, '') : '';
+  showModal('PARTIDA TERMINADA', 'Mientras estabas fuera terminó la partida de la sala <b>' + room + '</b>.<br><br>'
+    + (won ? '<b>VICTORIA</b>' : '<b>DERROTA</b>') + (why ? ' — ' + (/abandon/i.test(why) && !won ? 'no volviste a tiempo y el rival ganó por abandono.' : why) : ''),
+    [{ label:'ENTENDIDO' }]);
+}
+
+window.doReconnect = async function(room, role) {
+  try {
+    const snap = await window._fbGet(fbr('rooms/' + room)); const d = snap.val();
+    if (!d || d.winner || !d.state) { toast('La partida ya no está disponible'); if (d && d.winner) recordMissedResult(room, role, d); clearSavedRoom(); return; }
+    ONLINE.roomId = room; ONLINE.myRole = role; ONLINE.enabled = true; ONLINE.gameOver = false;
+    ONLINE.suppressStateUpdates = false; ONLINE.isApplying = false; ONLINE.lastPushTs = 0;
+    ONLINE.currentStep = d.step || null;          // que no se vuelva a ejecutar el último paso (p. ej. la moneda)
+    ONLINE.myLastRevealedCells = new Set();
+    try { ONLINE.gameStartTs = +localStorage.getItem('bf_active_ts') || Date.now(); } catch (_) { ONLINE.gameStartTs = Date.now(); }
+    const badge = document.getElementById('online-room-badge');
+    if (badge) { badge.textContent = 'SALA: ' + room; badge.style.display = 'block'; }
+    G = deserializeG(d.state);
+    startGameLoop();                              // prepara la pantalla (reinicia la fase)…
+    G = deserializeG(d.state);                    // …y se restaura el estado exacto del servidor
+    setupPresence(); listenPresence();
+    startListening(); listenStep(); listenWinner(); initChat();
+    renderGame(); updatePhasebar(); updateTurnBanner(); updateSidebar();
+    if (G.currentSide !== role) showRivalTurnWaiting();
+    else { hideWaiting(); setHelp(phaseHelp(G.gamePhase)); }
+    toast('✓ Has vuelto a la partida');
+  } catch (e) { console.warn('[red] reconectar', e); toast('No se pudo volver a la partida: ' + (e.message || e)); }
+};
+
+// Al terminar la partida se desmonta la presencia
+(function() {
+  const o = window.endGame;
+  window.endGame = function(winner, reason) {
+    const already = ONLINE.gameOver, online = ONLINE.enabled && ONLINE.myRole;
+    const r = o.apply(this, arguments);
+    if (!already) {
+      teardownPresence();
+      if (online) NOTIFY.send('Partida terminada', (winner === ONLINE.myRole ? '¡VICTORIA! ' : 'Derrota. ') + (reason || ''), 'bf-end');
+    }
+    return r;
+  };
+})();
+
+// ── Avisos: notificación del sistema si la app está en segundo plano, título y globo del icono ──
+const NOTIFY = {
+  on:false, hidden:false,
+  supported() { return 'Notification' in window; },
+  init() {
+    try { this.on = localStorage.getItem('bf_notify') === '1' && this.supported() && Notification.permission === 'granted'; } catch (_) {}
+    this.paint();
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) this.clear(); });
+    window.addEventListener('focus', () => this.clear());
+  },
+  paint() {
+    const w = document.getElementById('wait-notify');
+    if (w) { w.classList.toggle('on', this.on); w.textContent = this.on ? '🔔 Te avisaré cuando sea tu turno' : '🔔 Avisarme cuando sea mi turno'; }
+    const b = document.getElementById('notify-toggle'); if (!b) return; b.classList.toggle('off', !this.on); b.setAttribute('aria-pressed', this.on ? 'true' : 'false');
+    b.title = this.on ? 'Avisos de turno: activados' : 'Avisos de turno: desactivados'; },
+  async toggle() {
+    if (this.on) { this.on = false; try { localStorage.setItem('bf_notify', '0'); } catch (_) {} this.paint(); toast('🔕 Avisos de turno desactivados'); return; }
+    if (!this.supported()) { toast('Este navegador no permite notificaciones. En iPhone, instala la app en la pantalla de inicio.'); return; }
+    let perm = Notification.permission;
+    if (perm === 'default') { try { perm = await Notification.requestPermission(); } catch (_) {} }
+    if (perm !== 'granted') { toast('Notificaciones bloqueadas: actívalas para esta app en los ajustes del navegador o del móvil.'); return; }
+    this.on = true; try { localStorage.setItem('bf_notify', '1'); } catch (_) {} this.paint();
+    toast('🔔 Te avisaré cuando sea tu turno si la app está en segundo plano');
+  },
+  hint() {
+    if (this.on || !this.supported() || Notification.permission === 'denied') return;
+    try { if (localStorage.getItem('bf_notify_hint')) return; localStorage.setItem('bf_notify_hint', '1'); } catch (_) { return; }
+    const b = document.getElementById('notify-toggle'); if (b) { b.classList.remove('nudge'); void b.offsetWidth; b.classList.add('nudge'); }
+    toast('🔔 Mientras juega el rival, pulsa «Avisarme cuando sea mi turno» y podrás dejar la app en segundo plano');
+  },
+  send(title, body, tag) {
+    if (!document.hidden) return;
+    // Sin permiso también se marca el título de la pestaña y el globo del icono
+    if (!this.oldTitle) this.oldTitle = document.title;
+    document.title = '● ' + title + ' · BLIND-FORCE';
+    try { navigator.setAppBadge && navigator.setAppBadge(1).catch(() => {}); } catch (_) {}
+    if (!this.on || !this.supported() || Notification.permission !== 'granted') return;
+    const opts = { body, tag, renotify:true, icon:'icon-192.png', badge:'icon-192.png', vibrate:[120, 60, 120], data:{ url:location.href } };
+    const plain = () => { try { const n = new Notification(title, opts); n.onclick = () => { window.focus(); n.close(); }; } catch (_) {} };
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) navigator.serviceWorker.ready.then(r => r.showNotification(title, opts)).catch(plain);
+    else plain();
+  },
+  clear() {
+    if (this.oldTitle) { document.title = this.oldTitle; this.oldTitle = null; }
+    try { navigator.clearAppBadge && navigator.clearAppBadge().catch(() => {}); } catch (_) {}
+    try { if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(r => r && r.getNotifications().then(ns => ns.forEach(n => n.close()))).catch(() => {}); } catch (_) {}
+  },
+};
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => NOTIFY.init()); else NOTIFY.init();
+// Te toca: el resumen del turno rival es la señal
+(function() {
+  const o = window.showTurnNotification;
+  window.showTurnNotification = function(rivalSide) {
+    const r = o.apply(this, arguments);
+    try { const rl = (rivalSide || 'atk') === 'atk' ? 'atacante' : 'defensor';
+      NOTIFY.send('¡Es tu turno!', 'Ronda ' + G.round + ' · el ' + rl + ' ha terminado su turno.', 'bf-turn'); } catch (_) {}
+    return r;
+  };
 })();
 </script>
 <script>
