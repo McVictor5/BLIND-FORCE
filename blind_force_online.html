@@ -2323,8 +2323,8 @@ const PICK3D = (function () {
     const w = Math.max(80, host.clientWidth), h = Math.max(80, host.clientHeight);
     renderer.setSize(w, h, false);
     camera.aspect = w / h; camera.updateProjectionMatrix();
-    const d = Math.max(4.6, 3.0 / Math.min(1, camera.aspect) / Math.tan(camera.fov * Math.PI / 360) * 0.5 + 1);
-    camera.position.set(0, 1.6, d); camera.lookAt(0, 1.15, 0);
+    const d = Math.max(3.9, 2.6 / Math.min(1, camera.aspect) / Math.tan(camera.fov * Math.PI / 360) * 0.5 + 1);
+    camera.position.set(0, 1.7, d); camera.lookAt(0, 1.2, 0);
   }
   function clear() {
     if (!soldier) return;
@@ -2338,11 +2338,10 @@ const PICK3D = (function () {
     if (k === key) return;
     key = k; clear();
     const g = helper.makeSoldier('', side);
-    const S = 1.7;
+    const S = 2.3;
     g.scale.setScalar(S);
     const lab = g.userData.lab;
     lab.visible = false; g.userData.mats[5].visible = false;
-    g.userData.pv.children[0].visible = false; g.userData.pv.children[1].visible = false;   // sin peana: flota
     g.userData.ring.visible = false;
     g.userData.pv.rotation.y = spin;
     soldier = g; scene.add(g);
@@ -3502,7 +3501,7 @@ class Board3D {
     blob.rotation.x = -Math.PI / 2; blob.position.y = 0.012; blob.renderOrder = 1;
     g.add(blob);
     const lab = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.labelTex(icon, kind), depthTest: false, transparent: true }));
-    lab.scale.set((this._ls || 0.7) / 1.25, (this._ls || 0.7) / 1.25, 1); lab.position.y = (1.42 + (this._ls || 0.7) * 0.5) / 1.25; lab.renderOrder = 9;
+    lab.scale.set((this._ls || 0.4) / 1.25, (this._ls || 0.4) / 1.25, 1); lab.position.y = (1.42 + (this._ls || 0.4) * 0.5) / 1.25; lab.renderOrder = 9;
     g.add(lab);
     const ring = new THREE.Mesh(this.geo.ring, new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.95, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03; ring.visible = false;
@@ -3857,8 +3856,8 @@ class Board3D {
         else { g.rotation.z = 0; u.wob = null; }
       }
     });
-    const ls = Math.min(1.0, Math.max(0.5, 0.034 * this.cam.r));   // la etiqueta mantiene un tamaño legible al alejar la cámara
-    if (ls !== this._ls) { this._ls = ls; this.ents.forEach(g => { const l = g.userData.lab; if (l) { l.scale.set(ls / 1.25, ls / 1.25, 1); l.position.y = (1.42 + ls * 0.5) / 1.25; } }); this.dirty = true; }
+    const ls = Math.min(0.75, Math.max(0.26, 0.03 * this.cam.r));   // la etiqueta mantiene un tamaño legible al alejar la cámara
+    if (ls !== this._ls) { this._ls = ls; this.ents.forEach(g => { const l = g.userData.lab; if (l) { l.scale.set(ls / 1.25, ls / 1.25, 1); l.position.y = (1.44 + ls * 0.5) / 1.25; } }); this.dirty = true; }
     const fxActive = this.updateFx(now);
     if (this.dirty || moving || fxActive) {
       this.updateCamera();
