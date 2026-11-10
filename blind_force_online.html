@@ -1308,6 +1308,21 @@ body.bf-online #wait-notify { display:inline-block; }
 .scan-ok { font:700 .8rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.2em; color:#9db38a; }
 @media (orientation:landscape) and (max-height:520px) { .scan-radar { width:min(110px,26vh); } .scan-ov { gap:6px; } .scan-msg { font-size:.8rem; } }
 @media (prefers-reduced-motion: reduce) { .scan-radar .r-sweep { animation-duration:8s; } .scan-radar .r-eye { animation:none; } }
+
+/* ══ Cámara en tercera persona (tocar el nombre en la lista de unidades) ══ */
+.unit-list-item.camable .unit-list-dot, .unit-list-item.camable .unit-list-name { cursor:pointer; }
+.unit-list-item.camable .unit-list-name:hover .unit-list-nm { text-decoration:underline; text-underline-offset:3px; text-decoration-color:rgba(201,168,74,.6); }
+.unit-list-item.camable .unit-list-nm::after { content:''; display:inline-block; width:13px; height:13px; margin-left:6px; vertical-align:-1px; opacity:.45;
+  background:currentColor; -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 4h6l1.5 2H20a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3.5zM12 8.5a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 4h6l1.5 2H20a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3.5zM12 8.5a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'/%3E%3C/svg%3E") center/contain no-repeat; }
+.unit-list-item.following { background:linear-gradient(90deg,rgba(201,168,74,.14),transparent 85%); border-radius:4px; }
+.unit-list-item.following .unit-list-nm { color:#f2d27a; }
+.unit-list-item.following .unit-list-nm::after { opacity:1; color:#f2d27a; }
+.unit-list-item.following .unit-list-dot { box-shadow:0 0 0 2px #f2d27a, 0 0 12px rgba(242,210,122,.5); }
+#follow-chip { position:absolute; left:10px; top:10px; z-index:6; display:none; align-items:center; gap:8px; padding:6px 8px 6px 12px; border-radius:18px;
+  background:rgba(14,13,11,.86); border:1px solid rgba(242,210,122,.5); color:#f2e4bb; font:700 .72rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.14em; text-transform:uppercase; white-space:nowrap; }
+#follow-chip.on { display:flex; }
+#follow-chip button { border:1px solid rgba(242,210,122,.4); background:rgba(242,210,122,.12); color:#f2e4bb; border-radius:12px; padding:3px 9px; font:inherit; cursor:pointer; letter-spacing:.1em; }
 </style>
 
 <!-- Firebase -->
@@ -6834,9 +6849,11 @@ function updateSidebar() {
   myUnits.forEach(u=>{
     const def=UNIT_DEFS[u.id];
     const canUse=!u.abilityUsed&&u.alive&&isAbilityAvailable(u,phase);
-    html+=`<div class="unit-list-item">
-      <div class="unit-list-dot ${side} ${u.alive?'':'dead'}">${u.icon}</div>
-      <div class="unit-list-name" style="${u.alive?'':'text-decoration:line-through;opacity:.4;'}">
+    const camOn=u.alive&&typeof camFollowable==='function'&&camFollowable();
+    const camCur=camOn&&VIEW3D.follow&&VIEW3D.follow.key==='u_'+u.id;
+    html+=`<div class="unit-list-item${camOn?' camable':''}${camCur?' following':''}">
+      <div class="unit-list-dot ${side} ${u.alive?'':'dead'}" ${camOn?`onclick="camFollow('${u.id}')" title="Ver desde detrás de ${u.name}"`:''}>${u.icon}</div>
+      <div class="unit-list-name" style="${u.alive?'':'text-decoration:line-through;opacity:.4;'}" ${camOn?`onclick="camFollow('${u.id}')" title="Ver desde detrás de ${u.name}"`:''}>
         <span class="unit-list-nm">${u.name}${u.alive?'':' <small style="color:var(--text-dim)">KIA</small>'}</span>
         <span class="unit-list-ab">${def.abilityName}</span>
       </div>
@@ -9918,6 +9935,127 @@ window.hideWaiting = function() {
     scanRemove('spawn-wait'); scanRemove('construct-wait');   // la fase que entra vuelve a ponerlo si hace falta
     return o.apply(this, arguments);
   };
+})();
+
+// ═══ CÁMARA EN TERCERA PERSONA ═══
+// Al tocar el nombre (o el círculo) de una de tus fichas en «Unidades», la cámara 3D vuela a su espalda,
+// un poco por encima de la cabeza (más alta que las paredes, así nada tapa la vista), mirando hacia donde
+// mira el soldado (su último movimiento, o la sala de la bomba). Sigue a la ficha si se mueve.
+// Arrastrar gira alrededor de ella, pellizco/rueda acerca o aleja. ⟲ o tocar de nuevo el nombre: vista general.
+function camFollowable() { try { return !!(VIEW3D && VIEW3D.on && VIEW3D.ready && document.getElementById('screen-game').classList.contains('active')); } catch (_) { return false; } }
+function camFollow(uid) {
+  if (!camFollowable()) { toast('La vista en tercera persona funciona en la vista 3D'); return; }
+  const key = 'u_' + uid;
+  if (VIEW3D.follow && VIEW3D.follow.key === key) VIEW3D.unfollow();
+  else if (!VIEW3D.followUnit(key)) toast('Esa ficha no está en el tablero');
+  updateSidebar();
+}
+(function() {
+  if (typeof Board3D === 'undefined') return;
+  const P = Board3D.prototype;
+  const ease = u => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
+  const BACK = 2.7, UP = 3.0, AHEAD = 4.6;   // detrás, altura de la cámara (cabeza ≈ 1.5, paredes ≤ 0.62) y punto de mira
+
+  P.followUnit = function(key) {
+    if (!this.ready || !this.ents.get(key)) return false;
+    const was = this.follow;
+    // Se guarda la cámara general para volver a ella; los cambios de az/pol/r durante el seguimiento son los gestos
+    const saved = was ? was.saved : { ...this.cam };
+    this.follow = { key, saved, az0:this.cam.az, pol0:this.cam.pol, r0:this.cam.r };
+    this.fLast = this.follow;
+    this.camTween = null;
+    this.fBlend(1, was ? 1 : 0);
+    this.followChip(); return true;
+  };
+  P.unfollow = function(instant) {
+    const f = this.follow; if (!f) return;
+    this.follow = null;
+    this.camTween = null;
+    Object.assign(this.cam, f.saved);
+    if (instant || !this.fxOn()) { this.fK = 0; this.fT = null; this.fLast = null; this.dirty = true; }
+    else this.fBlend(0);
+    this.followChip();
+  };
+  P.fBlend = function(to, from) {
+    const k0 = from != null ? from : (this.fK || 0);
+    if (!this.fxOn()) { this.fK = to; this.fT = null; if (!to) this.fLast = null; this.dirty = true; return; }
+    this.fT = { t0:this.t(), dur:650, from:k0, to };
+    this.fK = k0; this.dirty = true;
+  };
+  P.followPose = function(f) {
+    const g = this.ents.get(f.key); if (!g) return null;
+    const c = this.cam;
+    const yaw = (g.userData.pv ? g.userData.pv.rotation.y : 0) + (c.az - f.az0);   // arrastrar gira alrededor
+    const lift = Math.max(-0.5, Math.min(2.4, (f.pol0 - c.pol) * 3.2));          // arrastrar en vertical sube/baja
+    const back = Math.max(1.4, Math.min(5.5, BACK * (c.r / f.r0)));             // pellizco/rueda acerca/aleja
+    const fx = Math.sin(yaw), fz = Math.cos(yaw), gp = g.position;
+    return {
+      pos: new THREE.Vector3(gp.x - fx * back, UP + lift + (back - BACK) * 0.35, gp.z - fz * back),
+      look: new THREE.Vector3(gp.x + fx * AHEAD, 0.25, gp.z + fz * AHEAD),
+    };
+  };
+  P.followChip = function() {
+    if (this !== VIEW3D) return;
+    const wrap = document.querySelector('#screen-game .board-wrap'); if (!wrap) return;
+    let el = document.getElementById('follow-chip');
+    if (!el) { el = document.createElement('div'); el.id = 'follow-chip'; wrap.appendChild(el); }
+    const f = this.follow, u = f && getUnit(f.key.slice(2));
+    if (!f || !u) { el.classList.remove('on'); return; }
+    el.innerHTML = '<span>👁 ' + u.name + '</span><button type="button" onclick="VIEW3D.unfollow();updateSidebar();">VISTA GENERAL</button>';
+    el.classList.add('on');
+  };
+
+  const oUC = P.updateCamera;
+  P.updateCamera = function() {
+    oUC.call(this);
+    const k = this.fK || 0, f = this.follow || this.fLast;
+    if (k <= 0 || !f) return;
+    const pose = this.followPose(f); if (!pose) return;
+    const P0 = this.camera.position.clone(), L0 = new THREE.Vector3(0, 0, 0);
+    if (!this.follow) {   // volviendo: el origen es la cámara general guardada
+      const { az, pol, r } = this.cam;
+      P0.set(r * Math.sin(pol) * Math.sin(az), r * Math.cos(pol), r * Math.sin(pol) * Math.cos(az));
+    }
+    this.camera.position.copy(P0.lerp(pose.pos, k));
+    this.camera.lookAt(L0.lerp(pose.look, k));
+    this.camera.updateMatrixWorld(true);
+  };
+  const oFx = P.updateFx;
+  P.updateFx = function(now) {
+    let a = oFx.call(this, now);
+    if (this.follow && !this.ents.get(this.follow.key)) { this.unfollow(true); try { updateSidebar(); } catch (_) {} }
+    const ft = this.fT;
+    if (ft) {
+      const u = Math.min(1, (now - ft.t0) / ft.dur);
+      this.fK = ft.from + (ft.to - ft.from) * ease(u);
+      if (u >= 1) { this.fT = null; if (!ft.to) this.fLast = null; } else a = true;
+      this.dirty = true;
+    }
+    if (this.follow) {   // seguir al soldado mientras se mueve o gira
+      const g = this.ents.get(this.follow.key);
+      if (g && (g.userData.mv || (g.userData.pv && g.userData.angT !== undefined && Math.abs(g.userData.angT - g.userData.pv.rotation.y) > 0.01))) a = true;
+    }
+    return a;
+  };
+  const oRC = P.resetCamera;
+  P.resetCamera = function(anim) {
+    if (this.follow) { this.unfollow(anim === false); try { updateSidebar(); } catch (_) {} return; }
+    return oRC.call(this, anim);
+  };
+  const oSL = P.syncLabels;
+  P.syncLabels = function() {
+    oSL.call(this);
+    if (this.follow && (this.fK || 0) > 0.4 && this.labEls) { const el = this.labEls.get(this.follow.key); if (el) el.style.display = 'none'; }
+  };
+  const oTg = P.toggle;
+  P.toggle = function() { if (this.follow) this.unfollow(true); const r = oTg.apply(this, arguments); try { this.followChip(); updateSidebar(); } catch (_) {} return r; };
+})();
+// Al empezar otra partida o salir, la cámara vuelve a la vista general
+(function() {
+  const sg = window.startGameLoop;
+  window.startGameLoop = function() { try { if (VIEW3D.follow) VIEW3D.unfollow(true); VIEW3D.followChip(); } catch (_) {} return sg.apply(this, arguments); };
+  const eg = window.endGame;
+  window.endGame = function() { try { if (VIEW3D.follow) VIEW3D.unfollow(true); VIEW3D.followChip(); } catch (_) {} return eg.apply(this, arguments); };
 })();
 </script>
 <script>
