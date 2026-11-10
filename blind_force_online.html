@@ -1313,7 +1313,7 @@ body.bf-online #wait-notify { display:inline-block; }
 <!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, get, onValue, off, update, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getDatabase, ref, set, get, onValue, off, update, onDisconnect, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   window._fbLoaded = true;
   window._fbApp = initializeApp({
@@ -1334,6 +1334,7 @@ body.bf-online #wait-notify { display:inline-block; }
   window._fbUpdate = update;
   window._fbOnDisconnect = onDisconnect;
   window._fbServerTs = serverTimestamp;
+  window._fbTransaction = runTransaction;
   // Auth
   window._auth = getAuth(window._fbApp);
   window._fbCreateUser = createUserWithEmailAndPassword;
@@ -8040,154 +8041,203 @@ function toggleChatPanel() {
   panel.style.display = panel.style.display==='none' ? 'block' : 'none';
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// MATCHMAKING
+// Protocolo:
+//  1. Cada jugador borra su invitación vieja y se pone a ESCUCHAR su invitación antes de entrar en la cola.
+//  2. Entra en la cola (matchmaking/queue/{uid}) y mira quién más hay.
+//  3. De cada pareja, el uid menor es el anfitrión: sale de la cola, crea la sala e invita al otro
+//     (matchmaking/rooms/{uidInvitado}). El invitado sigue en la cola hasta entrar de verdad.
+//  4. El invitado lee la sala y toma el bando CONTRARIO al del anfitrión (no se fía de la invitación)
+//     y ocupa el hueco con una transacción sobre rooms/{sala}/guest.
+//  5. Si el invitado no llega en MM.hostWaitMs, el anfitrión cierra el hueco con la misma transacción
+//     (solo uno de los dos puede ganar), borra la sala y vuelve a la cola.
+// ═══════════════════════════════════════════════════════════════════════════
 const MM = {
-  active: false,
-  timerInterval: null,
-  startTime: null,
-  queueListener: null,
-  myUid: null,
-  myRole: null,
+  active:false, timerInterval:null, startTime:null, queueListener:null, inviteRef:null, offRef:null,
+  myUid:null, myRole:null, gen:0, offset:0, hostWait:null, hostRoom:null, joining:false, hostWaitMs:15000, skip:{},
 };
+const mmRef = p => window._fbRef(window._db, p);
+const mmNow = () => Date.now() + (MM.offset || 0);
+function mmStatus(t) { const el = document.getElementById('mm-status'); if (el) el.textContent = t; }
+function mmStopListeners() {
+  if (MM.queueListener) { window._fbOff(MM.queueListener); MM.queueListener = null; }
+  if (MM.inviteRef) { window._fbOff(MM.inviteRef); MM.inviteRef = null; }
+  if (MM.offRef) { window._fbOff(MM.offRef); MM.offRef = null; }
+  clearTimeout(MM.hostWait); MM.hostWait = null;
+}
+// Ocupa (o cierra) el hueco de invitado de forma atómica
+async function mmClaimGuest(code, value) {
+  const r = mmRef('rooms/' + code + '/guest');
+  if (window._fbTransaction) {
+    const res = await window._fbTransaction(r, cur => (cur == null ? value : undefined));
+    return !!(res && res.committed);
+  }
+  const s = await window._fbGet(r); if (s.val() != null) return false;   // respaldo sin transacciones
+  await window._fbSet(r, value); return true;
+}
 
-async function startMatchmaking() {
+async function startMatchmaking(isRetry) {
   const user = window._currentUser;
-  if(!user) {
-    showModal('Cuenta requerida','Necesitas iniciar sesión para usar el matchmaking.',[
-      {label:'INICIAR SESIÓN', action:()=>showScreen('auth')},{label:'CANCELAR'}]);
+  if (!user) {
+    showModal('Cuenta requerida', 'Necesitas iniciar sesión para usar el matchmaking.', [
+      { label:'INICIAR SESIÓN', action:() => showScreen('auth') }, { label:'CANCELAR' }]);
     return;
   }
-  showScreen('matchmaking');
-  MM.active = true;
-  MM.startTime = Date.now();
-  MM.myUid = user.uid;
-
-  // Timer display
-  MM.timerInterval = setInterval(()=>{
-    const s=Math.floor((Date.now()-MM.startTime)/1000);
-    const m=Math.floor(s/60), sec=s%60;
-    document.getElementById('mm-timer').textContent=m+':'+(sec<10?'0':'')+sec;
-    // Auto-cancel after 3 minutes
-    if(s>=180) cancelMatchmaking();
-  },1000);
-
-  // Assign role based on UID parity for determinism after match
-  // But write to queue first, role will be determined after pairing
-  const myName = user.displayName || user.email;
-
-  // Write to queue
-  await window._fbSet(window._fbRef(window._db,'matchmaking/queue/'+user.uid),{
-    uid: user.uid, name: myName, ts: Date.now()
-  });
-
-  document.getElementById('mm-status').textContent = 'En cola, buscando rival...';
-
-  // Escuchar la invitación desde YA: si el rival es el anfitrión puede crear la sala y sacarnos
-  // de la cola antes de que nuestro listener de la cola llegue a vernos juntos.
-  await window._fbSet(window._fbRef(window._db,'matchmaking/rooms/'+user.uid), null);   // invitación vieja
-  if(!MM.active) return;
-  listenForMMRoom(user.uid, myName);
-
-  // Listen to queue for any other player
-  MM.queueListener = window._fbRef(window._db,'matchmaking/queue');
-  window._fbOnValue(MM.queueListener, async snap=>{
-    if(!MM.active) return;
-    const queue = snap.val()||{};
-    const others = Object.values(queue).filter(e=>
-      e.uid !== user.uid && (Date.now()-e.ts)<90000
-    );
-    const total = Object.keys(queue).length;
-    if(document.getElementById('mm-players'))
-      document.getElementById('mm-players').textContent =
-        total+' jugador'+(total!==1?'es':'')+' en cola';
-
-    if(others.length===0) return;
-
-    const rival = others.sort((a,b)=>a.ts-b.ts)[0];
-    const iAmHost = user.uid < rival.uid;
-    console.log('[MM] Found rival:', rival.uid, '| iAmHost:', iAmHost, '| myUID:', user.uid);
-
-    if(!iAmHost) {
-      // El invitado sigue en la cola (si se borrara, el anfitrión podría no llegar a verlo)
-      // y espera la invitación, que es quien le saca de la búsqueda (listenForMMRoom).
-      document.getElementById('mm-status').textContent = '✓ Rival encontrado. Conectando...';
-      return;
-    }
-
-    // Anfitrión: dejar de escuchar la cola para no crear dos salas
-    MM.active = false;
-    window._fbOff(MM.queueListener);
+  if (!isRetry) {
+    showScreen('matchmaking');
+    MM.startTime = Date.now();
     clearInterval(MM.timerInterval);
-    await window._fbSet(window._fbRef(window._db,'matchmaking/queue/'+user.uid), null);
-    if(MM.inviteRef){ window._fbOff(MM.inviteRef); MM.inviteRef=null; }   // el anfitrión no espera invitación
-
-    // Host: assign random roles and create room
-    const roles = Math.random()<0.5 ? {host:'atk',guest:'def'} : {host:'def',guest:'atk'};
-    MM.myRole = roles.host;
-    const rivalRole = roles.guest;
-
-    document.getElementById('mm-status').textContent = '✓ Rival encontrado. Creando sala...';
-
-    // Remove rival from queue too
-    await window._fbSet(window._fbRef(window._db,'matchmaking/queue/'+rival.uid), null);
-
-    const code = genRoomCode();
-    await window._fbSet(window._fbRef(window._db,'rooms/'+code),{
-      created:Date.now(), host:MM.myRole, guest:null, state:null,
-      step:null, picks:null, coinWinner:null
+    MM.timerInterval = setInterval(() => {
+      const s = Math.floor((Date.now() - MM.startTime) / 1000);
+      const el = document.getElementById('mm-timer'); if (el) el.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+      if (s >= 180 && !MM.joining && !MM.hostRoom) cancelMatchmaking();   // 3 minutos sin rival
+    }, 1000);
+  }
+  mmStopListeners();
+  const gen = ++MM.gen;            // los callbacks de búsquedas anteriores se ignoran
+  MM.active = true; MM.joining = false; MM.hostRoom = null; MM.myUid = user.uid;
+  const myName = user.displayName || user.email;
+  mmStatus('Entrando en la cola...');
+  try {
+    MM.offRef = mmRef('.info/serverTimeOffset');
+    window._fbOnValue(MM.offRef, s => { MM.offset = s.val() || 0; });
+    // 1) invitación: borrar la vieja y escuchar ANTES de entrar en la cola
+    await window._fbSet(mmRef('matchmaking/rooms/' + user.uid), null);
+    if (gen !== MM.gen) return;
+    MM.inviteRef = mmRef('matchmaking/rooms/' + user.uid);
+    window._fbOnValue(MM.inviteRef, snap => {
+      const d = snap.val();
+      if (gen !== MM.gen || !d || !d.roomCode) return;
+      mmAcceptInvite(gen, user, myName, d);
     });
-    await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/playerNames/'+MM.myRole), myName);
+    // 2) entrar en la cola (si se cierra la app, Firebase borra la entrada: no quedan fantasmas)
+    try { window._fbOnDisconnect && window._fbOnDisconnect(mmRef('matchmaking/queue/' + user.uid)).remove(); } catch (_) {}
+    await window._fbSet(mmRef('matchmaking/queue/' + user.uid), { uid:user.uid, name:myName, ts:mmNow() });
+    if (gen !== MM.gen) return;
+    mmStatus('En cola, buscando rival...');
+    // 3) mirar la cola
+    MM.queueListener = mmRef('matchmaking/queue');
+    window._fbOnValue(MM.queueListener, snap => { mmOnQueue(gen, user, myName, snap.val() || {}); });
+  } catch (e) {
+    console.warn('[MM]', e); mmStatus('Error de conexión. Reintentando...');
+    setTimeout(() => { if (gen === MM.gen) startMatchmaking(true); }, 3000);
+  }
+}
 
-    // Signal guest with room code and their role
-    await window._fbSet(window._fbRef(window._db,'matchmaking/rooms/'+rival.uid),{
-      roomCode: code, role: rivalRole, rivalName: myName
-    });
+async function mmOnQueue(gen, user, myName, queue) {
+  if (gen !== MM.gen || !MM.active || MM.joining) return;
+  const now = mmNow();
+  const fresh = Object.values(queue).filter(e => e && e.uid && Math.abs(now - (e.ts || 0)) < 90000);
+  const pl = document.getElementById('mm-players');
+  if (pl) pl.textContent = fresh.length + ' jugador' + (fresh.length !== 1 ? 'es' : '') + ' en cola';
+  const others = fresh.filter(e => e.uid !== user.uid && !((MM.skip[e.uid] || 0) > Date.now()));   // sin rivales que no respondieron
+  if (!others.length) { mmStatus('En cola, buscando rival...'); return; }
+  const rival = others.sort((a, b) => (a.ts - b.ts) || (a.uid < b.uid ? -1 : 1))[0];
+  console.log('[MM] rival:', rival.uid, '| anfitrión:', user.uid < rival.uid);
+  if (user.uid > rival.uid) { mmStatus('✓ Rival encontrado. Conectando...'); return; }   // invitado: espera la invitación
 
-    document.getElementById('mm-status').textContent = '✓ Sala creada. Esperando al rival...';
-
-    ONLINE.roomId=code; ONLINE.myRole=MM.myRole; ONLINE.enabled=true; ONLINE.currentStep=null;
-
-    // Wait for guest to join
-    window._fbOnValue(window._fbRef(window._db,'rooms/'+code+'/guest'), s=>{
-      if(!s.val()) return;
-      window._fbOff(window._fbRef(window._db,'rooms/'+code+'/guest'));
+  // ── Anfitrión ──
+  MM.active = false;
+  if (MM.queueListener) { window._fbOff(MM.queueListener); MM.queueListener = null; }
+  if (MM.inviteRef) { window._fbOff(MM.inviteRef); MM.inviteRef = null; }
+  const roles = Math.random() < 0.5 ? { h:'atk', g:'def' } : { h:'def', g:'atk' };
+  const code = genRoomCode();
+  MM.hostRoom = { code, rival:rival.uid };
+  mmStatus('✓ Rival encontrado. Creando sala...');
+  try {
+    await window._fbSet(mmRef('matchmaking/queue/' + user.uid), null);
+    await window._fbSet(mmRef('rooms/' + code), { created:Date.now(), host:roles.h, guest:null, state:null, step:null, picks:null, coinWinner:null });
+    await window._fbSet(mmRef('rooms/' + code + '/playerNames/' + roles.h), myName);
+    if (gen !== MM.gen) return;
+    ONLINE.roomId = code; ONLINE.myRole = roles.h; ONLINE.enabled = true; ONLINE.currentStep = null; MM.myRole = roles.h;
+    const gRef = mmRef('rooms/' + code + '/guest');
+    let started = false;
+    window._fbOnValue(gRef, s => {
+      const g = s.val();
+      if (started || gen !== MM.gen || g !== roles.g) return;    // 'X' = hueco cerrado
+      started = true; window._fbOff(gRef);
+      clearTimeout(MM.hostWait); MM.hostWait = null; clearInterval(MM.timerInterval); MM.hostRoom = null;
+      mmStatus('✓ Rival conectado. Iniciando...');
       setTimeout(startOnlineGame, 300);
     });
-  });
+    await window._fbSet(mmRef('matchmaking/rooms/' + rival.uid), { roomCode:code, hostUid:user.uid, rivalName:myName, ts:mmNow() });
+    if (gen !== MM.gen) return;
+    if (!started) mmStatus('✓ Sala creada. Esperando al rival...');
+    MM.hostWait = setTimeout(async () => {
+      if (started || gen !== MM.gen) return;
+      // El invitado no ha llegado: cerrar el hueco (si gana el invitado en el último momento, se juega)
+      let closed = false;
+      try { closed = await mmClaimGuest(code, 'X'); } catch (_) {}
+      if (!closed || started || gen !== MM.gen) return;
+      window._fbOff(gRef);
+      MM.skip[rival.uid] = Date.now() + 60000;   // no volver a emparejar con él durante un minuto
+      await mmDropHostRoom(code, rival.uid);
+      ONLINE.enabled = false; ONLINE.roomId = null; ONLINE.myRole = null;
+      mmStatus('El rival no respondió. Volviendo a la cola...');
+      startMatchmaking(true);
+    }, MM.hostWaitMs);
+  } catch (e) {
+    console.warn('[MM] anfitrión', e);
+    try { await mmDropHostRoom(code, rival.uid); } catch (_) {}
+    ONLINE.enabled = false; ONLINE.roomId = null;
+    if (gen === MM.gen) { mmStatus('Error creando la sala. Reintentando...'); setTimeout(() => { if (gen === MM.gen) startMatchmaking(true); }, 2000); }
+  }
+}
+async function mmDropHostRoom(code, rivalUid) {
+  MM.hostRoom = null;
+  try {   // la invitación solo se borra si sigue apuntando a esta sala
+    const inv = await window._fbGet(mmRef('matchmaking/rooms/' + rivalUid));
+    if (inv.val() && inv.val().roomCode === code) await window._fbSet(mmRef('matchmaking/rooms/' + rivalUid), null);
+  } catch (_) {}
+  try { await window._fbSet(mmRef('rooms/' + code), null); } catch (_) {}
 }
 
-function listenForMMRoom(uid, myName) {
-  console.log('[MM] listenForMMRoom started for uid:', uid);
-  const ref = window._fbRef(window._db,'matchmaking/rooms/'+uid);
-  MM.inviteRef = ref;
-  window._fbOnValue(ref, async snap=>{
-    console.log('[MM] listenForMMRoom fired, exists:', snap.exists(), snap.val());
-    if(!snap.exists()) return;
-    const data = snap.val();
-    if(!data || !data.roomCode) return;
-    window._fbOff(ref); MM.inviteRef = null;
-    // Invitados: dejar de buscar
-    MM.active = false; clearInterval(MM.timerInterval);
-    if(MM.queueListener) window._fbOff(MM.queueListener);
-    window._fbSet(window._fbRef(window._db,'matchmaking/queue/'+uid), null);
-    const st = document.getElementById('mm-status'); if(st) st.textContent = '✓ Rival encontrado. Conectando...';
-    await window._fbSet(ref, null);
-    const code = data.roomCode;
-    console.log('[MM] Guest joining room:', code, 'as:', data.role);
-    ONLINE.roomId=code; ONLINE.myRole=data.role; ONLINE.enabled=true; ONLINE.currentStep=null;
-    await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/guest'), data.role);
-    await window._fbSet(window._fbRef(window._db,'rooms/'+code+'/playerNames/'+data.role), myName);
+async function mmAcceptInvite(gen, user, myName, d) {
+  if (MM.joining || gen !== MM.gen) return;
+  MM.joining = true;
+  mmStatus('✓ Rival encontrado. Entrando en la sala...');
+  const code = d.roomCode;
+  const retry = async () => {
+    MM.joining = false;
+    try {   // la invitación ya no vale: se descarta (solo si sigue siendo esa)
+      const inv = await window._fbGet(mmRef('matchmaking/rooms/' + user.uid));
+      if (inv.val() && inv.val().roomCode === code) await window._fbSet(mmRef('matchmaking/rooms/' + user.uid), null);
+    } catch (_) {}
+    if (gen === MM.gen) mmStatus('En cola, buscando rival...');
+  };
+  try {
+    const room = (await window._fbGet(mmRef('rooms/' + code))).val();
+    if (gen !== MM.gen) return;
+    if (!room || room.guest != null || (room.host !== 'atk' && room.host !== 'def')) return retry();
+    const role = room.host === 'atk' ? 'def' : 'atk';          // el bando sale de la sala
+    if (!(await mmClaimGuest(code, role))) return retry();      // el anfitrión ya cerró el hueco
+    if (gen !== MM.gen) return;
+    MM.gen++; MM.active = false; mmStopListeners(); clearInterval(MM.timerInterval);
+    ONLINE.roomId = code; ONLINE.myRole = role; ONLINE.enabled = true; ONLINE.currentStep = null; MM.myRole = role;
+    await window._fbSet(mmRef('matchmaking/rooms/' + user.uid), null);
+    await window._fbSet(mmRef('matchmaking/queue/' + user.uid), null);
+    await window._fbSet(mmRef('rooms/' + code + '/playerNames/' + role), myName);
+    console.log('[MM] invitado en la sala', code, 'como', role);
+    mmStatus('✓ Conectado. Iniciando...');
     setTimeout(startOnlineGame, 300);
-  });
+  } catch (e) { console.warn('[MM] invitado', e); retry(); }
 }
+
+// Compatibilidad: ya no se usa (la invitación se escucha desde startMatchmaking)
+function listenForMMRoom() {}
 
 async function cancelMatchmaking() {
-  MM.active = false;
+  MM.gen++; MM.active = false; MM.joining = false;
+  mmStopListeners();
   clearInterval(MM.timerInterval);
-  if(MM.queueListener) window._fbOff(MM.queueListener);
-  if(MM.inviteRef){ window._fbOff(MM.inviteRef); MM.inviteRef=null; }
   const user = window._currentUser;
-  if(user) await window._fbSet(window._fbRef(window._db,'matchmaking/queue/'+user.uid), null);
+  const hr = MM.hostRoom; MM.hostRoom = null;
   showScreen('lobby');
+  if (user) { try { await window._fbSet(mmRef('matchmaking/queue/' + user.uid), null); } catch (_) {} }
+  if (hr) {   // éramos anfitriones esperando: cerrar el hueco y borrar la sala
+    try { if (await mmClaimGuest(hr.code, 'X')) { await mmDropHostRoom(hr.code, hr.rival); ONLINE.enabled = false; ONLINE.roomId = null; } } catch (_) {}
+  }
 }
 
 let _rankingData = []; // cached ranking entries
