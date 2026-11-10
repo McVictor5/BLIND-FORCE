@@ -1744,7 +1744,7 @@ window.SFX = SFX;
 // Discreta y tensa; tiene su propio botón y preferencia, independiente de los efectos.
 const MUSIC = {
   on: (()=>{ try { return localStorage.getItem('bf_music') !== '0'; } catch(e){ return true; } })(),
-  out:null, running:false, timer:null, next:{beat:0, note:0, swell:0}, drone:null, vol:0.22,
+  out:null, running:false, timer:null, next:{beat:0, note:0, swell:0}, drone:null, vol:0.4,
   scale:[0, 1, 3, 5, 7, 8, 10],   // La frigio
   ensure() {
     if (!SFX.init()) return false;
@@ -2509,7 +2509,29 @@ function leaveSplash() {
   SPLASH_DONE = true;
   const w = document.getElementById('ttl-wrap'); if (w) w.classList.remove('splash');
   try { if (window.SFX) { SFX.unlock(); SFX.play('confirm'); } } catch (_) {}
+  goFullscreen();
 }
+// Pantalla completa real en el móvil: oculta la barra de estado y la de navegación (Android).
+// Necesita un toque del usuario; si se sale (p. ej. al cambiar de app) se recupera con el siguiente toque.
+function wantsFullscreen() { return window.matchMedia && matchMedia('(pointer:coarse)').matches; }
+function goFullscreen() {
+  if (!wantsFullscreen()) return;
+  const el = document.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!req || document.fullscreenElement || document.webkitFullscreenElement) return;
+  try {
+    const p = req.call(el, { navigationUI: 'hide' });
+    const lock = () => { try { screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {}); } catch (_) {} };
+    if (p && p.then) p.then(lock).catch(() => {}); else lock();
+  } catch (_) {}
+}
+(function(){
+  let lost = false;
+  const onChange = () => { if (!document.fullscreenElement && !document.webkitFullscreenElement && SPLASH_DONE) lost = true; };
+  document.addEventListener('fullscreenchange', onChange);
+  document.addEventListener('webkitfullscreenchange', onChange);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && SPLASH_DONE) lost = true; });
+  document.addEventListener('pointerup', () => { if (lost) { lost = false; goFullscreen(); } }, { passive: true });
+})();
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-'+id).classList.add('active');
@@ -6777,11 +6799,18 @@ function generateRandomMap() {
     }
   }
 
+  // El mapa aleatorio no pone paredes junto a las casillas más exteriores del tablero
+  function touchesEdge(key) {
+    const [t, a, b] = key.split('_'); const r = +a, c = +b;
+    const cells = t === 'h' ? [[r,c],[r+1,c]] : [[r,c],[r,c+1]];
+    return cells.some(([rr,cc]) => rr===0 || cc===0 || rr===GRID-1 || cc===GRID-1);
+  }
   // Todos los surcos horizontales del tablero
   for(let r=0;r<=GRID-2;r++) for(let c=0;c<=GRID-1;c++) {
     const key=`h_${r}_${c}`;
     if(G.walls.has(key)) continue;
     if(isOuterRingSurco(key)) continue;
+    if(touchesEdge(key)) continue;
     if(surcoInsideBombZone(key)) continue;
     if(isBombZoneDoor(key)) continue;
     if(isSurcoPuerta(key)) continue;
@@ -6792,6 +6821,7 @@ function generateRandomMap() {
     const key=`v_${r}_${c}`;
     if(G.walls.has(key)) continue;
     if(isOuterRingSurco(key)) continue;
+    if(touchesEdge(key)) continue;
     if(surcoInsideBombZone(key)) continue;
     if(isBombZoneDoor(key)) continue;
     if(isSurcoPuerta(key)) continue;
