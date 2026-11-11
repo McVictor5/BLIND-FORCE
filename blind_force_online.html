@@ -1549,6 +1549,9 @@ body.coop-game #btn-coop-exit { display:inline-block !important; }
 .dev-info .di-tag.atk { color:#ff8a7d; box-shadow:inset 0 0 0 1px rgba(226,102,90,.5); }
 .dev-info .di-tag.def { color:#8fbaf0; box-shadow:inset 0 0 0 1px rgba(116,163,221,.5); }
 .dev-info .di-hint { font-size:.82rem; color:var(--text-dim); }
+.rl-note { color:#e0a53c; font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif; font-size:.9rem; letter-spacing:.02em; }
+.ts-limit { display:flex; align-items:center; gap:8px; margin-top:10px; padding:7px 10px; border-radius:6px; background:rgba(224,165,60,.1); box-shadow:inset 0 0 0 1px rgba(224,165,60,.35); color:#f0d9a0; font-size:.86rem; }
+.ts-limit i { font-style:normal; }
 </style>
 
 <!-- Firebase -->
@@ -2945,6 +2948,7 @@ function initState() {
     darioDevice: null,
     // bomb counters: {unitId: count}
     bombCounters: {},
+    limitUsed: 0, limitFrozen: false,   // límite de rondas (ver roundLimitTick)
     // ability placement mode
     abilityMode: null, // {type, unitId, step, data}
     // shooting
@@ -3147,7 +3151,7 @@ function showInstructions() {
 
   const body = `
   ${s('🎯 Objetivo',
-    `Dos jugadores se enfrentan: ${b('atacante')} contra ${b('defensor')}. El atacante gana si ${b('elimina todas las fichas defensoras')}, o si una de sus fichas permanece ${b('5 rondas consecutivas')} dentro de la sala de la bomba sin que haya defensores dentro al finalizar cada ronda. El defensor gana si ${b('elimina todas las fichas atacantes')}.`)}
+    `Dos jugadores se enfrentan: ${b('atacante')} contra ${b('defensor')}. El atacante gana si ${b('elimina todas las fichas defensoras')}, o si una de sus fichas permanece ${b('5 rondas consecutivas')} dentro de la sala de la bomba sin que haya defensores dentro al finalizar cada ronda. El defensor gana si ${b('elimina todas las fichas atacantes')} o si ${b('pasan 15 rondas')} sin que el atacante lo consiga. Ese contador de rondas se congela mientras haya alguna ficha atacante dentro de la sala de la bomba al terminar su turno.`)}
 
   ${s('📐 El tablero',
     `Cuadrícula de ${b('15×15 casillas')}. Hay una zona especial:<br>
@@ -6431,6 +6435,22 @@ function shootTarget(targetObj) {
 // ═══════════════════════════════════════════════════════════════════════════
 // WIN CONDITIONS
 // ═══════════════════════════════════════════════════════════════════════════
+// ── Límite de rondas: el defensor gana si el atacante no lo logra en 15 rondas ──
+// Cuenta al final de cada turno atacante; no avanza si alguna ficha atacante está en la sala de la bomba.
+const ROUND_LIMIT = 15;
+function roundLimitTick() {
+  const atkInBomb = G.units.some(u => u.side === 'atk' && u.alive && inBombZone(u.row, u.col));
+  G.limitFrozen = atkInBomb;
+  if (!atkInBomb) G.limitUsed = (G.limitUsed || 0) + 1;
+}
+function roundsLeft() { return Math.max(0, ROUND_LIMIT - (G.limitUsed || 0)); }
+// Aviso para los resúmenes de fin de turno (solo en las 5 últimas rondas)
+function roundLimitNote() {
+  const n = roundsLeft();
+  if (n > 5 || n <= 0) return '';
+  return n === 1 ? 'Queda <b>1 ronda</b> para que gane el defensor.' : 'Quedan <b>' + n + ' rondas</b> para que gane el defensor.';
+}
+
 function checkWinConditions() {
   const atkAlive = G.units.filter(u=>u.side==='atk'&&u.alive).length;
   const defAlive = G.units.filter(u=>u.side==='def'&&u.alive).length;
@@ -6442,6 +6462,7 @@ function checkWinConditions() {
       const cnt = G.bombCounters[uid]||0;
       if(cnt>=5) { endGame('atk',`${UNIT_DEFS[uid].name} permaneció 5 rondas en la sala de la bomba`); return; }
     }
+    if((G.limitUsed||0)>=ROUND_LIMIT) { endGame('def',`El atacante no consiguió su objetivo en ${ROUND_LIMIT} rondas`); return; }
   }
 }
 
@@ -6528,6 +6549,7 @@ function endTurn() {
         G.bombCounters[uid]=0; // Left bomb zone: reset
       }
     });
+    roundLimitTick();
     checkWinConditions();
   }
 
@@ -6587,6 +6609,7 @@ function endTurn() {
   const changeMsg = `<b>CAMBIO DE DISPOSITIVO</b><br>Entrega el dispositivo al ${nextSide==='atk'?'ATACANTE':'DEFENSOR'}.`
     + unmovedMsg
     + abilitiesMsg
+    + (roundLimitNote() ? `<br><span class="rl-note">⏳ ${roundLimitNote()}</span>` : '')
     + (notifMsg ? `<br><br><b>NOTIFICACIONES:</b><br>${notifMsg}` : '');
 
   saveReplaySnapshot('shoot');
@@ -8054,6 +8077,7 @@ function showTurnNotification(rivalSide){
   } else {
     html += '<div class="ts-calm">' + ico.shot + '<span>El rival <b>no ha disparado</b> este turno.</span></div>';
   }
+  { const rl = roundLimitNote(); if (rl) html += '<div class="ts-limit"><i>⏳</i><span>' + rl + '</span></div>'; }
   if (alerts.length) html += '<div class="ts-alerts">' + alerts.map(a => '<div class="ts-alert"><i>!</i><span>' + a + '</span></div>').join('') + '</div>';
   html += '</div>';
 
@@ -8316,6 +8340,7 @@ window.endTurn=function(){
       if(inBombZone(u.row,u.col)){ if(!dib) G.bombCounters[uid]=(G.bombCounters[uid]||0)+1; }
       else G.bombCounters[uid]=0;
     });
+    roundLimitTick();
     checkWinConditions();
   }
 
@@ -12457,6 +12482,7 @@ function coopEndTurn() {
     const dib = G.units.some(u => u.side === 'def' && u.alive && inBombZone(u.row, u.col));
     G.atkPick.forEach(uid => { const u = getUnit(uid); if (!u || !u.alive) return;
       if (inBombZone(u.row, u.col)) { if (!dib) G.bombCounters[uid] = (G.bombCounters[uid] || 0) + 1; } else G.bombCounters[uid] = 0; });
+    roundLimitTick();
     checkWinConditions();
   }
   if (G.olayaKilledThisRound) { G.olayaBoostRound = G.round + 1; G.olayaKilledThisRound = false; G.olayaAbilityActive = false; }
