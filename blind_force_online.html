@@ -609,7 +609,7 @@ input[type=text]:focus, input[type=password]:focus, input[type=email]:focus { bo
   #screen-construct.active, #screen-spawn.active { align-content:center !important; align-items:center !important; justify-items:center !important; min-height:100vh; min-height:100dvh; }
   #screen-construct.active > *, #screen-spawn.active > * { grid-column:2; width:100%; margin-top:0; margin-bottom:8px; text-align:center; }
   #screen-construct.active > .phase-header, #screen-spawn.active > .phase-header { justify-content:center; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
-  #screen-construct.active > div:nth-child(4), #screen-spawn.active > div:nth-child(3) { grid-column:1; grid-row:1 / -1; width:auto; margin:0; }
+  #screen-construct.active > .bf-boardcol, #screen-spawn.active > .bf-boardcol { grid-column:1; grid-row:1 / -1; width:auto; margin:0; }
   #construct-canvas, #spawn-canvas { height:calc(100vh - 20px); height:calc(100dvh - 20px); width:auto; max-width:calc(100vw - 225px); }
   .phase-title { font-size:.95rem; }
   #screen-construct .btn-secondary, #screen-spawn .btn-primary { margin:0 !important; width:100%; padding:10px 6px; font-size:.78rem; }
@@ -1486,6 +1486,16 @@ body.coop-game .log-panel, body.coop-game #chat-feed, body.coop-game #chat-btn-b
 .btn-primary.cg-ready { background:rgba(157,179,138,.18); border-color:#9db38a; color:#cfe0bf; }
 .cg-mate { display:flex; align-items:center; gap:8px; padding:5px 0; border-top:1px solid rgba(255,255,255,.05); font-size:.8rem; color:#e6dcc3; }
 .cg-mate:first-of-type { border-top:none; }
+@media (orientation:landscape) and (max-height:600px) {   /* cooperativo en móvil horizontal: la barra va en la columna lateral */
+  #screen-construct .coop-bar, #screen-spawn .coop-bar { width:100%; margin:0 0 6px; gap:6px; }
+  .coop-bar .cb-row { flex-wrap:wrap; gap:6px; }
+  .coop-bar .cb-foot > span:first-child { display:none; }
+  .coop-bar .cb-vote { flex-direction:column; align-items:stretch; padding:8px; gap:6px; text-align:left; }
+  .coop-bar .cb-prev { flex:0 0 auto; width:64px; margin:0 auto; } .coop-bar .cb-prev svg { width:64px; }
+  .coop-bar .cb-vt { font-size:.72rem; letter-spacing:.08em; } .coop-bar .cb-vs { display:none; }
+  .coop-bar .cb-zones { grid-template-columns:repeat(2,1fr); }
+  .coop-bar .cb-chip { max-width:84px; font-size:.6rem; padding:2px 6px; }
+}
 .board3d-vig { position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 58%, rgba(0,0,0,.42) 100%); }
 .cm-panel { padding:10px 12px; }
 .cm-head { font:700 .72rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.16em; text-transform:uppercase; color:#b9cfa6; margin-bottom:8px; display:flex; justify-content:space-between; gap:6px; }
@@ -1893,7 +1903,7 @@ body.coop-game #btn-coop-exit { display:inline-block !important; }
   <div id="construct-turn-badge" style="margin-bottom:10px;text-align:center;"></div>
   <div id="coop-build-bar" class="coop-bar" style="display:none;"></div>
   <div class="wall-info">Paredes colocadas: <b id="walls-placed">0</b> / <span id="walls-total">50</span> &nbsp;|&nbsp; Turno: <b id="wall-turn-label">—</b></div>
-  <div style="margin:14px auto; position:relative;">
+  <div class="bf-boardcol" style="margin:14px auto; position:relative;">
     <div id="view3d-bar-c" style="position:absolute;top:8px;right:8px;z-index:5;display:none;gap:6px;">
         <button id="btn-view3d-c" onclick="VIEW3D_C.toggle()" title="Cambiar entre vista 2D y 3D" style="background:rgba(30,29,27,.85);border:1px solid var(--border);color:var(--text);font-family:Inter,sans-serif;font-size:.7rem;font-weight:600;letter-spacing:.08em;padding:6px 11px;cursor:pointer;">3D</button>
         <button onclick="VIEW3D_C.resetCamera()" title="Recentrar cámara" style="background:rgba(30,29,27,.85);border:1px solid var(--border);color:var(--text);font-family:Inter,sans-serif;font-size:.8rem;padding:5px 10px;cursor:pointer;">⟲</button>
@@ -1916,7 +1926,7 @@ body.coop-game #btn-coop-exit { display:inline-block !important; }
   </div>
   <div id="spawn-turn-badge" style="margin-bottom:10px;text-align:center;"></div>
   <div id="coop-deploy-bar" class="coop-bar" style="display:none;"></div>
-  <div style="margin:14px auto; position:relative;">
+  <div class="bf-boardcol" style="margin:14px auto; position:relative;">
     <div id="view3d-bar-s" style="position:absolute;top:8px;right:8px;z-index:5;display:none;gap:6px;">
         <button id="btn-view3d-s" onclick="VIEW3D_S.toggle()" title="Cambiar entre vista 2D y 3D" style="background:rgba(30,29,27,.85);border:1px solid var(--border);color:var(--text);font-family:Inter,sans-serif;font-size:.7rem;font-weight:600;letter-spacing:.08em;padding:6px 11px;cursor:pointer;">3D</button>
         <button onclick="VIEW3D_S.resetCamera()" title="Recentrar cámara" style="background:rgba(30,29,27,.85);border:1px solid var(--border);color:var(--text);font-family:Inter,sans-serif;font-size:.8rem;padding:5px 10px;cursor:pointer;">⟲</button>
@@ -4332,9 +4342,9 @@ class Board3D {
       const p = this.cellPos(r, c);
       const tgt = new THREE.Vector3(p.x, (o.sel ? 0.14 : 0) + (o.lift || 0), p.z);
       let g = this.ents.get(key);
-      if (!g || g.userData.kind !== kind || g.userData.icon !== icon) {
+      if (!g || g.userData.kind !== kind || g.userData.icon !== icon || (kind === 'dev' && (g.userData.dtype !== (o.dtype || 'walkie') || g.userData.ang !== (o.ang || 0)))) {
         if (g) this.removeEnt(key, g);
-        g = this.makeToken(icon, kind);
+        g = this.makeToken(icon, kind, o.dtype, o.ang);
         g.position.copy(tgt);
         g.userData.target.copy(tgt);
         this.ents.set(key, g);
@@ -4368,7 +4378,9 @@ class Board3D {
     this.frame.devices.forEach(e => {
       const d = e.d;
       const kind = d.type === 'iarramendi' ? 'atk' : d.type === 'bisbal' ? 'def' : 'dev';
-      upsert('d_' + this.D().indexOf(d), e.srcDef.icon, kind, d.row, d.col, { lift: e.lift || 0 });
+      let ang = 0;   // los sensores murales miran hacia su pared
+      if (d.wallKey) { const [wt, wr, wc] = String(d.wallKey).split('_'); ang = wt === 'h' ? (+wr === d.row ? 0 : Math.PI) : (+wc === d.col ? Math.PI / 2 : -Math.PI / 2); }
+      upsert('d_' + this.D().indexOf(d), e.srcDef.icon, kind, d.row, d.col, { lift: e.lift || 0, dtype: d.type, ang });
     });
     [...this.ents.keys()].forEach(k => { if (!seen.has(k)) this.removeEnt(k, this.ents.get(k)); });
   }
@@ -4678,27 +4690,32 @@ class Board3D {
     return g;
   }
 
-  makeToken(icon, kind) {
+  makeToken(icon, kind, dtype, ang) {
     if (kind === 'atk' || kind === 'def') return this.makeSoldier(icon, kind);
-    if (kind === 'dev') {   // walkie-talkie sobre peana, con la letra del dueño delante
-      const W = BFPROPS.walkie(), cols = [0x41454e, 0xa7acb6, 0xe6e9ee];
-      const g = new THREE.Group();
+    if (kind === 'dev') {   // cada dispositivo, su figura sobre la peana con la letra del dueño delante
+      const W = BFPROPS.device(dtype || 'walkie'), cols = W.cols;
+      const g = new THREE.Group(), obj = new THREE.Group();
       const mDark = new THREE.MeshStandardMaterial({ color: cols[0], roughness: 0.62, metalness: 0.1 });
       const mBody = new THREE.MeshStandardMaterial({ color: cols[1], roughness: 0.48, metalness: 0.15 });
       const mLight = new THREE.MeshStandardMaterial({ color: cols[2], roughness: 0.38, metalness: 0.2 });
-      const mLed = new THREE.MeshBasicMaterial({ color: 0x6dff8a });
-      [[W.dark, mDark], [W.body, mBody], [W.light, mLight], [W.led, mLed]].forEach(([geo, m], i) => { const x = new THREE.Mesh(geo, m); x.castShadow = i < 3; x.receiveShadow = i < 3; g.add(x); });
+      [[W.dark, mDark], [W.body, mBody], [W.light, mLight]].forEach(([geo, m]) => { if (!geo) return; const x = new THREE.Mesh(geo, m); x.castShadow = true; x.receiveShadow = true; obj.add(x); });
+      const extra = [];
+      W.acc.forEach(a => {   // luces, lentes y cristales: no les afecta la iluminación
+        const m = new THREE.MeshBasicMaterial({ color: a.color, transparent: a.opacity !== undefined, opacity: a.opacity === undefined ? 1 : a.opacity, depthWrite: a.opacity === undefined, blending: a.add ? THREE.AdditiveBlending : THREE.NormalBlending });
+        const x = new THREE.Mesh(a.geo, m); if (a.opacity !== undefined) x.renderOrder = 2; obj.add(x); extra.push(m);
+      });
+      obj.rotation.y = ang || 0; g.add(obj);
       const letter = new THREE.Mesh(this.geo.letter, new THREE.MeshBasicMaterial({ map: this.letterTex(icon), transparent: true, depthWrite: false }));
-      letter.rotation.x = -Math.PI / 2; letter.scale.setScalar(0.66); letter.position.set(0, 0.078, 0.2);
+      letter.rotation.x = -Math.PI / 2; letter.scale.setScalar(0.66); letter.position.set(0, 0.078, 0.2); letter.renderOrder = 3;
       g.add(letter);
       const ring = new THREE.Mesh(this.geo.ring, new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.95, side: THREE.DoubleSide }));
       ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03; ring.visible = false;
       g.add(ring);
       g.scale.setScalar(0.98);
       g.userData = {
-        kind, icon, ring, sprite: null, spriteTxt: '', target: new THREE.Vector3(),
+        kind, icon, dtype: dtype || 'walkie', ang: ang || 0, ring, sprite: null, spriteTxt: '', target: new THREE.Vector3(),
         baseScale: 0.98, mv: null, land: undefined, pulseUntil: 0, wasSel: false, wob: null,
-        mats: [mDark, mBody, mLight, letter.material, ring.material, mLed],
+        mats: [mDark, mBody, mLight, letter.material, ring.material].concat(extra),
         baseCols: cols, em: 0x000000,
       };
       return g;
@@ -9796,7 +9813,6 @@ const END3D = (function () {
     g.userData.lab.visible = false; g.userData.ring.visible = false;
     if (p === 'lose') {   // derrota: tendido y apagado
       g.userData.mats.slice(0, 3).forEach(m => { m.color.setHex(0x5e5a54).convertSRGBToLinear(); if (m.emissive) m.emissive.setHex(0); });
-      g.userData.pv.children[0].visible = false; g.userData.pv.children[1].visible = false;
       g.userData.pv.rotation.z = Math.PI / 2 * 0.97; g.userData.pv.position.set(0.62, 0.3, 0);
       g.scale.setScalar(1.45);
     }
@@ -10083,12 +10099,7 @@ window.BFBOARD = {
       const c = new THREE.Mesh(b.geo.box, cm); c.scale.set(fw + 0.1, fh + 0.06, fw + 0.1);
       c.position.set(sx * (gw / 2 + fw / 2), fh / 2 - 0.13, sz * (gh / 2 + fw / 2)); c.castShadow = true; c.receiveShadow = true; deco.add(c);
     });
-    if (slab) { slab.material.color.setHex(0x14120f); slab.scale.set((gw + fw * 2 + 0.1) / (gw + 0.7), 1, (gh + fw * 2 + 0.1) / (gh + 0.7)); }
-    // mesa: una superficie oscura con un halo cálido bajo el tablero, para que no flote en negro
-    const [tc, tx] = this.canvas(256, 256), tg = tx.createRadialGradient(128, 128, 30, 128, 128, 128);
-    tg.addColorStop(0, '#2c2620'); tg.addColorStop(0.4, '#1c1815'); tg.addColorStop(1, '#100f0d'); tx.fillStyle = tg; tx.fillRect(0, 0, 256, 256);
-    const table = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), new THREE.MeshStandardMaterial({ map: this.tex(tc, true), roughness: 1, metalness: 0 }));
-    table.rotation.x = -Math.PI / 2; table.position.y = -0.61; table.receiveShadow = true; deco.add(table);
+    if (slab) { slab.scale.set((gw + fw * 2 + 0.1) / (gw + 0.7), 1, (gh + fw * 2 + 0.1) / (gh + 0.7)); }
     // bomba en la casilla central
     try {
       const p = b.cellPos(7, 7), bomb = this.bomb(b);
@@ -10214,6 +10225,168 @@ const BFPROPS = {
     return m;
   },
 };
+
+// ═══ Dispositivos con forma propia (cada tipo, su figura sobre la misma peana con la letra del dueño) ═══
+// device(type) → { dark, body, light, acc:[{geo,color,basic,opacity}], cols:[oscuro, cuerpo, claro] }
+BFPROPS.DEV_COLS = [0x41454e, 0xa7acb6, 0xe6e9ee];
+BFPROPS.DEV_SCALE = { dario: 1.5, melania: 1.4, francisco: 1.4, esteban: 1.3, facundo: 1.35, zorro: 1.45, tarantino: 1.2, xinchan: 1.2, torrente: 1.45, daniel: 1.2, galileo: 1.3, sarapova: 1.45 };
+BFPROPS.device = function(type) {
+  const ck = 'dev_' + type; if (this.cache[ck]) return this.cache[ck];
+  if (type === 'walkie' || !this.devModels[type]) {
+    const W = this.walkie();
+    return (this.cache[ck] = { dark: W.dark, body: W.body, light: W.light, acc: [{ geo: W.led, color: 0x6dff8a, basic: true }], cols: this.DEV_COLS });
+  }
+  const L = { dark: [], body: [], light: [] }, accL = [];
+  const sc = this.DEV_SCALE[type] || 1.3;                               // agrandado para que se lea a la distancia de juego
+  const pre = new THREE.Matrix4().makeTranslation(0, 0.07, 0).multiply(new THREE.Matrix4().makeScale(sc, sc, sc));   // todo se modela sobre la peana (y = 0 es su cara superior)
+  const D = this.kit(L.dark, pre), B = this.kit(L.body, pre), Li = this.kit(L.light, pre);
+  [D, B, Li].forEach(k => {
+    k.rod = (a, b, r, r2) => { const A = k.V(...a), Bv = k.V(...b), len = A.distanceTo(Bv), q = new THREE.Quaternion().setFromUnitVectors(k.V(0, 1, 0), Bv.clone().sub(A).normalize());
+      k.add(new THREE.CylinderGeometry(r2 === undefined ? r : r2, r, len, 8), new THREE.Matrix4().compose(A.add(Bv).multiplyScalar(0.5), q, k.V(1, 1, 1))); };
+  });
+  const acc = (color, o = {}) => { const list = []; accL.push(Object.assign({ list, color }, o)); const k = this.kit(list, pre); return k; };
+  this.kit(L.dark).lathe([[0, 0], [0.4, 0], [0.425, 0.018], [0.42, 0.05], [0.39, 0.07], [0, 0.07]], null, null, 0, 32);   // peana común
+  const cols = this.devModels[type].call(this, D, B, Li, acc) || this.DEV_COLS;
+  const out = { cols, acc: accL.map(a => ({ geo: this.merge(a.list), color: a.color, basic: a.basic !== false, opacity: a.opacity, add: a.add })) };
+  ['dark', 'body', 'light'].forEach(k => { out[k] = L[k].length ? this.merge(L[k]) : null; });
+  return (this.cache[ck] = out);
+};
+const BF_TRIPOD = (D, h, z = -0.1, spread = 0.17) => { for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2 + 0.5; D.rod([0, h, z], [Math.cos(a) * spread, 0, z + Math.sin(a) * spread], 0.016, 0.02); } D.cyl(D.V(0, h, z), 0.035, 0.035, 0.05); };
+BFPROPS.devModels = {
+  // Dario — sensor de proximidad: trípode con cabezal y cúpula
+  dario(D, B, L, acc) {
+    BF_TRIPOD(D, 0.34);
+    B.sbox(B.V(0, 0.43, -0.1), 0.22, 0.13, 0.17, null, 0.35);
+    L.lathe([[0.085, 0], [0.08, 0.04], [0.055, 0.075], [0, 0.09]], L.V(0, 0.495, -0.1), null, 0, 16);                 // cúpula
+    D.cyl(D.V(0, 0.43, -0.01), 0.045, 0.04, 0.03, [Math.PI / 2, 0, 0]);                                               // óptica
+    D.rod([0.08, 0.49, -0.15], [0.1, 0.72, -0.17], 0.01);
+    acc(0x58e07a).ell(D.V(0, 0.43, 0.008), 0.026, 0.026, 0.012);
+    acc(0x58e07a).ell(D.V(0.1, 0.73, -0.17), 0.02, 0.02, 0.02);
+  },
+  // Melania / Francisco — sensor mural: cámara sobre poste, apuntando a la pared
+  mural(D, B, L, acc) {
+    D.cyl(D.V(0, 0.02, 0), 0.11, 0.09, 0.04); D.cyl(D.V(0, 0.25, 0), 0.028, 0.024, 0.46, null, 10);
+    D.ell(D.V(0, 0.5, 0), 0.05, 0.05, 0.05);
+    const rot = [0.18, 0, 0];
+    B.sbox(B.V(0, 0.56, 0.06), 0.15, 0.14, 0.36, rot, 0.35);                                                           // cuerpo de la cámara
+    L.sbox(L.V(0, 0.64, 0.08), 0.19, 0.02, 0.44, rot, 0.4);                                                            // visera
+    D.cyl(D.V(0, 0.525, 0.25), 0.062, 0.055, 0.06, [Math.PI / 2 + 0.18, 0, 0]);                                        // parasol del objetivo
+    D.rod([0, 0.55, -0.12], [0.04, 0.42, -0.06], 0.008);                                                              // cable
+    acc(0x69c8ff).ell(D.V(0, 0.518, 0.285), 0.042, 0.042, 0.012, rot);                                                 // lente
+    acc(0xff4433).ell(D.V(0.05, 0.6, 0.235), 0.012, 0.012, 0.008);                                                     // piloto
+  },
+  // Esteban — dron: cuadricóptero suspendido, con cámara
+  esteban(D, B, L, acc) {
+    const y = 0.5, z = -0.06;
+    B.sbox(B.V(0, y, z), 0.2, 0.085, 0.3, null, 0.4);
+    L.sbox(L.V(0, y + 0.045, z - 0.02), 0.13, 0.03, 0.18, null, 0.5);
+    const rot = acc(0xdfe6ee, { opacity: 0.32 });
+    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => {
+      const mx = sx * 0.22, mz = z + sz * 0.22;
+      D.rod([sx * 0.05, y, z + sz * 0.07], [mx, y + 0.01, mz], 0.018);                                                 // brazo
+      D.cyl(D.V(mx, y + 0.03, mz), 0.032, 0.028, 0.07);                                                                // motor
+      rot.cyl(D.V(mx, y + 0.072, mz), 0.15, 0.15, 0.006, null, 20);                                                    // hélice girando
+      D.rod([mx, y - 0.005, mz], [mx * 1.05, y - 0.11, mz], 0.008);                                                    // pata
+    });
+    D.ell(D.V(0, y - 0.065, z + 0.1), 0.045, 0.045, 0.045);                                                            // cámara
+    acc(0x69c8ff).ell(D.V(0, y - 0.07, z + 0.14), 0.022, 0.022, 0.012);
+    acc(0xff4433).ell(D.V(0.06, y + 0.01, z + 0.155), 0.014, 0.014, 0.01); acc(0x58e07a).ell(D.V(-0.06, y + 0.01, z + 0.155), 0.014, 0.014, 0.01);
+    acc(0x000000, { opacity: 0.28 }).cyl(D.V(0, 0.004, z), 0.2, 0.2, 0.004, null, 20);                                 // sombra en la peana
+  },
+  // Facundo — interferencia: inhibidor con varias antenas
+  facundo(D, B, L, acc) {
+    B.sbox(B.V(0, 0.15, -0.1), 0.38, 0.28, 0.2, null, 0.3);
+    D.sbox(D.V(0, 0.15, 0.003), 0.3, 0.2, 0.02, null, 0.25);                                                           // panel frontal
+    [[-0.13, 0.42], [-0.045, 0.32], [0.045, 0.5], [0.13, 0.36]].forEach(([x, h]) => { D.cyl(D.V(x, 0.3, -0.1), 0.026, 0.022, 0.04); D.rod([x, 0.3, -0.1], [x, 0.3 + h, -0.1], 0.016, 0.011); D.ell(D.V(x, 0.3 + h, -0.1), 0.017, 0.017, 0.017); });
+    L.cyl(L.V(-0.08, 0.17, 0.018), 0.04, 0.04, 0.02, [Math.PI / 2, 0, 0]);                                             // dial
+    for (let i = 0; i < 3; i++) L.box(L.V(0.03 + i * 0.045, 0.2, 0.016), 0.03, 0.016, 0.012);
+    D.sbox(D.V(-0.2, 0.2, -0.1), 0.02, 0.1, 0.12); D.sbox(D.V(0.2, 0.2, -0.1), 0.02, 0.1, 0.12);                       // asas
+    acc(0xffb020).ell(D.V(0.03, 0.12, 0.016), 0.016, 0.016, 0.008); acc(0xff4433).ell(D.V(0.075, 0.12, 0.016), 0.016, 0.016, 0.008); acc(0xffb020).ell(D.V(0.12, 0.12, 0.016), 0.016, 0.016, 0.008);
+  },
+  // Zorro — señuelo óptico: foco deslumbrante sobre trípode
+  zorro(D, B, L, acc) {
+    BF_TRIPOD(D, 0.3);
+    const rot = [-0.5, 0, 0];
+    D.sbox(D.V(0, 0.36, -0.1), 0.07, 0.1, 0.07);
+    B.lathe([[0.05, 0], [0.09, 0.03], [0.16, 0.12], [0.175, 0.16], [0.165, 0.165], [0.14, 0.12], [0, 0.03]], B.V(0, 0.4, -0.13), [Math.PI / 2 - 0.5, 0, 0], 0, 20);   // reflector
+    L.add(new THREE.TorusGeometry(0.17, 0.014, 6, 24), L.M(L.V(0, 0.478, -0.01), rot));                                // aro
+    acc(0xfff4c0).ell(D.V(0, 0.46, -0.04), 0.13, 0.13, 0.03, rot);                                                     // cristal encendido
+    acc(0xfff0a0, { opacity: 0.22, add: true }).ell(D.V(0, 0.5, 0.03), 0.22, 0.22, 0.1, rot);                          // resplandor
+  },
+  // Tarantino — trampa: cepo de mandíbulas dentadas
+  tarantino(D, B, L, acc) {
+    const z = -0.1;
+    D.sbox(D.V(0, 0.015, z), 0.5, 0.03, 0.09, null, 0.4);                                                              // travesaño
+    D.cyl(D.V(-0.25, 0.03, z), 0.04, 0.04, 0.06); D.cyl(D.V(0.25, 0.03, z), 0.04, 0.04, 0.06);                         // muelles
+    L.cyl(L.V(0, 0.035, z), 0.09, 0.09, 0.016, null, 18);                                                              // platillo
+    [1, -1].forEach(s => {
+      const m = new THREE.Matrix4().makeTranslation(0, 0.03, z).multiply(new THREE.Matrix4().makeRotationX(-s * (Math.PI / 2 - 0.95)));   // cada mandíbula, abierta hacia su lado
+      B.add(new THREE.TorusGeometry(0.23, 0.02, 6, 20, Math.PI), m);                                                   // mandíbula
+      for (let i = 1; i < 8; i++) {                                                                                    // dientes
+        const a = i / 8 * Math.PI, p = new THREE.Vector3(Math.cos(a) * 0.23, Math.sin(a) * 0.23, 0).applyMatrix4(m);
+        const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0.75, s * 0.66).normalize());
+        L.add(new THREE.ConeGeometry(0.02, 0.075, 5), new THREE.Matrix4().compose(p.add(new THREE.Vector3(0, 0.03, s * 0.025)), q, new THREE.Vector3(1, 1, 1)));
+      }
+    });
+    return [0x34373d, 0x8c9198, 0xdfe2e7];
+  },
+  // Xinchan — mina: disco con plato de presión
+  xinchan(D, B, L, acc) {
+    const z = -0.1;
+    B.lathe([[0, 0], [0.2, 0], [0.225, 0.02], [0.225, 0.07], [0.2, 0.095], [0.13, 0.1], [0, 0.1]], B.V(0, 0, z), null, 0, 24);
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; D.box(D.V(Math.cos(a) * 0.225, 0.045, z + Math.sin(a) * 0.225), 0.02, 0.06, 0.03, [0, -a, 0]); }   // nervios
+    D.lathe([[0, 0], [0.11, 0], [0.11, 0.025], [0.08, 0.04], [0, 0.04]], D.V(0, 0.1, z), null, 0, 18);                  // plato de presión
+    [0, 2.1, 4.2].forEach(a => L.rod([Math.cos(a) * 0.04, 0.14, z + Math.sin(a) * 0.04], [Math.cos(a) * 0.075, 0.2, z + Math.sin(a) * 0.075], 0.008));   // espoletas
+    D.box(D.V(0.19, 0.06, z + 0.13), 0.05, 0.03, 0.05, [0, -0.6, 0]);                                                  // asa
+    acc(0xff3322).ell(D.V(0.15, 0.105, z), 0.016, 0.016, 0.01);
+    return [0x30332c, 0x66704d, 0xd9dccf];
+  },
+  // Torrente — trampa óptica: emisor láser con haz rojo
+  torrente(D, B, L, acc) {
+    const z = -0.12;
+    D.lathe([[0.15, 0], [0.13, 0.05], [0.05, 0.09], [0.04, 0.2]], D.V(0, 0, z), null, 0, 14);                           // pie
+    B.sbox(B.V(0, 0.27, z + 0.02), 0.17, 0.15, 0.26, null, 0.35);                                                      // emisor
+    L.sbox(L.V(0, 0.355, z), 0.1, 0.03, 0.16, null, 0.4);
+    D.cyl(D.V(0, 0.27, z + 0.17), 0.05, 0.042, 0.07, [Math.PI / 2, 0, 0], 14);                                         // cañón
+    D.box(D.V(0.095, 0.27, z), 0.02, 0.08, 0.14); D.box(D.V(-0.095, 0.27, z), 0.02, 0.08, 0.14);
+    acc(0xff2a1a).ell(D.V(0, 0.27, z + 0.21), 0.03, 0.03, 0.012);                                                      // lente
+    acc(0xff2a1a, { opacity: 0.55, add: true }).cyl(D.V(0, 0.27, z + 0.37), 0.008, 0.008, 0.32, [Math.PI / 2, 0, 0], 6);   // haz
+    acc(0xff5a40, { opacity: 0.3, add: true }).ell(D.V(0, 0.27, z + 0.22), 0.06, 0.06, 0.03);
+  },
+  // Daniel — teletransporte: plataforma con anillo luminoso
+  daniel(D, B, L, acc) {
+    const z = -0.12;
+    B.lathe([[0, 0], [0.24, 0], [0.255, 0.02], [0.24, 0.05], [0.2, 0.055], [0.19, 0.035], [0, 0.035]], B.V(0, 0, z), null, 0, 28);
+    acc(0x6ad7ff, { opacity: 0.9 }).cyl(D.V(0, 0.04, z), 0.185, 0.185, 0.008, null, 24);                               // disco de energía
+    acc(0x6ad7ff, { opacity: 0.25, add: true }).lathe([[0.19, 0], [0.17, 0.3]], D.V(0, 0.04, z), null, 0, 24);          // columna de luz
+    for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2 + 0.52, x = Math.cos(a) * 0.235, zz = z + Math.sin(a) * 0.235;
+      D.cyl(D.V(x, 0.1, zz), 0.03, 0.022, 0.2, null, 8); acc(0xbdeeff).ell(D.V(x, 0.215, zz), 0.026, 0.026, 0.026); }  // pilones
+    return [0x2c3440, 0x7f8c9c, 0xe6e9ee];
+  },
+  // Galileo — cerrojo: candado
+  galileo(D, B, L, acc) {
+    const pre2 = [-0.14, 0, 0], z = -0.1;
+    B.sbox(B.V(0, 0.17, z), 0.34, 0.3, 0.14, pre2, 0.3);                                                               // cuerpo
+    D.sbox(D.V(0, 0.045, z + 0.02), 0.36, 0.06, 0.15, pre2, 0.3);                                                      // refuerzo inferior
+    L.add(new THREE.TorusGeometry(0.105, 0.032, 8, 18, Math.PI), L.M(L.V(0, 0.33, z - 0.04), pre2));                   // arco
+    L.cyl(L.V(-0.105, 0.305, z - 0.035), 0.032, 0.032, 0.07, pre2, 10); L.cyl(L.V(0.105, 0.305, z - 0.035), 0.032, 0.032, 0.07, pre2, 10);
+    D.cyl(D.V(0, 0.2, z + 0.055), 0.036, 0.036, 0.02, [Math.PI / 2 - 0.14, 0, 0], 14);                                 // ojo de la cerradura
+    D.box(D.V(0, 0.145, z + 0.063), 0.022, 0.08, 0.02, pre2);
+    return [0x2f3238, 0xc9a84a, 0xd6dae0];
+  },
+  // Sarapova — baliza: lámpara de señalización
+  sarapova(D, B, L, acc) {
+    const z = -0.1;
+    D.lathe([[0, 0], [0.15, 0], [0.15, 0.04], [0.1, 0.09], [0.1, 0.13], [0, 0.13]], D.V(0, 0, z), null, 0, 20);
+    B.cyl(B.V(0, 0.2, z), 0.085, 0.085, 0.14, null, 16);
+    acc(0xff9a26).lathe([[0.075, 0], [0.075, 0.1], [0.06, 0.15], [0.03, 0.175], [0, 0.18]], D.V(0, 0.27, z), null, 0, 16);   // tulipa
+    acc(0xffb040, { opacity: 0.28, add: true }).ell(D.V(0, 0.37, z), 0.17, 0.17, 0.17);                                 // resplandor
+    for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + 0.4; D.rod([Math.cos(a) * 0.085, 0.27, z + Math.sin(a) * 0.085], [Math.cos(a) * 0.05, 0.455, z + Math.sin(a) * 0.05], 0.008); }   // jaula
+    D.cyl(D.V(0, 0.46, z), 0.05, 0.035, 0.025, null, 12);
+    L.add(new THREE.TorusGeometry(0.09, 0.012, 6, 18), L.M(L.V(0, 0.275, z), [Math.PI / 2, 0, 0]));
+  },
+};
+BFPROPS.devModels.melania = BFPROPS.devModels.mural; BFPROPS.devModels.francisco = BFPROPS.devModels.mural;
 
 // ═══ MARK3D — marcadores en 3D: bala flotante donde se disparó y soldaditos verdes de hipótesis ═══
 const MARK3D = { bullets:new Map(), hyps:new Map(), geo:null };
