@@ -1544,6 +1544,11 @@ body.coop-game #btn-coop-exit { display:inline-block !important; }
 .unit-list-item.cg-other { opacity:.55; }
 .cg-owner { flex-shrink:0; font:700 .6rem 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.1em; text-transform:uppercase; color:var(--text-dim); max-width:70px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .cg-mate.me .cg-nm { color:#f3d48a; }
 .cg-nm { flex:1; min-width:0; } .cg-nm small { display:block; color:var(--text-dim); font-size:.68rem; }
+.dev-info p { margin:8px 0 0; line-height:1.45; }
+.dev-info .di-tag { display:inline-block; padding:2px 8px; border-radius:4px; font:700 .72rem/1.4 'Barlow Condensed',Arial Narrow,Arial,sans-serif; letter-spacing:.08em; text-transform:uppercase; background:rgba(255,255,255,.06); }
+.dev-info .di-tag.atk { color:#ff8a7d; box-shadow:inset 0 0 0 1px rgba(226,102,90,.5); }
+.dev-info .di-tag.def { color:#8fbaf0; box-shadow:inset 0 0 0 1px rgba(116,163,221,.5); }
+.dev-info .di-hint { font-size:.82rem; color:var(--text-dim); }
 </style>
 
 <!-- Firebase -->
@@ -6640,6 +6645,37 @@ function startNextTurn() {
 // ═══════════════════════════════════════════════════════════════════════════
 // CLICK HANDLER
 // ═══════════════════════════════════════════════════════════════════════════
+// ── Información de dispositivos rivales (sin revelar de qué personaje son) ──
+const DEVICE_INFO = {
+  tarantino: { n:'Trampa', d:'Si una de tus fichas pisa esta casilla en su fase de movimiento, queda eliminada.' },
+  xinchan:   { n:'Mina', d:'Si una de tus fichas pisa esta casilla en su fase de movimiento, queda eliminada.' },
+  daniel:    { n:'Teletransporte', d:'Forma pareja con otro dispositivo igual. La ficha rival que lo colocó puede entrar en uno y aparecer en el otro. Si eliminas uno, desaparecen los dos.' },
+  dario:     { n:'Sensor', d:'En cada turno de su equipo desvela las casillas de alrededor (radio 1) mientras siga activo.' },
+  francisco: { n:'Sensor mural', d:'Está pegado a una pared y, en cada fase de visión de su equipo, desvela dos casillas en línea recta al otro lado de esa pared.' },
+  melania:   { n:'Sensor mural', d:'Está pegado a una pared y, en cada fase de visión de su equipo, desvela dos casillas en línea recta al otro lado de esa pared.' },
+  torrente:  { n:'Trampa óptica', d:'Si la misma ficha tuya desvela esta casilla en dos rondas seguidas, esa ficha queda eliminada.' },
+  facundo:   { n:'Interferencia', d:'La ficha tuya que alcance a ver esta casilla solo desvela esta casilla y la suya propia: todo lo demás que vería esa ficha queda oculto.' },
+  zorro:     { n:'Señuelo óptico', d:'La ficha tuya que alcance a ver esta casilla solo desvela esta casilla y la suya propia: todo lo demás que vería esa ficha queda oculto.' },
+  esteban:   { n:'Dron', d:'Se mueve cada ronda como una ficha y desvela casillas para su equipo, pero no puede disparar.' },
+  galileo:   { n:'Cerrojo', d:'Bloquea esta casilla junto a la puerta: ninguna de tus fichas puede entrar en ella hasta que lo elimines de un disparo.' },
+  sarapova:  { n:'Baliza', d:'Una ficha rival puede intercambiar su posición con esta baliza (hasta dos veces) para aparecer aquí de golpe.' },
+};
+function rivalDeviceAt(r, c) {
+  const ATK_DEVICES = new Set(['tarantino','francisco','zorro','iarramendi','daniel']);
+  const me = typeof markerSide === 'function' ? markerSide() : G.currentSide;
+  if (!G.revealedCells || !G.revealedCells.has(r + '_' + c)) return null;   // solo lo que se ve
+  return (G.devices || []).find(d => d.alive && d.row === r && d.col === c && DEVICE_INFO[d.type]   // los señuelos (dobles) no: parecen fichas
+    && (ATK_DEVICES.has(d.type) ? 'atk' : 'def') !== me) || null;
+}
+function showRivalDeviceInfo(d) {
+  const inf = DEVICE_INFO[d.type]; if (!inf) return;
+  const ATK_DEVICES = new Set(['tarantino','francisco','zorro','iarramendi','daniel']), own = ATK_DEVICES.has(d.type) ? 'atk' : 'def';
+  showModal('DISPOSITIVO RIVAL · ' + inf.n.toUpperCase(),
+    '<div class="dev-info"><div class="di-tag ' + own + '">' + (own === 'atk' ? 'Atacante' : 'Defensor') + ' · casilla (' + (d.col + 1) + ',' + (d.row + 1) + ')</div>'
+    + '<p>' + inf.d + '</p><p class="di-hint">Puedes eliminarlo con un disparo en la fase de disparo.</p></div>',
+    [{ label:'ENTENDIDO' }]);
+}
+
 function onGameClick(e) {
   // Acepta un evento de ratón (vista 2D) o {__xy:[x,y]} con coordenadas de canvas (vista 3D)
   let mx, my;
@@ -6673,6 +6709,9 @@ function onGameClick(e) {
   }
 
   const phase=G.gamePhase, side=G.currentSide; // always use currentSide for interaction logic
+
+  // Fase de visión: tocar un dispositivo rival a la vista explica qué hace
+  if(phase==='vision') { const dv=rivalDeviceAt(cr,cc); if(dv) { showRivalDeviceInfo(dv); return; } }
 
   if(phase==='movement') {
     // Hypothesis marker placement takes priority when selecting
@@ -12120,9 +12159,12 @@ function coopStartTick() {
 // rooms/coop_{CODE}/ready/{uid} = phaseKey   (pulsó «Avanzar fase» en esa fase)
 // · Cada jugador ejecuta el motor de siempre sobre el estado más reciente dentro de una transacción
 //   (mover, disparar). Las habilidades, que piden varios toques, toman un cerrojo corto del estado.
-// · El anfitrión avanza las fases (todos listos o 40 s) y cierra el turno.
+// · El anfitrión avanza las fases (todos listos o al agotarse el tiempo de la fase) y cierra el turno.
+//   Fases: movimiento 50 s · visión 30 s · disparo 20 s · fin de turno 10 s (se ve el resultado; nadie actúa).
 // · Visión individual: cada jugador solo ve lo que desvelan sus fichas, sus dispositivos y sus habilidades.
-COOP_T.phase = 40000; COOP_T.ability = 30000;
+COOP_T.phases = { movement:50000, vision:30000, shoot:20000, end:10000 }; COOP_T.phase = 0; COOP_T.ability = 30000;
+// COOP_T.phase > 0 fuerza la misma duración en todas las fases (solo para pruebas)
+function coopPhaseMs(ph) { return COOP_T.phase || COOP_T.phases[ph] || 30000; }
 Object.assign(COOP, { mySide:null, gameVer:0, inEngine:false, engineSide:null, ability:null, acting:false, lastRev:new Set(), winnerShown:false, hostAdvKey:null, lastTurnKey:null });
 const COOP_ATK_DEV = new Set(['tarantino', 'francisco', 'zorro', 'iarramendi', 'daniel']);
 const coopSleep = ms => new Promise(r => setTimeout(r, ms));
@@ -12131,7 +12173,7 @@ function coopMine(charId) { return coopOwner(charId) === COOP.uid; }
 function coopInGame() { return !!(COOP.code && COOP.view === 'game'); }
 function coopMyTurn() { return coopInGame() && G.currentSide === COOP.mySide && !G.coopWinner; }
 function coopModalOpen() { const m = document.getElementById('modal'); return !!(m && m.classList.contains('active')); }
-const COOP_PHASE_LBL = { movement:'Movimiento', vision:'Visión', shoot:'Disparo' };
+const COOP_PHASE_LBL = { movement:'Movimiento', vision:'Visión', shoot:'Disparo', end:'Fin de turno' };
 
 // ── Visión individual ──
 function coopRadiusCells(r0, c0, rad, cells, noWalls) {
@@ -12197,9 +12239,13 @@ function coopBuildInitialState(room) {
   G.spawnPlacements = { atk:{}, def:{} };
   ['atk', 'def'].forEach(sd => Object.keys(dep[sd] || {}).forEach(id => { G.spawnPlacements[sd][id] = { row: dep[sd][id].row, col: dep[sd][id].col }; }));
   buildUnitsLocally();
-  G.currentSide = 'atk'; G.round = 1; G.gamePhase = 'movement'; G.coopRev = {};
+  // Bando que empieza: a cara o cruz (COOP_T.firstSide solo para pruebas)
+  const first = COOP_T.firstSide || (Math.random() < 0.5 ? 'atk' : 'def');
+  G.currentSide = first; G.round = 1; G.gamePhase = 'movement'; G.coopRev = {};
   G.revealedCells = new Set(); G.movedUnits = new Set(); G.shotUnits = new Set();
-  return { state: (G.coopTeamRev = new Set(), coopSerialize()), ver: 1, lock: null, phaseKey: '1-atk-movement', deadline: coopNow() + COOP_T.phase + 6000 };
+  // el reloj de la primera fase arranca tras la moneda (unos 4 s de cinemática + margen para pulsar)
+  return { state: (G.coopTeamRev = new Set(), coopSerialize()), ver: 1, lock: null, phaseKey: '1-' + first + '-movement', deadline: coopNow() + coopPhaseMs('movement') + 12000,
+    coin: first, coinUntil: coopNow() + 15000 };
 }
 
 // ── Aplicar el estado recibido ──
@@ -12241,6 +12287,7 @@ function coopGameHelp() {
   const ph = G.gamePhase;
   setHelp(ph === 'movement' ? 'Mueve tus fichas (las del halo). Cuando termines, pulsa AVANZAR FASE.'
     : ph === 'vision' ? 'Fase de VISIÓN: solo ves lo que desvelan tus fichas, dispositivos y habilidades.'
+    : ph === 'end' ? 'FIN DE TURNO: revisa el resultado. El turno pasa al rival en unos segundos.'
     : 'Fase de DISPARO: solo puedes disparar a enemigos que has desvelado tú.');
 }
 function coopBoardWait(on) {
@@ -12322,12 +12369,12 @@ async function coopAbilityStart(uid0) {
   const res = await coopTx('game', cur => {
     if (!cur || !cur.state) return undefined;
     if (cur.lock && cur.lock.uid !== me && cur.lock.until > coopNow()) return undefined;
-    cur.lock = { uid: me, until: coopNow() + COOP_T.ability }; base = cur.state; ver = cur.ver;
+    cur.lock = { uid: me, until: coopNow() + Math.min(COOP_T.ability, coopPhaseMs((cur.phaseKey || '').split('-')[2])) }; base = cur.state; ver = cur.ver;
     return cur;
   });
   if (!(res && res.committed) || !base) { toast('Espera: un compañero está usando una habilidad'); return; }
   G = deserializeG(base); coopPrepG(me, side);
-  COOP.ability = { uid: uid0, base: new Set(G.revealedCells), teamBase: new Set(G.coopTeamRev), t0: Date.now(), until: coopNow() + COOP_T.ability };
+  COOP.ability = { uid: uid0, base: new Set(G.revealedCells), teamBase: new Set(G.coopTeamRev), t0: Date.now(), until: coopNow() + Math.min(COOP_T.ability, coopPhaseMs(G.gamePhase)) };
   renderGame(); updateSidebar();
   COOP.fn.triggerAbility(uid0);
   const watch = setInterval(() => {
@@ -12394,9 +12441,10 @@ function coopHostGame(room) {
         computeVision(); G.coopTeamRev = new Set(G.revealedCells);
         G.gamePhase = 'vision';
       } else if (G.gamePhase === 'vision') G.gamePhase = 'shoot';
+      else if (G.gamePhase === 'shoot') G.gamePhase = 'end';   // fin de turno: unos segundos para ver el resultado
       else coopEndTurn();
       cur.state = coopSerialize(); cur.ver = (cur.ver || 0) + 1; cur.lock = null;
-      cur.phaseKey = G.round + '-' + G.currentSide + '-' + G.gamePhase; cur.deadline = coopNow() + COOP_T.phase;
+      cur.phaseKey = G.round + '-' + G.currentSide + '-' + G.gamePhase; cur.deadline = coopNow() + coopPhaseMs(G.gamePhase);
       return cur;
     } catch (e) { console.warn('[coop]', e); return undefined; }
     finally { COOP.inEngine = false; COOP.engineSide = null; }
@@ -12450,6 +12498,11 @@ function coopShowGame(room) {
     try { if (gCanvas) gCanvas.removeEventListener('click', onGameClick); } catch (_) {}
     initState(); G = deserializeG(g.state); coopPrepG(COOP.uid, COOP.mySide);
     startGameLoop();
+    // Lanzamiento de moneda: solo al empezar la partida (no al volver a una ya empezada)
+    if (g.coin && coopNow() < (g.coinUntil || 0) && g.phaseKey === '1-' + g.coin + '-movement') {
+      const mine = g.coin === COOP.mySide;
+      try { playCoinToss(g.coin, { sub: mine ? '¡Empieza tu equipo la primera ronda!' : 'El equipo rival empieza la primera ronda.', label: 'COMENZAR', onDone: () => { try { renderGame(); updateTurnBanner(); updateSidebar(); } catch (_) {} } }); } catch (e) { console.warn('[coop moneda]', e); }
+    }
   }
   const msig = JSON.stringify(room.marks || {});
   if (g.ver !== COOP.gameVer && !COOP.acting) { COOP.marksSig = msig; coopApplyState(g.state); if (!COOP.ability) COOP.gameVer = g.ver; }
@@ -12517,7 +12570,7 @@ function coopSidebarPanel() {
     const el = document.getElementById('turn-banner'); if (!el) return;
     el.innerHTML = '<span class="turn-player ' + side + '">' + (side === 'atk' ? '⚔ ATACANTES' : '🛡 DEFENSORES') + '</span>'
       + '<span class="cg-phase' + (mine ? ' on' : '') + '">' + (mine ? 'TU EQUIPO · ' : 'RIVAL · ') + (COOP_PHASE_LBL[G.gamePhase] || '').toUpperCase() + ' · <b' + (secs <= 10 ? ' class="warn"' : '') + '>' + secs + ' s</b></span>'
-      + (mine && act.includes(COOP.uid) ? '<button onclick="advancePhase()" class="btn-primary' + (iReady ? ' cg-ready' : '') + '" style="padding:8px 16px;font-size:.78rem;">' + (iReady ? 'LISTO ✓ ' : 'AVANZAR FASE ▶ ') + n + '/' + act.length + '</button>' : '')
+      + (mine && act.includes(COOP.uid) ? '<button onclick="advancePhase()" class="btn-primary' + (iReady ? ' cg-ready' : '') + '" style="padding:8px 16px;font-size:.78rem;">' + (iReady ? 'LISTO ✓ ' : G.gamePhase === 'end' ? 'TERMINAR TURNO ▶ ' : 'AVANZAR FASE ▶ ') + n + '/' + act.length + '</button>' : '')
       + '<span class="turn-round">RONDA ' + G.round + '</span>';
   };
   const oUS = window.updateSidebar;
