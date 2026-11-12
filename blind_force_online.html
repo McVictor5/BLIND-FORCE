@@ -9664,22 +9664,47 @@ function watchPresetProposals() {
   window._fbOnValue(ref, snap => {
     const p = snap.val();
     if (!p || ONLINE.roomId !== room) return;
-    const m = presetById(p.mapId), mine = p.by === ONLINE.myRole;
+    const rnd = p.mapId === 'random';
+    const m = rnd ? { name:'mapa aleatorio', walls:[] } : presetById(p.mapId), mine = p.by === ONLINE.myRole;
     if (p.answer) {   // respuesta a una propuesta
-      if (mine) { toast(p.answer === 'ok' ? `El rival ha aceptado «${m ? m.name : 'el mapa'}».` : 'El rival ha rechazado el mapa propuesto.', 4000); window._fbSet(ref, null).catch(() => {}); }
+      if (mine) { toast(p.answer === 'ok' ? (rnd ? 'El rival ha aceptado jugar con un mapa aleatorio.' : `El rival ha aceptado «${m ? m.name : 'el mapa'}».`) : (rnd ? 'El rival ha rechazado el mapa aleatorio.' : 'El rival ha rechazado el mapa propuesto.'), 4000); PRESET.sent = null; window._fbSet(ref, null).catch(() => {}); }
       return;
     }
     if (mine || !m) return;
     if (!document.getElementById('screen-construct').classList.contains('active')) return;
+    if (rnd) {   // mapa aleatorio: solo se genera si el otro jugador también quiere
+      showModal('PROPUESTA DE MAPA ALEATORIO', 'El rival propone jugar con un <b>mapa aleatorio</b>. Si aceptas, se generan las ' + WALL_TOTAL + ' paredes al azar (sustituyen a las colocadas hasta ahora) y se pasa directamente al despliegue.', [
+        { label:'RECHAZAR', cls:'', action: () => window._fbSet(ref, Object.assign({}, p, { answer:'no' })).catch(() => {}) },
+        { label:'ACEPTAR', action: () => { PRESET.randomOk = true; try { generateRandomMap(); } finally { PRESET.randomOk = false; } window._fbSet(ref, Object.assign({}, p, { answer:'ok' })).catch(() => {}); } },
+      ]);
+      return;
+    }
     showModal('PROPUESTA DE MAPA', `El rival propone jugar en <b>${m.name}</b> (${m.walls.length} paredes). Si aceptas, sustituye las paredes colocadas hasta ahora.<div style="max-width:240px;margin:14px auto 0;">${presetPreviewSVG(m)}</div>`, [
       { label:'RECHAZAR', cls:'', action: () => window._fbSet(ref, Object.assign({}, p, { answer:'no' })).catch(() => {}) },
       { label:'ACEPTAR', action: () => { applyPresetMap(m); window._fbSet(ref, Object.assign({}, p, { answer:'ok' })).catch(() => {}); } },
     ]);
   });
 }
+async function proposeRandomMap() {
+  if (PRESET.sent === 'random') { toast('Ya has propuesto un mapa aleatorio. Esperando al rival…', 3000); return; }
+  try {
+    PRESET.sent = 'random';
+    await window._fbSet(window._fbRef(window._db, 'rooms/' + ONLINE.roomId + '/mapProposal'), { by: ONLINE.myRole, mapId: 'random', ts: Date.now() });
+    toast('Has propuesto jugar con un mapa aleatorio. Esperando al rival…', 4000);
+  } catch (e) { PRESET.sent = null; toast('No se pudo enviar la propuesta: ' + (e.message || e)); }
+}
 (function(){
+  // Online individual: el mapa aleatorio necesita la confirmación de los dos jugadores
+  const oR = window.generateRandomMap;
+  window.generateRandomMap = function() {
+    if (ONLINE.enabled && ONLINE.roomId && !PRESET.randomOk) {
+      showModal('MAPA ALEATORIO', 'Se propondrá al rival jugar con un mapa aleatorio. Solo se generará si lo acepta.', [{ label:'CANCELAR', cls:'' }, { label:'PROPONER', action: proposeRandomMap }]);
+      return;
+    }
+    return oR.apply(this, arguments);
+  };
   const o = window.startConstruction;
-  window.startConstruction = function() { const r = o.apply(this, arguments); refreshPresetButton(); return r; };
+  window.startConstruction = function() { PRESET.sent = null; const r = o.apply(this, arguments); refreshPresetButton(); return r; };
   const o2 = window.showScreen;
   window.showScreen = function(id) {
     const r = o2.apply(this, arguments);
