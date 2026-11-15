@@ -3104,6 +3104,9 @@ function showScreen(id) {
   if (id === 'title' && SPLASH_DONE) { const w = document.getElementById('ttl-wrap'); if (w) w.classList.remove('splash'); }
 }
 
+// En 3D el tablero reacciona al soltar el dedo/ratón y el navegador lanza DESPUÉS su «click» en el mismo punto:
+// si la ventana se acaba de abrir por ese toque, ese click no debe cerrarla ni pulsar un botón.
+function modalGhostTap() { return typeof Board3D !== 'undefined' && performance.now() - (Board3D.lastPick || 0) < 400; }
 function showModal(title, body, btns) {
   const raw = String(title || '');
   const warn = /^\s*⚠/.test(raw);
@@ -3132,7 +3135,8 @@ function showModal(title, body, btns) {
     else if (!many && (main.length <= 2 || b === main[main.length - 1])) cls += ' primary';
     btn.className = cls;
     btn.textContent = b.label;
-    btn.onclick = () => { closeModal(); b.action && b.action(); };
+    // El mismo toque que abre la ventana (p. ej. sobre una ficha en 3D) no puede pulsar ya un botón
+    btn.onclick = () => { if (modalGhostTap()) return; closeModal(); b.action && b.action(); };
     c.appendChild(btn);
   });
   c.classList.toggle('many', many);
@@ -3143,7 +3147,7 @@ function showModal(title, body, btns) {
 }
 document.addEventListener('DOMContentLoaded', () => {
   const ov = document.getElementById('modal'); if (!ov) return;
-  ov.addEventListener('click', e => { if (e.target === ov && ov._dismiss) ov._dismiss(); });
+  ov.addEventListener('click', e => { if (modalGhostTap()) return; if (e.target === ov && ov._dismiss) ov._dismiss(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov.classList.contains('active') && ov._dismiss) ov._dismiss(); });
 });
 function abilityModalBody(u, def) {
@@ -3222,7 +3226,9 @@ function showInstructions() {
     — Fuera de la sala no hay paredes fijas: el resto del tablero lo forman las 50 paredes que colocan los jugadores.<br>
 
     Entre casillas hay ${b('surcos')}, que son los espacios donde se colocan las paredes.<br>
-    — ${b('Puertas de la sala:')} cuando una ficha de personaje entra en la sala por una puerta, ninguna otra ficha de personaje de su mismo bando puede entrar por esa puerta mientras la primera siga viva y dentro de la sala; si muere o sale de la sala, la puerta vuelve a quedar libre. Salir es siempre libre.`)}
+    — ${b('Puertas de la sala:')} cuando una ficha de personaje entra en la sala por una puerta, ninguna otra ficha de personaje de su mismo bando puede entrar por esa puerta mientras la primera siga viva y dentro de la sala; si muere o sale de la sala, la puerta vuelve a quedar libre. Salir es siempre libre.<br>
+    — ${b('Equilibrio en la sala:')} una ficha de personaje solo puede entrar en la sala si dentro hay tantas fichas de su bando como del rival, o menos (vale para los dos bandos y para el teletransporte con la baliza).<br>
+    — ${b('Separación en la sala:')} dentro de la sala, dos fichas de personaje del mismo bando no pueden estar en casillas contiguas, tampoco en diagonal.`)}
 
   ${s('⚙ Fases de una partida',
     `${b('1. Selección:')} cada jugador elige simultáneamente 4 fichas de personaje de las disponibles para su bando. Puedes ver las fichas rivales con el botón "Ver fichas rivales".<br>
@@ -3307,6 +3313,8 @@ const _pickCatOpen = {};
 // ── Escaparate 3D del personaje enfocado (soldadito girando) ──
 const PICK3D = (function () {
   let ok = null, renderer, scene, camera, host, helper, soldier = null, key = '', last = 0, spin = 0.4;
+  let want = null, tmr = 0, lastScroll = 0, warmTok = 0, touching = false;
+  const busy = () => touching || performance.now() - lastScroll < 320;   // la lista se está desplazando: nada de trabajo pesado
   function fail() { ok = false; const h = document.getElementById('pick-3d'); if (h) h.classList.add('nogl'); return false; }
   function init() {
     if (ok !== null) return ok;
@@ -3314,7 +3322,7 @@ const PICK3D = (function () {
       if (typeof THREE === 'undefined' || !Board3D.available) return fail();
       host = document.getElementById('pick-3d');
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       renderer.outputEncoding = THREE.sRGBEncoding;
       renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.domElement.style.cssText = 'display:block;position:absolute;inset:0;width:100%;height:100%;';
@@ -3370,13 +3378,37 @@ const PICK3D = (function () {
     requestAnimationFrame(loop);
     const scr = document.getElementById('screen-pick');
     if (!ok || !scr || !scr.classList.contains('active') || !soldier) return;
+    if (busy()) { last = 0; return; }   // mientras se desliza la lista no se dibuja: el desplazamiento va primero
     const now = performance.now(), dt = last ? Math.min(60, now - last) : 16; last = now;
     spin += dt * 0.0011;   // una vuelta cada ~5,7 s
     soldier.userData.pv.rotation.y = spin;
     soldier.position.y = 0.12 + Math.sin(now * 0.0017) * 0.07;
     renderer.render(scene, camera);
   }
-  return { show, resize };
+  // Pide mostrar un personaje. La figura detallada no se construye mientras la lista se mueve:
+  // se espera a que el desplazamiento se detenga, para que deslizar vaya siempre fluido.
+  function request(id, side) {
+    want = { id, side };
+    clearTimeout(tmr);
+    const go = () => { if (busy()) { tmr = setTimeout(go, 110); return; } if (want) show(want.id, want.side); };
+    tmr = setTimeout(go, busy() ? 180 : 0);
+  }
+  function touch(down) { lastScroll = performance.now(); if (down !== undefined) touching = !!down; }
+  // Prepara en los ratos libres las figuras del bando, de una en una, para que luego aparezcan al instante
+  function prewarm(ids) {
+    const tok = ++warmTok, list = ids.slice();
+    const step = () => {
+      if (tok !== warmTok || !list.length) return;
+      const scr = document.getElementById('screen-pick');
+      if (!scr || !scr.classList.contains('active')) return;
+      if (busy() || !init()) { setTimeout(step, 250); return; }
+      const id = list.shift();
+      try { if (!(Board3D.sgCache && Board3D.sgCache['H:' + id])) helper.soldierParts(id); } catch (e) {}
+      setTimeout(step, 140);
+    };
+    setTimeout(step, 700);
+  }
+  return { show, resize, request, touch, prewarm };
 })();
 
 let _pickFocusId = null, _pickBuiltFor = null, _pickScrollRaf = 0;
@@ -3384,7 +3416,7 @@ function pickFocus(id) {
   const side = pickSide, d = UNIT_DEFS[id];
   if (!d) return;
   _pickFocusId = id;
-  PICK3D.show(id, side);
+  PICK3D.request(id, side);
   const nm = document.getElementById('pick-focus-name'), ct = document.getElementById('pick-focus-cat');
   if (nm) nm.textContent = d.name;
   if (ct) { const cat = PICK_CATEGORIES[side].find(c => c.ids.includes(id)); ct.textContent = cat ? cat.label : ''; }
@@ -3419,7 +3451,11 @@ function renderPickScreen() {
         <div class="unit-ability"><b>${u.abilityName}:</b> ${u.abilityDesc}</div>
       </div>`).join('')).join('');
     list.scrollTop = 0;
-    list.onscroll = () => { if (_pickScrollRaf) return; _pickScrollRaf = requestAnimationFrame(() => { _pickScrollRaf = 0; pickCenterCard(); }); };
+    list.onscroll = () => { PICK3D.touch(); if (_pickScrollRaf) return; _pickScrollRaf = requestAnimationFrame(() => { _pickScrollRaf = 0; pickCenterCard(); }); };
+    if (!list._pk) { list._pk = 1;   // con el dedo sobre la lista tampoco se hace trabajo pesado
+      list.addEventListener('touchstart', () => PICK3D.touch(true), { passive: true });
+      ['touchend', 'touchcancel'].forEach(ev => list.addEventListener(ev, () => PICK3D.touch(false), { passive: true })); }
+    PICK3D.prewarm(PICK_CATEGORIES[side].reduce((a, c) => a.concat(c.ids), []).filter(id => UNIT_DEFS[id]));
     const first = list.querySelector('.unit-card'); if (first) pickFocus(first.dataset.id);
   }
   list.querySelectorAll('.unit-card').forEach(c => {
@@ -4279,6 +4315,7 @@ class Board3D {
 
   // Convierte un clic en pantalla a coordenadas del canvas 2D y lo envía al manejador de la pantalla
   pick(clientX, clientY, ptype) {
+    Board3D.lastPick = performance.now();
     const ndc = this.groundPoint(clientX, clientY);
     const cv = this.cv();
 
@@ -4294,23 +4331,29 @@ class Board3D {
     const surcoMode = !!(this.cfg.surcoMode && this.cfg.surcoMode());
     const targets = [this.ground, ...this.entityGroup.children];
     if (surcoMode) targets.push(...this.wallGroup.children);
-    const hits = this.raycaster.intersectObjects(targets, true);
-    if (!hits.length) return;
-    const h = hits[0];
-    let px, py;
-    if (h.object === this.ground) {
-      px = h.point.x * this.cs + cv.width / 2;
-      py = h.point.z * this.cs + cv.height / 2;
-    } else {
+    // Solo cuenta lo que se ve: los carteles (sprites) y las piezas ocultas no deben «robar» el clic
+    // a la ficha que tienen detrás (el raycaster de Three.js no descarta lo invisible por sí solo).
+    const seen = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+    const hits = this.raycaster.intersectObjects(targets, true).filter(x => x.object === this.ground || (!x.object.isSprite && seen(x.object)));
+    // Cada impacto del rayo → casilla. Si la pantalla marca una casilla como «preferente» (p. ej. un objetivo
+    // de disparo medio tapado por la ficha que tiene delante), gana aunque no sea lo primero que toca el rayo.
+    const toXY = h => {
+      if (h.object === this.ground) return { px: h.point.x * this.cs + cv.width / 2, py: h.point.z * this.cs + cv.height / 2 };
       let o = h.object;
       while (o && !o.userData.cell && !o.userData.surco) o = o.parent;
-      if (!o) return;
-      if (o.userData.cell) {
-        const t = this.tl(o.userData.cell.r, o.userData.cell.c);
-        px = t.x + this.cs / 2; py = t.y + this.cs / 2;
-      } else { px = o.userData.surco.x; py = o.userData.surco.y; }
+      if (!o) return null;
+      if (o.userData.cell) { const t = this.tl(o.userData.cell.r, o.userData.cell.c); return { px: t.x + this.cs / 2, py: t.y + this.cs / 2 }; }
+      return { px: o.userData.surco.x, py: o.userData.surco.y };
+    };
+    let first = null, pref = null;
+    for (const h of hits) {
+      const q = toXY(h); if (!q) continue;
+      if (!first) first = q;
+      if (!this.cfg.prefer || surcoMode) break;
+      if (this.cfg.prefer(q.px, q.py)) { pref = q; break; }
     }
-    this.cfg.onXY(px, py);
+    const q = pref || first;
+    if (q) this.cfg.onXY(q.px, q.py);
   }
 
   // ── Construcción: vista previa e imán ──
@@ -4993,7 +5036,7 @@ class Board3D {
     }
     if (has('ghillie')) {                 // traje de camuflaje: jirones sobre capucha, hombros, espalda y brazos
       let sd = 7; const rnd = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
-      const n = hi ? 110 : 44;
+      const n = hi ? 110 : 44, LEAF = new THREE.SphereGeometry(1, 6, 4);
       for (let i = 0; i < n; i++) {
         const a = rnd() * Math.PI * 2, h = rnd(), zone = rnd();
         let p;
@@ -5003,7 +5046,7 @@ class Board3D {
         if (zone < 0.3 && p.z > 0.045 && p.y < 0.99) continue;                                                     // la cara, despejada
         const out = zone < 0.3 ? a : zone < 0.6 ? (p.x > 0 ? 0 : Math.PI) + (rnd() - 0.5) : -Math.PI / 2 + (rnd() - 0.5) * 1.2;   // hacia dónde cae el jirón
         const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -out + Math.PI / 2, 0)).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler((zone < 0.3 ? 1.35 : 1.05) + rnd() * 0.3, 0, (rnd() - 0.5) * 0.4)));
-        ell(p, 0.019 + rnd() * 0.012, 0.008, 0.04 + rnd() * 0.03, q);
+        add(LEAF.clone(), M(p, q, V(0.019 + rnd() * 0.012, 0.008, 0.04 + rnd() * 0.03)));
       }
     }
     cur = null;
@@ -5697,6 +5740,14 @@ const VIEW3D = new Board3D({            // pantalla de juego
   screen: 'screen-game', wrap: 'view3d-wrap', bar: 'view3d-bar', btn: 'btn-view3d',
   canvas: () => gCanvas, cs: () => GCS, ws: () => GWS, tl: (r, c) => gCellTL(r, c),
   onXY: (px, py) => onGameClick({ __xy: [px, py] }),
+  // Fase de disparo: un objetivo válido tiene prioridad sobre la ficha propia que lo tapa en parte
+  prefer: (px, py) => {
+    try {
+      if (G.gamePhase !== 'shoot' || G.abilityMode) return false;
+      const st = GCS + GWS, c = Math.floor((px - GOF - GWS / 2) / st), r = Math.floor((py - GOF - GWS / 2) / st);
+      return getShootableTargets().some(t => t.target.row === r && t.target.col === c);
+    } catch (e) { return false; }
+  },
   revealed: () => G.revealedCells, spawnFx: 'pop',
   surcoMode: () => !!(G.abilityMode && ['guridi_wall', 'asencio_wall', 'wilson_wall', 'horacio_wall', 'hector_wall'].includes(G.abilityMode.type)),
   render: () => { if (gCtx) renderGame(); },
@@ -6526,6 +6577,26 @@ function isCentralCell(r,c){ return r===7&&c===7; }
 // puede entrar por esa puerta mientras la primera siga viva y dentro de la sala. Si muere o sale, la puerta se libera.
 // Salir siempre es libre. Cada bando solo
 // se ve afectado por sus propias fichas, así que la restricción no revela nada del rival.
+// ── Reglas de ocupación de la sala de la bomba (fichas de personaje, los dos bandos) ──
+// 1. Proporcional: una ficha solo puede ENTRAR si dentro hay tantas fichas de su bando como del rival, o menos.
+// 2. Separación: dentro de la sala, dos fichas del mismo bando no pueden quedar en casillas contiguas (diagonales incluidas).
+// Devuelve el motivo del bloqueo ('prop' | 'adj') o null si el destino está permitido.
+function bombRoomBlock(u, r, c, fr, fc) {
+  if(!u || !inBombZone(r,c)) return null;
+  if(fr===undefined){ fr=u.row; fc=u.col; }
+  const inside = G.units.filter(o => o.alive && o.id!==u.id && inBombZone(o.row,o.col));
+  if(inside.some(o => o.side===u.side && Math.max(Math.abs(o.row-r),Math.abs(o.col-c))===1)) return 'adj';
+  if(!inBombZone(fr,fc)) {
+    const mine = inside.filter(o => o.side===u.side).length, rival = inside.filter(o => o.side!==u.side).length;
+    if(mine > rival) return 'prop';
+  }
+  return null;
+}
+function bombRoomBlockMsg(code) {
+  return code==='adj' ? '⚠ Dentro de la sala de la bomba dos fichas de tu bando no pueden quedar en casillas contiguas'
+       : code==='prop' ? '⚠ No puedes entrar en la sala: dentro ya hay más fichas de tu bando que del rival'
+       : '⚠ Otra de tus fichas entró por esa puerta y sigue dentro de la sala: no puedes entrar por ella';
+}
 function bombDoorOf(fr,fc,tr,tc) {
   if(inBombZone(fr,fc) || !inBombZone(tr,tc)) return null;   // solo cuenta ENTRAR en la sala
   const n=Math.max(0,5-fr), s=Math.max(0,fr-9), w=Math.max(0,5-fc), e=Math.max(0,fc-9);
@@ -6545,7 +6616,7 @@ function bombDoorLockedFor(u, door) {
   getValidMoves=function(u, raw){
     const moves=_gvm.call(this,u);
     if(raw || !u || !G.doorLock) return moves;
-    return moves.filter(m=>{ const d=bombDoorOf(u.row,u.col,m.r,m.c); return !(d && bombDoorLockedFor(u,d)); });
+    return moves.filter(m=>{ const d=bombDoorOf(u.row,u.col,m.r,m.c); if(d && bombDoorLockedFor(u,d)) return false; return !bombRoomBlock(u,m.r,m.c); });
   };
   const _mu=moveUnit;
   moveUnit=function(uid,r,c){
@@ -7205,8 +7276,8 @@ function onGameClick(e) {
         moveUnit(G.selectedUnit,cr,cc);
         return;
       }
-      if(getValidMoves(u,true).find(m=>m.r===cr&&m.c===cc)) {   // movimiento posible salvo por la puerta ya usada
-        toast('⚠ Otra de tus fichas entró por esa puerta y sigue dentro de la sala: no puedes entrar por ella');
+      if(getValidMoves(u,true).find(m=>m.r===cr&&m.c===cc)) {   // movimiento posible salvo por las reglas de la sala
+        toast(bombRoomBlockMsg(bombRoomBlock(u,cr,cc)));
         return;
       }
     }
@@ -7701,6 +7772,7 @@ function executeAbility(uid) {
         // swap with device
         const d = G.devices.find(dv=>dv.type==='sarapova'&&dv.alive);
         if(!d) { toast('⚠ La baliza ya no está activa'); break; }
+        { const blk=bombRoomBlock(u,d.row,d.col); if(blk) { toast(bombRoomBlockMsg(blk)); break; } }
         const tr=d.row, tc=d.col, ur=u.row, uc=u.col;
         u.row=tr; u.col=tc; d.row=ur; d.col=uc; u.arr=(G.arrSeq=(G.arrSeq||0)+1); d.arr=(G.arrSeq=(G.arrSeq||0)+1);
         G.sarapovaDevice={row:ur,col:uc};
@@ -10441,7 +10513,9 @@ function boardShake() {
     'Una pared bien puesta vale más que un disparo.',
     'El defensor que sale de la sala libera su puerta.',
     'Cinco rondas en la sala y la bomba es tuya.',
-    'Dentro de la sala solo se dispara en diagonal.',
+    'Dentro de la sala también se dispara en diagonal.',
+    'En la sala nunca podrás tener más de una ficha de ventaja.',
+    'Dentro de la sala, tus fichas no pueden ir pegadas.',
     'Moverse revela; quedarse quieto también.',
     'Los avisos de fin de turno dicen más de lo que parece.',
   ];
@@ -13793,7 +13867,7 @@ const ABFX = {
       if (uid === 'sarapova' && G.sarapovaState && G.sarapovaState.devicePlaced) { const d = (G.devices || []).find(dv => dv.type === 'sarapova' && dv.alive); if (d) p.swap = { ur: u.row, uc: u.col, dr: d.row, dc: d.col }; }
       return p; });
     const r = o.apply(t, a);
-    safe(() => { const u = getUnit(uid); if (pre && u && (u.abilityUsed || G.abilityMode || pre.swap)) ABFX.activate(uid, pre); });
+    safe(() => { const u = getUnit(uid); const swapped = pre && pre.swap && u && (u.row !== pre.swap.ur || u.col !== pre.swap.uc); if (pre && u && (u.abilityUsed || G.abilityMode || swapped)) ABFX.activate(uid, pre); });
     return r;
   });
   wrap('onGameClick', (o, t, a) => { const s = safe(() => ABFX.snap()); const r = o.apply(t, a); if (s) safe(() => ABFX.resolve(s)); return r; });
