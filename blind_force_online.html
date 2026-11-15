@@ -3312,9 +3312,14 @@ const _pickCatOpen = {};
 
 // ── Escaparate 3D del personaje enfocado (soldadito girando) ──
 const PICK3D = (function () {
-  let ok = null, renderer, scene, camera, host, helper, soldier = null, key = '', last = 0, spin = 0.4;
-  let want = null, tmr = 0, lastScroll = 0, warmTok = 0, touching = false;
-  const busy = () => touching || performance.now() - lastScroll < 320;   // la lista se está desplazando: nada de trabajo pesado
+  // Las figuras detalladas se construyen en un hilo aparte (Web Worker): el desplazamiento de la lista
+  // nunca espera por ellas y la figura cambia en cuanto otra tarjeta queda en el centro.
+  // Una sola figura por bando cuyo modelo se intercambia: sin crear materiales ni recompilar shaders.
+  let ok = null, renderer, scene, camera, host, soldier = null, cur = '', last = 0, spin = 0.4;
+  const figs = {};                 // bando → { g, pv, mesh }
+  const geos = new Map();          // id → geometría detallada (pocas en memoria, las más recientes)
+  const KEEP = 10;
+  let want = null, worker = null, wfail = false, inflight = null, queue = [], seq = 0, fallbackT = 0;
   function fail() { ok = false; const h = document.getElementById('pick-3d'); if (h) h.classList.add('nogl'); return false; }
   function init() {
     if (ok !== null) return ok;
@@ -3336,10 +3341,6 @@ const PICK3D = (function () {
       sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.02;
       scene.add(sun);
       const rim = new THREE.DirectionalLight(0xa9c4ff, 0.5); rim.position.set(-4, 3, -4); scene.add(rim);
-      // se reutiliza el constructor de soldaditos del tablero
-      helper = new Board3D({ screen: 'screen-pick', wrap: 'pick-3d', bar: 'pick-3d', btn: 'pick-3d', canvas: () => null, cs: () => 1, ws: () => 0, tl: () => ({ x: 0, y: 0 }), onXY() {}, render() {} });
-      helper.geo = { ring: new THREE.RingGeometry(0.46, 0.57, 40) }; helper.hiDetail = true;
-      helper._ls = 0.9;
       if (window.ResizeObserver) new ResizeObserver(resize).observe(host);
       window.addEventListener('resize', resize);
       ok = true; resize(); loop();
@@ -3354,71 +3355,124 @@ const PICK3D = (function () {
     const d = Math.max(3.9, 2.6 / Math.min(1, camera.aspect) / Math.tan(camera.fov * Math.PI / 360) * 0.5 + 1);
     camera.position.set(0, 1.7, d); camera.lookAt(0, 1.2, 0);
   }
-  // Las figuras ya creadas se guardan y solo se ocultan: destruir sus materiales obligaba a la tarjeta
-  // gráfica a recompilar los shaders en cada cambio de personaje (congelones en tabletas y móviles).
-  const made = new Map();
-  function clear() {
-    if (!soldier) return;
-    soldier.visible = false;
-    soldier = null;
-  }
-  function build(id, side) {
-    const k = side + ':' + id;
-    let g = made.get(k);
-    if (g) return g;
-    g = helper.makeSoldier('', side, id);
+  // Figura de un bando: mismo material y sombra que los soldaditos del tablero
+  function fig(side) {
+    if (figs[side]) return figs[side];
+    const m = new THREE.MeshStandardMaterial({ color: side === 'atk' ? 0xd6291f : 0x1c6fd1, roughness: 0.46, metalness: 0.0, vertexColors: true });
+    const g = new THREE.Group(), pv = new THREE.Group();
+    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), m);
+    mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false;
+    pv.add(mesh); g.add(pv);
+    const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+    const cx = cv.getContext('2d'), gr = cx.createRadialGradient(32, 32, 4, 32, 32, 31);
+    gr.addColorStop(0, 'rgba(0,0,0,.6)'); gr.addColorStop(0.6, 'rgba(0,0,0,.28)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    cx.fillStyle = gr; cx.fillRect(0, 0, 64, 64);
+    const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.15), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false }));
+    blob.rotation.x = -Math.PI / 2; blob.position.y = 0.012; blob.renderOrder = 1;
+    g.add(blob);
     g.scale.setScalar(2.3);
-    g.userData.lab.visible = false; g.userData.mats[5].visible = false;
-    g.userData.ring.visible = false;
     g.visible = false; scene.add(g);
-    made.set(k, g);
-    return g;
+    return (figs[side] = { g, pv, mesh });
   }
-  function show(icon, side) {
-    if (!init()) return;
-    const k = side + ':' + icon;   // icon = id del personaje enfocado
-    if (k === key) return;
-    key = k; clear();
-    const g = build(icon, side);
-    g.userData.pv.rotation.y = spin;
-    g.visible = true;
-    soldier = g;
+  // ── Hilo de construcción ──
+  function startWorker() {
+    if (worker || wfail) return worker;
+    try {
+      if (typeof Worker === 'undefined' || typeof Blob === 'undefined') throw 0;
+      const urls = [...document.querySelectorAll('script[src*="three"]')].map(s => s.src);
+      const src = [
+        'var U=' + JSON.stringify(urls) + ',ok=false;',
+        'for(var i=0;i<U.length&&!ok;i++){try{importScripts(U[i]);ok=typeof THREE!=="undefined";}catch(e){}}',
+        'var Board3D={POSES:' + JSON.stringify(Board3D.POSES) + ',LOOKS:' + JSON.stringify(Board3D.LOOKS) + ',sgCache:{}};',
+        'var B={hiDetail:true,' + Board3D.prototype.soldierParts.toString() + '};',
+        'onmessage=function(e){var d=e.data;try{if(!ok)throw new Error("sin THREE");B.hiDetail=true;Board3D.sgCache={};',
+        'var g=B.soldierParts(d.id)[0].geo,p=g.attributes.position.array,n=g.attributes.normal.array,c=g.attributes.color.array;',
+        'postMessage({rq:d.rq,id:d.id,p:p,n:n,c:c},[p.buffer,n.buffer,c.buffer]);}catch(err){postMessage({rq:d.rq,id:d.id,err:String(err&&err.message||err)});}};'
+      ].join('\n');
+      const url = URL.createObjectURL(new Blob([src], { type: 'application/javascript' }));
+      worker = new Worker(url);
+      worker.onmessage = e => {
+        const d = e.data; inflight = null;
+        if (d.err) { wfail = true; worker.terminate(); worker = null; console.warn('[3D pick worker]', d.err); refresh(); return; }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(d.p, 3));
+        g.setAttribute('normal', new THREE.BufferAttribute(d.n, 3));
+        g.setAttribute('color', new THREE.BufferAttribute(d.c, 3));
+        g.computeBoundingSphere();
+        remember(d.id, g);
+        refresh(); pump();
+      };
+      worker.onerror = e => { wfail = true; try { worker.terminate(); } catch (_) {} worker = null; inflight = null; console.warn('[3D pick worker]', e && e.message); refresh(); };
+    } catch (e) { wfail = true; worker = null; }
+    return worker;
   }
+  function remember(id, g) {
+    if (geos.has(id)) geos.delete(id);
+    geos.set(id, g);
+    while (geos.size > KEEP) {
+      const [old, og] = geos.entries().next().value;
+      if (want && old === want.id) { geos.delete(old); geos.set(old, og); continue; }
+      geos.delete(old);
+      Object.keys(figs).forEach(s => { if (figs[s].mesh.geometry === og) figs[s].mesh.geometry = new THREE.BufferGeometry(); });
+      og.dispose();
+    }
+  }
+  // Pide al hilo la siguiente figura: primero la enfocada, luego las vecinas
+  function pump() {
+    if (inflight || !startWorker()) return;
+    const id = want && !geos.has(want.id) ? want.id : queue.find(q => !geos.has(q));
+    queue = queue.filter(q => q !== id && !geos.has(q));
+    if (!id) return;
+    inflight = id;
+    worker.postMessage({ rq: ++seq, id });
+  }
+  // Muestra la figura pedida si ya está hecha (si no, se queda la anterior hasta que llegue)
+  function refresh() {
+    if (!want || !init()) return;
+    const { id, side } = want;
+    let geo = geos.get(id);
+    if (!geo && (wfail || !worker && !startWorker())) {
+      // Sin hilo aparte: se construye aquí, pero solo cuando la lista está quieta
+      clearTimeout(fallbackT);
+      if (performance.now() - lastScroll < 320) { fallbackT = setTimeout(refresh, 150); return; }
+      const h = helperObj(); h.hiDetail = true;
+      geo = h.soldierParts(id)[0].geo;
+      geos.set(id, geo);
+    }
+    if (!geo) return;
+    const f = fig(side), k = side + ':' + id;
+    if (soldier && soldier !== f.g) soldier.visible = false;
+    if (f.mesh.geometry !== geo) f.mesh.geometry = geo;
+    if (k !== cur) { cur = k; }
+    f.g.visible = true; soldier = f.g;
+  }
+  let helper = null, lastScroll = 0;
+  function helperObj() {
+    if (!helper) { helper = new Board3D({ screen: 'screen-pick', wrap: 'pick-3d', bar: 'pick-3d', btn: 'pick-3d', canvas: () => null, cs: () => 1, ws: () => 0, tl: () => ({ x: 0, y: 0 }), onXY() {}, render() {} }); helper.geo = { ring: new THREE.RingGeometry(0.46, 0.57, 40) }; }
+    return helper;
+  }
+  function show(id, side) { request(id, side); }
   function loop() {
     requestAnimationFrame(loop);
     const scr = document.getElementById('screen-pick');
     if (!ok || !scr || !scr.classList.contains('active') || !soldier) return;
-    if (busy()) { last = 0; return; }   // mientras se desliza la lista no se dibuja: el desplazamiento va primero
     const now = performance.now(), dt = last ? Math.min(60, now - last) : 16; last = now;
     spin += dt * 0.0011;   // una vuelta cada ~5,7 s
-    soldier.userData.pv.rotation.y = spin;
+    figs.atk && (figs.atk.pv.rotation.y = spin); figs.def && (figs.def.pv.rotation.y = spin);
     soldier.position.y = 0.12 + Math.sin(now * 0.0017) * 0.07;
     renderer.render(scene, camera);
   }
-  // Pide mostrar un personaje. La figura detallada no se construye mientras la lista se mueve:
-  // se espera a que el desplazamiento se detenga, para que deslizar vaya siempre fluido.
-  function request(id, side) {
+  // Enfoca un personaje: se muestra en cuanto su figura esté lista (normalmente al instante)
+  function request(id, side, near) {
+    if (!init()) return;
     want = { id, side };
-    clearTimeout(tmr);
-    const go = () => { if (busy()) { tmr = setTimeout(go, 110); return; } if (want) show(want.id, want.side); };
-    tmr = setTimeout(go, busy() ? 180 : 0);
+    if (near) queue = near.filter(n => n !== id).concat(queue.filter(q => near.indexOf(q) < 0));
+    refresh(); pump();
   }
-  function touch(down) { lastScroll = performance.now(); if (down !== undefined) touching = !!down; }
-  // Prepara en los ratos libres las figuras del bando, de una en una, para que luego aparezcan al instante
-  function prewarm(ids) {
-    const tok = ++warmTok, list = ids.slice();
-    const step = () => {
-      if (tok !== warmTok || !list.length) return;
-      const scr = document.getElementById('screen-pick');
-      if (!scr || !scr.classList.contains('active')) return;
-      if (busy() || !init()) { setTimeout(step, 250); return; }
-      const id = list.shift();
-      try { build(id, pickSide); } catch (e) {}
-      setTimeout(step, 140);
-    };
-    setTimeout(step, 700);
-  }
-  return { show, resize, request, touch, prewarm };
+  function touch() { lastScroll = performance.now(); }
+  function prewarm(ids) { if (!init()) return; queue = ids.slice(0, 6); startWorker(); pump(); }   // las primeras de la lista; el resto, según se acercan al centro
+  const _dbg = () => ({ worker: !!worker, wfail, geos: [...geos.keys()], cur, inflight, shown: soldier && Object.keys(figs).find(k => figs[k].g === soldier) && [...geos.entries()].find(e => e[1] === figs[Object.keys(figs).find(k => figs[k].g === soldier)].mesh.geometry)?.[0], renderer: () => renderer });
+  return { show, resize, request, touch, prewarm, _dbg };
 })();
 
 let _pickFocusId = null, _pickBuiltFor = null, _pickScrollRaf = 0;
@@ -3426,7 +3480,8 @@ function pickFocus(id) {
   const side = pickSide, d = UNIT_DEFS[id];
   if (!d) return;
   _pickFocusId = id;
-  PICK3D.request(id, side);
+  const ids = [...document.querySelectorAll('#card-grid .unit-card')].map(c => c.dataset.id), at = ids.indexOf(id);
+  PICK3D.request(id, side, at < 0 ? null : [ids[at + 1], ids[at - 1], ids[at + 2], ids[at - 2]].filter(Boolean));
   const nm = document.getElementById('pick-focus-name'), ct = document.getElementById('pick-focus-cat');
   if (nm) nm.textContent = d.name;
   if (ct) { const cat = PICK_CATEGORIES[side].find(c => c.ids.includes(id)); ct.textContent = cat ? cat.label : ''; }
@@ -3462,9 +3517,6 @@ function renderPickScreen() {
       </div>`).join('')).join('');
     list.scrollTop = 0;
     list.onscroll = () => { PICK3D.touch(); if (_pickScrollRaf) return; _pickScrollRaf = requestAnimationFrame(() => { _pickScrollRaf = 0; pickCenterCard(); }); };
-    if (!list._pk) { list._pk = 1;   // con el dedo sobre la lista tampoco se hace trabajo pesado
-      list.addEventListener('touchstart', () => PICK3D.touch(true), { passive: true });
-      ['touchend', 'touchcancel'].forEach(ev => list.addEventListener(ev, () => PICK3D.touch(false), { passive: true })); }
     PICK3D.prewarm(PICK_CATEGORIES[side].reduce((a, c) => a.concat(c.ids), []).filter(id => UNIT_DEFS[id]));
     const first = list.querySelector('.unit-card'); if (first) pickFocus(first.dataset.id);
   }
