@@ -3918,14 +3918,38 @@ function drawWallsOn(ctx, tlFn, cs, ws) {
 function _stackOrder(list) {
   return list.map((p,i)=>({p,i})).sort((a,b)=>((a.p.arr||0)-(b.p.arr||0))||(a.i-b.i)).map(o=>o.p);
 }
-function drawPieces(pieces) {   // 2D: las de abajo asoman en diagonal para que se vean las dos
+// 2D: las fichas que comparten casilla se reparten dentro de ella, más pequeñas (hueco según orden de llegada)
+const SHARE_2D = { 2: { k: 0.6, at: [[0, 0], [0.4, 0.4]] }, 3: { k: 0.5, at: [[0, 0], [0.5, 0], [0.25, 0.5]] }, 4: { k: 0.5, at: [[0, 0], [0.5, 0], [0, 0.5], [0.5, 0.5]] } };
+let _pieceK = 1;   // escala de la ficha que se está dibujando (para que el contador siga siendo legible)
+function drawPieces(pieces) {
   const sorted=_stackOrder(pieces), count={}, seen={};
   sorted.forEach(p=>{ const k=p.row+'_'+p.col; count[k]=(count[k]||0)+1; });
-  sorted.forEach(p=>{ const k=p.row+'_'+p.col; seen[k]=(seen[k]||0)+1; const above=count[k]-seen[k]; p.draw(-above*GCS*0.16, above*GCS*0.16); });
+  sorted.forEach(p=>{
+    const k=p.row+'_'+p.col, i=seen[k]=(seen[k]||0)+1, S=SHARE_2D[Math.min(4,count[k])];
+    if(!S) { p.draw(0,0); return; }
+    const a=S.at[(i-1)%S.at.length], {x,y}=gCellTL(p.row,p.col);
+    gCtx.save(); gCtx.translate(x+a[0]*GCS, y+a[1]*GCS); gCtx.scale(S.k,S.k); gCtx.translate(-x,-y);
+    _pieceK=S.k;
+    try { p.draw(0,0); } finally { _pieceK=1; gCtx.restore(); }
+  });
 }
-function applyStackLift(list) {  // 3D: la última en llegar se apila encima
-  const sorted=_stackOrder(list), seen={};
-  sorted.forEach(p=>{ const k=p.row+'_'+p.col; p.e.lift=(seen[k]||0)*0.6; seen[k]=(seen[k]||0)+1; });
+// 3D: las fichas que comparten casilla se reparten dentro de ella, algo más pequeñas (sin apilarse).
+// El hueco de cada una depende solo del orden de llegada: no da pistas sobre qué ficha es cuál.
+const SHARE_SLOTS = {
+  2: { k: 0.72, at: [[-0.21, 0.1], [0.21, -0.1]] },
+  3: { k: 0.62, at: [[-0.22, 0.14], [0.22, 0.14], [0, -0.2]] },
+  4: { k: 0.55, at: [[-0.21, 0.21], [0.21, 0.21], [-0.21, -0.21], [0.21, -0.21]] },
+};
+function applyStackLift(list) {
+  const sorted=_stackOrder(list), count={}, seen={};
+  sorted.forEach(p=>{ const k=p.row+'_'+p.col; count[k]=(count[k]||0)+1; });
+  sorted.forEach(p=>{
+    const k=p.row+'_'+p.col, n=count[k], i=seen[k]=(seen[k]||0)+1;
+    const S=SHARE_SLOTS[Math.min(4,n)];
+    p.e.lift=0;
+    if(!S) { p.e.off=null; p.e.shr=1; return; }
+    const a=S.at[(i-1)%S.at.length]; p.e.off=a; p.e.shr=S.k;
+  });
 }
 function drawUnit(ctx, {x,y}, cs, icon, side, extra={}) {
   const col = side==='atk'?'#d4503f': side==='def'?'#5b8fd0':'#888888';
@@ -4543,7 +4567,8 @@ class Board3D {
     const upsert = (key, icon, kind, r, c, o) => {
       seen.add(key);
       const p = this.cellPos(r, c);
-      const tgt = new THREE.Vector3(p.x, (o.sel ? 0.14 : 0) + (o.lift || 0), p.z);
+      const of = o.off || [0, 0];
+      const tgt = new THREE.Vector3(p.x + of[0], (o.sel ? 0.14 : 0) + (o.lift || 0), p.z + of[1]);
       let g = this.ents.get(key);
       if (!g || g.userData.kind !== kind || g.userData.icon !== icon || (kind === 'dev' && (g.userData.dtype !== (o.dtype || 'walkie') || g.userData.ang !== (o.ang || 0)))) {
         if (g) this.removeEnt(key, g);
@@ -4562,6 +4587,10 @@ class Board3D {
         } else { g.position.copy(tgt); g.userData.mv = null; }
       }
       g.userData.cell = { r, c };
+      if (g.userData.pv && g.userData.soldier) {   // casilla compartida: figura más pequeña
+        const k = o.shr || 1, pv = g.userData.pv;
+        if (Math.abs(pv.scale.x - k) > 1e-3) { pv.scale.setScalar(k); g.userData.shr = k; if (g.userData.ring) g.userData.ring.scale.setScalar(k); }
+      }
       if (g.userData.pv) {
         // Orientación = dirección del último movimiento OBSERVADO por quien mira (nunca estado oculto):
         // la memoria va por jugador, así en partida local no se filtra el rumbo de una ficha rival.
@@ -4583,7 +4612,7 @@ class Board3D {
       const kind = d.type === 'iarramendi' ? 'atk' : d.type === 'bisbal' ? 'def' : 'dev';
       let ang = 0;   // los sensores murales miran hacia su pared
       if (d.wallKey) { const [wt, wr, wc] = String(d.wallKey).split('_'); ang = wt === 'h' ? (+wr === d.row ? 0 : Math.PI) : (+wc === d.col ? Math.PI / 2 : -Math.PI / 2); }
-      upsert('d_' + this.D().indexOf(d), e.srcDef.icon, kind, d.row, d.col, { lift: e.lift || 0, dtype: d.type, ang });
+      upsert('d_' + this.D().indexOf(d), e.srcDef.icon, kind, d.row, d.col, { lift: e.lift || 0, off: e.off || null, shr: e.shr || 1, dtype: d.type, ang });
     });
     [...this.ents.keys()].forEach(k => { if (!seen.has(k)) this.removeEnt(k, this.ents.get(k)); });
   }
@@ -4595,7 +4624,7 @@ class Board3D {
     L.style.left = dom.offsetLeft + 'px'; L.style.top = dom.offsetTop + 'px';
     L.style.width = cw + 'px'; L.style.height = ch + 'px';
     const v = this._lv || (this._lv = new THREE.Vector3());
-    const seen = new Set();
+    const seen = new Set(), rows = {};
     this.ents.forEach((g, key) => {
       const u = g.userData;
       if (!u.soldier || !u.icon) return;
@@ -4608,13 +4637,26 @@ class Board3D {
       if (el.textContent !== txt) el.textContent = txt;
       seen.add(key);
       const op = u.mats && u.mats[0] ? (u.mats[0].transparent ? u.mats[0].opacity : 1) : 1;
-      v.setFromMatrixPosition(g.matrixWorld); v.y += 1.42 * g.scale.y / 1.25;
+      v.setFromMatrixPosition(g.matrixWorld); v.y += 1.42 * g.scale.y / 1.25 * (u.shr || 1);
       v.project(this.camera);
       const vis = g.visible && op > 0.05 && v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1;
       el.style.display = vis ? '' : 'none';
       if (!vis) return;
       el.style.opacity = Math.min(1, op).toFixed(2);
-      el.style.transform = `translate(${((v.x + 1) / 2 * cw).toFixed(1)}px,${((1 - v.y) / 2 * ch).toFixed(1)}px) translate(-50%,-100%)`;
+      const x = (v.x + 1) / 2 * cw, y = (1 - v.y) / 2 * ch, ck = u.cell ? u.cell.r + '_' + u.cell.c : key;
+      (rows[ck] || (rows[ck] = [])).push({ el, x, y });
+    });
+    // Fichas de una misma casilla: sus carteles van en fila, sin taparse (ni a su contador de bomba)
+    Object.keys(rows).forEach(ck => {
+      const R = rows[ck];
+      if (R.length > 1) {
+        R.sort((a, b) => a.x - b.x);
+        const w = R.map(o => (o.el.offsetWidth || 22) + (o.el.dataset.cnt ? 30 : 0) + 3);
+        const tot = w.reduce((a, b) => a + b, 0), mx = R.reduce((a, o) => a + o.x, 0) / R.length, top = Math.min(...R.map(o => o.y));
+        let x0 = mx - tot / 2;
+        R.forEach((o, i) => { o.x = x0 + (o.el.offsetWidth || 22) / 2; o.y = top; x0 += w[i]; });
+      }
+      R.forEach(o => { o.el.style.transform = `translate(${o.x.toFixed(1)}px,${o.y.toFixed(1)}px) translate(-50%,-100%)`; });
     });
     this.labEls.forEach((el, key) => { if (!seen.has(key)) { el.remove(); this.labEls.delete(key); } });
   }
@@ -5665,8 +5707,8 @@ class Board3D {
         let d = u.angT - u.pv.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d));
         if (Math.abs(d) < 0.012 || !this.fxOn()) u.pv.rotation.y = u.angT; else { u.pv.rotation.y += d * 0.22; moving = true; }
       }
-      if (now < u.pulseUntil) { u.ring.scale.setScalar(1 + 0.08 * Math.sin(now / 110)); moving = true; }
-      else if (u.ring.scale.x !== 1) u.ring.scale.setScalar(1);
+      if (now < u.pulseUntil) { u.ring.scale.setScalar((u.shr || 1) * (1 + 0.08 * Math.sin(now / 110))); moving = true; }
+      else if (u.ring.scale.x !== (u.shr || 1)) u.ring.scale.setScalar(u.shr || 1);
       if (u.wob) {
         if (now < u.wob.from) moving = true;
         else if (now < u.wob.until) { g.rotation.z = Math.sin(now / 22) * 0.22 * ((u.wob.until - now) / u.wob.dur); moving = true; }
@@ -5998,14 +6040,14 @@ function renderGame() {
     if(!isMineDevice && !rivalCanSee) return;
     const {x,y}=gCellTL(d.row,d.col);
     const srcDef = UNIT_DEFS[d.unitId];
-    if(P3) { const ent={d, srcDef, cnt: decoyBomb(d)}; VIEW3D.frame.devices.push(ent); if(d.type==='iarramendi'||d.type==='bisbal') stack3.push({row:d.row,col:d.col,arr:d.arr||0,e:ent}); return; }
+    if(P3) { const ent={d, srcDef, cnt: decoyBomb(d)}; VIEW3D.frame.devices.push(ent); stack3.push({row:d.row,col:d.col,arr:d.arr||0,e:ent}); return; }
 
     // Iarramendi decoy: render as full atk unit (identical to the real piece)
     if(d.type==='iarramendi') {
       pieces.push({row:d.row,col:d.col,arr:d.arr||0,draw:(ox,oy)=>{
         drawUnit(ctx,{x:x+ox,y:y+oy},GCS,srcDef.icon,'atk');
         const cnt=decoyBomb(d);   // mismo contador que una ficha real
-        if(cnt>0) { ctx.fillStyle='rgba(212,80,63,.8)'; ctx.font='bold 9px Barlow Condensed,Arial Narrow,Arial,sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillText(`B:${cnt}`, x+ox+2, y+oy+2); }
+        if(cnt>0) { ctx.fillStyle='rgba(212,80,63,.8)'; ctx.font=`bold ${Math.round(9/_pieceK)}px Barlow Condensed,Arial Narrow,Arial,sans-serif`; ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillText(`B:${cnt}`, x+ox+2, y+oy+2); }
       }});
       return;
     }
@@ -6014,13 +6056,16 @@ function renderGame() {
       pieces.push({row:d.row,col:d.col,arr:d.arr||0,draw:(ox,oy)=>drawUnit(ctx,{x:x+ox,y:y+oy},GCS,srcDef.icon,'def')});
       return;
     }
-    // All other devices: grey neutral style
-    ctx.fillStyle='rgba(128,128,128,.2)'; ctx.fillRect(x+3,y+3,GCS-6,GCS-6);
-    ctx.strokeStyle='#888'; ctx.lineWidth=1.5; ctx.strokeRect(x+3,y+3,GCS-6,GCS-6);
-    ctx.fillStyle='#aaa';
-    ctx.font=`bold ${Math.floor(GCS*.35)}px Barlow Condensed,Arial Narrow,Arial,sans-serif`;
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(srcDef.icon, x+GCS/2, y+GCS/2);
+    // All other devices: grey neutral style (comparten casilla con las fichas como una más)
+    pieces.push({row:d.row,col:d.col,arr:d.arr||0,draw:(ox,oy)=>{
+      const X=x+ox, Y=y+oy;
+      ctx.fillStyle='rgba(128,128,128,.2)'; ctx.fillRect(X+3,Y+3,GCS-6,GCS-6);
+      ctx.strokeStyle='#888'; ctx.lineWidth=1.5; ctx.strokeRect(X+3,Y+3,GCS-6,GCS-6);
+      ctx.fillStyle='#aaa';
+      ctx.font=`bold ${Math.floor(GCS*.35)}px Barlow Condensed,Arial Narrow,Arial,sans-serif`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(srcDef.icon, X+GCS/2, Y+GCS/2);
+    }});
   });
 
   // Units (current player's always visible; rival visible only if revealed)
@@ -6055,7 +6100,7 @@ function renderGame() {
         const cnt = G.bombCounters[u.id]||0;
         if(cnt>0 && inBombZone(u.row,u.col)) {
           ctx.fillStyle='rgba(212,80,63,.8)';
-          ctx.font='bold 9px Barlow Condensed,Arial Narrow,Arial,sans-serif';
+          ctx.font=`bold ${Math.round(9/_pieceK)}px Barlow Condensed,Arial Narrow,Arial,sans-serif`;
           ctx.textAlign='left'; ctx.textBaseline='top';
           ctx.fillText(`B:${cnt}`, xx+2, yy+2);
         }
@@ -6913,7 +6958,7 @@ function getShootableTargets() {
       } else {
         inRange = ((dr===1&&dc===0)||(dr===0&&dc===1)) && !cardinalWallBetween(shooter.row,shooter.col,d.row,d.col);
       }
-      if(inRange && !targets.find(t=>t.target.row===d.row&&t.target.col===d.col))
+      if(inRange && !targets.find(t=>t.target.isDevice&&t.target.deviceRef===d))
         targets.push({target:asTarget,shooter});
     });
   });
@@ -7359,6 +7404,23 @@ function onGameClick(e) {
         return;
       }
     }
+    // Varias fichas tuyas en la casilla: elige cuál mueves
+    {
+      const mine = typeof coopInGame==='function' && coopInGame() ? (k => coopMine(k)) : (() => true);
+      const opts = [];
+      G.units.filter(u=>u.alive&&u.side===side&&u.row===cr&&u.col===cc&&!G.movedUnits.has(u.id)&&mine(u.id))
+        .forEach(u=>opts.push({key:u.id, arr:u.arr||0, label:u.name}));
+      if(side==='def') G.devices.filter(d=>d.type==='esteban'&&d.alive&&d.row===cr&&d.col===cc&&!G.movedUnits.has('esteban_drone')&&mine('esteban'))
+        .forEach(d=>opts.push({key:'esteban_drone', arr:d.arr||0, label:'Dron de Esteban'}));
+      if(side==='atk') G.devices.filter(d=>d.type==='iarramendi'&&d.alive&&d.row===cr&&d.col===cc&&!G.movedUnits.has('iarramendi_decoy')&&mine('iarramendi'))
+        .forEach(d=>opts.push({key:'iarramendi_decoy', arr:d.arr||0, label:'Clon de Iarramendi'}));
+      if(opts.length>1) {
+        opts.sort((a,b)=>a.arr-b.arr);
+        showModal('¿QUÉ FICHA MUEVES?', `Hay ${opts.length} fichas tuyas en la casilla (${cc+1},${cr+1}). Elige cuál quieres mover.`,
+          opts.map(o=>({label:o.label.toUpperCase(), action:()=>{ G.selectedUnit=o.key; renderGame(); }})).concat([{label:'CANCELAR'}]));
+        return;
+      }
+    }
     // Click on Esteban drone (defender side only)
     if(side==='def') {
       const drone=G.devices.find(d=>d.type==='esteban'&&d.alive&&d.row===cr&&d.col===cc);
@@ -7385,7 +7447,18 @@ function onGameClick(e) {
     G.selectedUnit=null; renderGame();
   } else if(phase==='shoot') {
     const targets=getShootableTargets();
-    const tObj=targets.find(t=>t.target.row===cr&&t.target.col===cc);
+    const here=targets.filter(t=>t.target.row===cr&&t.target.col===cc);
+    const arrOf=t=>(t.target.isDevice?t.target.deviceRef.arr:t.target.arr)||0;
+    here.sort((a,b)=>arrOf(a)-arrOf(b));   // mismo orden que en el tablero
+    if(here.length>1) {
+      // Varias fichas a tiro en la misma casilla: se elige a cuál disparar (cada personaje dispara una vez por ronda)
+      const who=t=>UNIT_DEFS[t.shooter.id]?UNIT_DEFS[t.shooter.id].name:t.shooter.name;
+      showModal('CONFIRMAR DISPARO',
+        `<div class="shot-confirm"><span class="sc-label">Objetivo</span><b>${here.length} fichas a tiro</b><span class="sc-cell">Casilla (${cc+1},${cr+1})</span></div>Elige a cuál disparas. ${here.every(t=>t.shooter===here[0].shooter)?`Dispara <b>${who(here[0])}</b>, que ya no podrá volver a disparar esta ronda.`:'Cada personaje solo puede disparar una vez por ronda.'} Una vez disparado no se puede deshacer.`,
+        here.map(t=>({label:'DISPARAR A '+String(t.target.name).toUpperCase(), cls:'btn-danger', action:()=>{ shootTarget(t); }})).concat([{label:'CANCELAR'}]));
+      return;
+    }
+    const tObj=here[0];
     if(tObj) {
       showModal('CONFIRMAR DISPARO',
         `<div class="shot-confirm"><span class="sc-label">Objetivo</span><b>${tObj.target.name}</b><span class="sc-cell">Casilla (${cc+1},${cr+1})</span></div>Una vez disparado no se puede deshacer.`,
