@@ -5998,11 +5998,15 @@ function renderGame() {
     if(!isMineDevice && !rivalCanSee) return;
     const {x,y}=gCellTL(d.row,d.col);
     const srcDef = UNIT_DEFS[d.unitId];
-    if(P3) { const ent={d, srcDef}; VIEW3D.frame.devices.push(ent); if(d.type==='iarramendi'||d.type==='bisbal') stack3.push({row:d.row,col:d.col,arr:d.arr||0,e:ent}); return; }
+    if(P3) { const ent={d, srcDef, cnt: decoyBomb(d)}; VIEW3D.frame.devices.push(ent); if(d.type==='iarramendi'||d.type==='bisbal') stack3.push({row:d.row,col:d.col,arr:d.arr||0,e:ent}); return; }
 
     // Iarramendi decoy: render as full atk unit (identical to the real piece)
     if(d.type==='iarramendi') {
-      pieces.push({row:d.row,col:d.col,arr:d.arr||0,draw:(ox,oy)=>drawUnit(ctx,{x:x+ox,y:y+oy},GCS,srcDef.icon,'atk')});
+      pieces.push({row:d.row,col:d.col,arr:d.arr||0,draw:(ox,oy)=>{
+        drawUnit(ctx,{x:x+ox,y:y+oy},GCS,srcDef.icon,'atk');
+        const cnt=decoyBomb(d);   // mismo contador que una ficha real
+        if(cnt>0) { ctx.fillStyle='rgba(212,80,63,.8)'; ctx.font='bold 9px Barlow Condensed,Arial Narrow,Arial,sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillText(`B:${cnt}`, x+ox+2, y+oy+2); }
+      }});
       return;
     }
     // Bisbal decoy: render as full def unit (identical to the real piece)
@@ -6993,7 +6997,19 @@ function shootTarget(targetObj) {
 // ── Límite de rondas: el defensor gana si el atacante no lo logra en 15 rondas ──
 // Cuenta al final de cada turno atacante; no avanza si alguna ficha atacante está en la sala de la bomba.
 const ROUND_LIMIT = 15;
+// Clon atacante (Iarramendi): lleva su propio contador de bomba con las mismas reglas que una ficha real,
+// para que el defensor no pueda distinguirlo. No cuenta para la victoria.
+function decoyBomb(d) { return d && d.alive && d.type === 'iarramendi' && inBombZone(d.row, d.col) ? (d.bombCnt || 0) : 0; }
+function decoyBombTick() {
+  const dib = G.units.some(u => u.side === 'def' && u.alive && inBombZone(u.row, u.col));
+  (G.devices || []).forEach(d => {
+    if (d.type !== 'iarramendi' || !d.alive) return;
+    if (inBombZone(d.row, d.col)) { if (!dib) d.bombCnt = Math.min(4, (d.bombCnt || 0) + 1); }
+    else d.bombCnt = 0;
+  });
+}
 function roundLimitTick() {
+  decoyBombTick();
   const atkInBomb = G.units.some(u => u.side === 'atk' && u.alive && inBombZone(u.row, u.col));
   G.limitFrozen = atkInBomb;
   if (!atkInBomb) G.limitUsed = (G.limitUsed || 0) + 1;
@@ -8040,7 +8056,8 @@ function updateSidebar() {
 
   // Bomb counters
   const atkUnitsInBomb=G.atkPick.filter(uid=>{ const u=getUnit(uid); return u&&u.alive&&inBombZone(u.row,u.col); });
-  if(atkUnitsInBomb.length>0||Object.values(G.bombCounters).some(v=>v>0)) {
+  const decoysInBomb=(G.devices||[]).filter(d=>d.alive&&d.type==='iarramendi'&&inBombZone(d.row,d.col));
+  if(atkUnitsInBomb.length>0||decoysInBomb.length>0||Object.values(G.bombCounters).some(v=>v>0)) {
     html+=`<div class="sidebar-panel"><div class="sidebar-title">Contador de bomba</div>`;
     G.atkPick.forEach(uid=>{
       const cnt=G.bombCounters[uid]||0;
@@ -8050,6 +8067,14 @@ function updateSidebar() {
           <div class="bomb-counter-bar"><div class="bomb-counter-fill" style="width:${cnt*20}%"></div></div>
         </div>`;
       }
+    });
+    // El clon aparece como otro Iarramendi (el atacante sí ve que es el clon)
+    decoysInBomb.forEach(d=>{
+      const cnt=decoyBomb(d), nm=UNIT_DEFS[d.unitId].name+(side==='atk'?' <small>(clon)</small>':'');
+      html+=`<div class="bomb-counter">
+          <div class="bomb-counter-name"><span>${nm}</span><b>${cnt}<i>/5</i></b></div>
+          <div class="bomb-counter-bar"><div class="bomb-counter-fill" style="width:${cnt*20}%"></div></div>
+        </div>`;
     });
     html+=`</div>`;
   }
@@ -10225,8 +10250,9 @@ function turnSweep() {
 function bombState() {
   if (!G.units || !G.atkPick) return null;
   const inside = G.units.filter(u => u.side === 'atk' && u.alive && inBombZone(u.row, u.col));
-  if (!inside.length) return null;
-  return { max: Math.max(0, ...inside.map(u => (G.bombCounters || {})[u.id] || 0)), n: inside.length };
+  const clones = (G.devices || []).filter(d => d.alive && d.type === 'iarramendi' && inBombZone(d.row, d.col));   // el clon cuenta igual
+  if (!inside.length && !clones.length) return null;
+  return { max: Math.max(0, ...inside.map(u => (G.bombCounters || {})[u.id] || 0), ...clones.map(decoyBomb)), n: inside.length + clones.length };
 }
 
 // ── Efectos 2D (cuando no hay vista 3D): trazador de disparo, latido de la sala ──
@@ -10463,7 +10489,8 @@ function boardShake() {
     if (this !== VIEW3D || !this.labEls || !G.units) return;
     this.labEls.forEach((el, key) => {
       const u = key.startsWith('u_') && getUnit(key.slice(2));
-      const cnt = u && u.side === 'atk' && u.alive && inBombZone(u.row, u.col) ? ((G.bombCounters || {})[u.id] || 0) : 0;
+      const dv = !u && key.startsWith('d_') && this.D && this.D()[+key.slice(2)];
+      const cnt = u ? (u.side === 'atk' && u.alive && inBombZone(u.row, u.col) ? ((G.bombCounters || {})[u.id] || 0) : 0) : decoyBomb(dv);
       const v = cnt > 0 ? cnt + '/5' : '';
       if ((el.dataset.cnt || '') !== v) { if (v) el.dataset.cnt = v; else delete el.dataset.cnt; }
     });
