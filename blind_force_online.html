@@ -4579,9 +4579,13 @@ class Board3D {
         this.entityGroup.add(g);
         if (fx) this.appear(g, p, this.cfg.spawnFx || 'pop', Math.min(this._newIdx++ * 70, 700));
       } else if (!g.userData.target.equals(tgt)) {
-        const cur = g.position.clone();
+        const cur = g.position.clone(), pc = g.userData.cell;
+        // Misma casilla y solo cambia el hueco dentro de ella (otra ficha aparece o deja de verse):
+        // se recoloca al instante, sin animación, para no delatar fichas que ya no están a la vista.
+        const sameCell = pc && pc.r === r && pc.c === c && (Math.abs(tgt.x - g.userData.target.x) > 1e-4 || Math.abs(tgt.z - g.userData.target.z) > 1e-4);
         g.userData.target.copy(tgt);
-        if (fx) {
+        if (sameCell) { g.position.copy(tgt); g.userData.mv = null; }
+        else if (fx) {
           const dxz = Math.hypot(tgt.x - cur.x, tgt.z - cur.z);
           g.userData.mv = { from: cur, to: tgt.clone(), t0: now, dur: Math.min(520, 240 + 110 * dxz), hop: dxz > 0.05 ? Math.min(0.42, 0.18 + 0.12 * dxz) : 0 };
         } else { g.position.copy(tgt); g.userData.mv = null; }
