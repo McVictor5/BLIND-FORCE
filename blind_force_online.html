@@ -3241,6 +3241,7 @@ function showInstructions() {
     `${b('Movimiento:')} cada ficha se mueve hasta 1 casilla en cualquier dirección (incluyendo diagonales), respetando paredes. No se puede cruzar en diagonal por una esquina de dos paredes perpendiculares. Las fichas rivales no son visibles salvo las que hayas desvelado antes.<br><br>
     ${b('Visión:')} cada ficha desvela casillas a su alrededor. El radio normal es de ${b('2 casillas')}. Dentro de la sala de la bomba el radio es ${b('1 casilla')}, excepto si ${b('todas tus fichas están en la sala y tienes menos fichas que el rival')}, en cuyo caso el radio vuelve a ser 2. Las paredes bloquean la visión. Una casilla en esquina (dos paredes perpendiculares) no permite ver al otro lado de esa esquina en diagonal.<br><br>
     ${b('Surcos-puerta:')} un hueco entre dos paredes paralelas actúa como rendija — solo permite ver la casilla directamente enfrente, no en diagonal.<br><br>
+    ${b('Pasos:')} al empezar tu fase de movimiento, si una ficha tuya tiene una ficha rival exactamente a ${b('3 casillas')} (contando diagonales; las paredes no tapan el ruido), la oye: se resaltan las casillas del anillo a 3 casillas de ella, sin saber en cuál está. La sala de la bomba aísla el sonido: dentro solo se oye a quien está dentro y fuera solo a quien está fuera.<br><br>
     ${b('Disparo:')} si durante la visión has desvelado una ficha rival a distancia 1 (horizontal o vertical, o diagonal dentro de la sala), puedes dispararla para eliminarla. Una ficha puede disparar una vez por ronda. No es obligatorio.<br><br>
     ${b('Fin de turno:')} aparece un resumen con los disparos realizados, fichas sin mover y habilidades usadas por el rival.`)}
 
@@ -6188,6 +6189,22 @@ function renderGame() {
     }
   }
 
+  // Pasos: anillo de radio 3 alrededor de las fichas que oyen a un rival a 3 casillas
+  if(phase==='movement' && G.currentSide===side) {
+    const ring=stepsRing(side);
+    if(ring && ring.size) {
+      ctx.save();
+      ring.forEach(k=>{
+        const [r,c]=k.split('_').map(Number), {x,y}=gCellTL(r,c);
+        const room=inBombZone(r,c);   // dentro de la sala el suelo ya es ocre: se usa un tono más frío para que destaque
+        ctx.fillStyle=room?'rgba(255,236,170,.30)':'rgba(240,172,52,.30)'; ctx.fillRect(x,y,GCS,GCS);
+        ctx.strokeStyle=room?'rgba(255,244,200,.95)':'rgba(250,186,70,.95)'; ctx.lineWidth=2; ctx.setLineDash([5,3]);
+        ctx.strokeRect(x+1.5,y+1.5,GCS-3,GCS-3);
+      });
+      ctx.restore();
+    }
+  } else _stepsSnap.key = '';   // fuera de tu fase de movimiento se olvida: la próxima foto será la del siguiente turno
+
   // Highlight shootable targets
   if(phase==='shoot') {
     getShootableTargets().forEach(tObj=>{
@@ -6311,6 +6328,38 @@ function renderGame() {
 }
 
 function inBombZone(r,c){ return r>=5&&r<=9&&c>=5&&c<=9; }
+
+// ── Pasos ──
+// Al empezar tu fase de movimiento, cada ficha tuya que tenga una ficha rival exactamente a 3 casillas
+// (contando diagonales, las paredes no tapan el ruido) la «oye»: se resalta el anillo de casillas a radio 3
+// a su alrededor, sin decir en cuál está. La sala de la bomba aísla el sonido: dentro solo se oye a quien
+// está dentro, y fuera solo a quien está fuera. Los dobles (Iarramendi, Bisbal) también hacen ruido, para
+// que sigan pareciendo reales; las fichas invisibles no. La foto se toma al empezar el turno y no cambia al mover.
+let _stepsSnap = { key: '', ring: null };
+function stepSources(side) {
+  const out = G.units.filter(u => u.alive && u.side !== side && !isUnitInvisibleTo(u, side)).map(u => ({ row: u.row, col: u.col }));
+  (G.devices || []).forEach(d => { if (d.alive && (side === 'def' ? d.type === 'iarramendi' : d.type === 'bisbal')) out.push({ row: d.row, col: d.col }); });
+  return out;
+}
+function stepsRing(side) {
+  const key = G.round + '|' + G.currentSide + '|' + side;
+  if (_stepsSnap.key === key) return _stepsSnap.ring;
+  const ring = new Set(), src = stepSources(side);
+  G.units.filter(u => u.alive && u.side === side).forEach(u => {
+    const zone = inBombZone(u.row, u.col);
+    const hears = src.some(e => Math.max(Math.abs(e.row - u.row), Math.abs(e.col - u.col)) === 3 && inBombZone(e.row, e.col) === zone);
+    if (!hears) return;
+    for (let dr = -3; dr <= 3; dr++) for (let dc = -3; dc <= 3; dc++) {
+      if (Math.max(Math.abs(dr), Math.abs(dc)) !== 3) continue;
+      const r = u.row + dr, c = u.col + dc;
+      if (r < 0 || r >= GRID || c < 0 || c >= GRID || isCentralCell(r, c)) continue;
+      if (inBombZone(r, c) !== zone) continue;   // solo donde podría estar quien hace el ruido
+      ring.add(r + '_' + c);
+    }
+  });
+  _stepsSnap = { key, ring };
+  return ring;
+}
 
 function isUnitInvisibleTo(unit, observerSide) {
   if(unit.invisibleUntilRound < 0) return false;
