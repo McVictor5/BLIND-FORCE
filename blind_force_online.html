@@ -1615,6 +1615,14 @@ body.coop-game #btn-coop-exit { display:inline-block !important; }
   #game-canvas { max-height:calc(100vh - 150px); max-height:calc(100dvh - 150px); width:auto; max-width:100%; }
   #construct-canvas, #spawn-canvas { max-height:calc(100vh - 160px); max-height:calc(100dvh - 160px); width:auto; max-width:100%; }
 }
+
+/* Cartel de deshacer movimiento, encima de la ficha */
+#undo-chip { position:fixed; z-index:60; transform:translate(-50%,-100%); min-width:44px; height:44px; padding:0 10px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center; background:#1b1915; color:#f0c45a; border:2px solid #d9ad55;
+  box-shadow:0 6px 18px rgba(0,0,0,.55); cursor:pointer; animation:undoPop .16s ease-out; }
+#undo-chip::after { content:''; position:absolute; left:50%; bottom:-8px; transform:translateX(-50%); border:7px solid transparent; border-top-color:#d9ad55; border-bottom:0; }
+#undo-chip:hover, #undo-chip:focus-visible { background:#2a251c; outline:none; }
+@keyframes undoPop { from { transform:translate(-50%,-100%) scale(.7); opacity:0; } to { transform:translate(-50%,-100%) scale(1); opacity:1; } }
 </style>
 
 <!-- Firebase -->
@@ -1970,6 +1978,7 @@ body.coop-game #btn-coop-exit { display:inline-block !important; }
   <div class="pick-bar">
     <div id="pick-count" class="sel-count"></div>
     <div class="pick-actions">
+      <button class="btn-secondary" id="pick-home" onclick="pickGoHome()" style="display:none;">← INICIO</button>
       <button class="btn-primary" id="pick-confirm" style="display:none;" onclick="confirmPick()">CONFIRMAR SELECCIÓN</button>
       <button class="btn-secondary" id="pick-rival-intel" onclick="showRivalIntel()" style="border-color:var(--accent-yellow);color:var(--accent-yellow);">VER FICHAS RIVALES</button>
     </div>
@@ -2483,7 +2492,7 @@ const UNIT_DEFS = {
   catalina: {
     id:'catalina', name:'Catalina', side:'def', icon:'C',
     abilityName:'VISIÓN X',
-    abilityDesc:'Esta ronda de visión, Catalina ignora todos los obstáculos de pared al desvelar casillas.',
+    abilityDesc:'Esta ronda de visión, Catalina ignora todos los obstáculos de pared al desvelar casillas (solo ella; el resto de fichas ve como siempre).',
     abilityPhase:'vision',
     abilityOnce:true,
   },
@@ -3498,8 +3507,15 @@ function pickCenterCard() {
   if (best && best.dataset.id !== _pickFocusId) pickFocus(best.dataset.id);
 }
 
+// Partida local: se puede volver al inicio desde la elección de personajes (se pierde la selección)
+function pickIsLocal() { return !(typeof ONLINE !== 'undefined' && ONLINE.enabled) && !(typeof COOP !== 'undefined' && (COOP.code || COOP.picking)); }
+function pickGoHome() {
+  showModal('¿VOLVER AL INICIO?', 'Se perderá la selección de personajes de esta partida.',
+    [{label:'CANCELAR'}, {label:'VOLVER AL INICIO', cls:'btn-danger', action:()=>{ initState(); showScreen('title'); }}]);
+}
 function renderPickScreen() {
   const side = pickSide;
+  { const hb = document.getElementById('pick-home'); if (hb) hb.style.display = pickIsLocal() ? '' : 'none'; }
   document.getElementById('pick-role-badge').innerHTML = side==='atk'
     ? '<span class="role-badge atk">ATACANTE</span>'
     : '<span class="role-badge def">DEFENSOR</span>';
@@ -6456,7 +6472,7 @@ function computeVision() {
       const tr=u.row+dr, tc=u.col+dc;
       if(tr<0||tr>=GRID||tc<0||tc>=GRID) continue;
       if(isCentralCell(tr,tc)) continue;
-      if(catalinaActive || canSee(u.row,u.col,tr,tc)) cells.add(`${tr}_${tc}`);
+      if((catalinaActive && u.id==='catalina') || canSee(u.row,u.col,tr,tc)) cells.add(`${tr}_${tc}`);   // rayos X: solo la propia Catalina
     }
     unitVision.set(u.id, cells);
   });
@@ -6813,8 +6829,15 @@ function bombDoorLockedFor(u, door) {
   moveUnit=function(uid,r,c){
     const u=getUnit(uid);
     const fr=u?u.row:0, fc=u?u.col:0;
+    const snap = u && G.gamePhase==='movement' ? {
+      row:u.row, col:u.col, arr:u.arr||0,
+      bomb: G.bombCounters && (uid in G.bombCounters) ? G.bombCounters[uid] : -1,
+      dlm: G.defLastMoveFrom && G.defLastMoveFrom[uid] ? JSON.parse(JSON.stringify(G.defLastMoveFrom[uid])) : null,
+      doors: JSON.parse(JSON.stringify((G.doorLock&&G.doorLock[u.side])||{}))
+    } : null;
     const res=_mu.apply(this,arguments);
     if(u) u.arr=(G.arrSeq=(G.arrSeq||0)+1);   // orden de llegada a la casilla (para apilar fichas coincidentes)
+    if(snap) G._undoPending={uid, snap};
     try {
       if(u && u.alive && Math.max(Math.abs(r-fr),Math.abs(c-fc))<=2) {
         const door=bombDoorOf(fr,fc,r,c);
@@ -6829,6 +6852,18 @@ function bombDoorLockedFor(u, door) {
       if(u && G.doorLock && G.doorLock[u.side] && !inBombZone(u.row,u.col))
         Object.keys(G.doorLock[u.side]).forEach(d=>{ if(G.doorLock[u.side][d]===u.id) delete G.doorLock[u.side][d]; });
     } catch(e){ console.warn('[doors]',e); }
+    // Deshacer: se guarda lo necesario para devolver la ficha (no si cayó en una trampa)
+    const pend=G._undoPending; delete G._undoPending;
+    if(pend && pend.uid===uid) {
+      if(u.alive) {
+        const now=(G.doorLock&&G.doorLock[u.side])||{}, before=pend.snap.doors;
+        const added=[], removed=[];
+        Object.keys(now).forEach(d=>{ if(now[d]===uid && before[d]!==uid) added.push({ d, prev: before[d] || '' }); });
+        Object.keys(before).forEach(d=>{ if(before[d]===uid && now[d]!==uid) removed.push(d); });
+        delete pend.snap.doors; pend.snap.added=added; pend.snap.removed=removed;
+        undoRecord(uid, pend.snap);
+      } else if(G.moveUndo) delete G.moveUndo[uid];
+    }
     return res;
   };
 })();
@@ -6953,6 +6988,121 @@ function moveUnit(uid, r, c) {
   }
   renderGame();
   updateSidebar();
+}
+
+// ── Deshacer movimiento ──
+// Durante tu fase de movimiento puedes devolver una ficha (o el dron de Esteban / el clon de Iarramendi)
+// a la casilla de la que salió: toca la ficha ya movida y pulsa el cartel con la flecha.
+let UNDO_OFFER = null;   // ficha con el cartel de deshacer a la vista (solo en esta pantalla)
+function undoTurnKey() { return G.round + '|' + G.currentSide; }
+function undoRecord(key, snap) {
+  if (G.gamePhase !== 'movement') return;
+  if (!G.moveUndo) G.moveUndo = {};
+  const tk = undoTurnKey();
+  Object.keys(G.moveUndo).forEach(k => { if (G.moveUndo[k].tk !== tk) delete G.moveUndo[k]; });
+  snap.tk = tk; G.moveUndo[key] = snap;
+}
+function undoDevice(key) { return key === 'esteban_drone' ? G.devices.find(d => d.type === 'esteban' && d.alive) : key === 'iarramendi_decoy' ? G.devices.find(d => d.type === 'iarramendi' && d.alive) : null; }
+function undoAvailable(key) {
+  const sn = G.moveUndo && G.moveUndo[key];
+  if (!sn || sn.tk !== undoTurnKey() || G.gamePhase !== 'movement' || !G.movedUnits.has(key)) return false;
+  if (sn.dev) return !!undoDevice(key);
+  const u = getUnit(key); return !!(u && u.alive);
+}
+// Motivo por el que no se puede deshacer ahora (o null)
+function undoCheck(key) {
+  if (!undoAvailable(key)) return 'Esa ficha ya no se puede devolver.';
+  const sn = G.moveUndo[key];
+  if (sn.dev) return null;
+  const u = getUnit(key);
+  const door = bombDoorOf(u.row, u.col, sn.row, sn.col);
+  if (door && bombDoorLockedFor(u, door)) return 'No se puede deshacer: otra ficha de tu bando ocupa esa puerta de la sala.';
+  const blk = bombRoomBlock(u, sn.row, sn.col, u.row, u.col);
+  if (blk) return 'No se puede deshacer: ' + bombRoomBlockMsg(blk).replace(/^[^A-Za-zÁÉÍÓÚáéíóúÑñ]+/, '').replace(/^./, ch => ch.toLowerCase());
+  return null;
+}
+function undoApply(key) {
+  if (undoCheck(key)) return false;
+  const sn = G.moveUndo[key];
+  if (sn.dev) {
+    const d = undoDevice(key); d.row = sn.row; d.col = sn.col; d.arr = sn.arr || 0;
+  } else {
+    const u = getUnit(key);
+    u.row = sn.row; u.col = sn.col; u.arr = sn.arr || 0;
+    if (!G.bombCounters) G.bombCounters = {};
+    if (sn.bomb === undefined || sn.bomb < 0) delete G.bombCounters[key]; else G.bombCounters[key] = sn.bomb;
+    if (G.defLastMoveFrom) { if (sn.dlm) G.defLastMoveFrom[key] = sn.dlm; else delete G.defLastMoveFrom[key]; }
+    const locks = G.doorLock && G.doorLock[u.side];
+    if (locks) {
+      (sn.added || []).forEach(a => { if (locks[a.d] === key) { if (a.prev) locks[a.d] = a.prev; else delete locks[a.d]; } });
+      (sn.removed || []).forEach(d => { if (!locks[d]) locks[d] = key; });
+    } else if ((sn.removed || []).length) {
+      if (!G.doorLock) G.doorLock = { atk: {}, def: {} };
+      G.doorLock[u.side] = G.doorLock[u.side] || {};
+      sn.removed.forEach(d => { G.doorLock[u.side][d] = key; });
+    }
+  }
+  G.movedUnits.delete(key);
+  delete G.moveUndo[key];
+  return true;
+}
+function undoMove(key) {
+  UNDO_OFFER = null; placeUndoChip();
+  if (typeof coopInGame === 'function' && coopInGame()) { coopAction({ t: 'undo', key }); return; }
+  const why = undoCheck(key);
+  if (why) { toast('⚠ ' + why); renderGame(); return; }
+  undoApply(key);
+  G.selectedUnit = key;   // queda seleccionada para moverla a otra casilla
+  try { if (typeof SFX !== 'undefined') SFX.play('move'); } catch (e) {}
+  try { if (typeof window.gameLogAdd === 'function') { const u = getUnit(key); window.gameLogAdd({ k: 'move', vis: G.currentSide, txt: (u ? u.name : key === 'esteban_drone' ? 'El dron de Esteban' : 'El clon de Iarramendi') + ' deshizo su movimiento' }); } } catch (e) {}
+  renderGame(); updateSidebar();
+  if (typeof ONLINE !== 'undefined' && ONLINE.enabled && typeof isMyTurn === 'function' && isMyTurn() && typeof pushState === 'function') pushState();
+}
+// El cartel flotante con la flecha, encima de la ficha (2D y 3D); sigue a la ficha mientras está a la vista
+let _undoRaf = 0;
+function placeUndoChip() {
+  positionUndoChip();
+  if (UNDO_OFFER && !_undoRaf) {
+    const loop = () => { positionUndoChip(); _undoRaf = UNDO_OFFER ? requestAnimationFrame(loop) : 0; };
+    _undoRaf = requestAnimationFrame(loop);
+  }
+}
+function positionUndoChip() {
+  let el = document.getElementById('undo-chip');
+  const scr = document.getElementById('screen-game');
+  const key = UNDO_OFFER;
+  const ok = key && scr && scr.classList.contains('active') && undoAvailable(key) && !(document.getElementById('modal') || {}).classList?.contains('active');
+  if (!ok) { if (el) el.style.display = 'none'; if (key && !undoAvailable(key)) UNDO_OFFER = null; return; }
+  if (!el) {
+    el = document.createElement('button');
+    el.id = 'undo-chip'; el.type = 'button'; el.setAttribute('aria-label', 'Deshacer movimiento');
+    el.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>';
+    el.addEventListener('click', ev => { ev.stopPropagation(); if (UNDO_OFFER) undoMove(UNDO_OFFER); });
+    document.body.appendChild(el);
+  }
+  let x = null, y = null;
+  try {
+    if (typeof VIEW3D !== 'undefined' && VIEW3D.on && VIEW3D.renderer) {
+      let g = null;
+      if (key === 'esteban_drone' || key === 'iarramendi_decoy') { const d = undoDevice(key); const i = VIEW3D.D().indexOf(d); g = VIEW3D.ents.get('d_' + i); }
+      else g = VIEW3D.ents.get('u_' + key);
+      if (g) {
+        const v = new THREE.Vector3().setFromMatrixPosition(g.matrixWorld);
+        v.y += 1.42 * g.scale.y / 1.25 * (g.userData.shr || 1);
+        v.project(VIEW3D.camera);
+        const rc = VIEW3D.renderer.domElement.getBoundingClientRect();
+        x = rc.left + (v.x + 1) / 2 * rc.width; y = rc.top + (1 - v.y) / 2 * rc.height - 30;
+      }
+    } else {
+      let r, c;
+      if (key === 'esteban_drone' || key === 'iarramendi_decoy') { const d = undoDevice(key); r = d.row; c = d.col; } else { const u = getUnit(key); r = u.row; c = u.col; }
+      const t = gCellTL(r, c), rc = gCanvas.getBoundingClientRect(), k = rc.width / gCanvas.width;
+      x = rc.left + (t.x + GCS / 2) * k; y = rc.top + t.y * k - 4;
+    }
+  } catch (e) {}
+  if (x === null) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.style.left = x.toFixed(1) + 'px'; el.style.top = y.toFixed(1) + 'px';
 }
 
 function checkDeviceTrap(unit) {
@@ -7433,6 +7583,7 @@ function onGameClick(e) {
   if(phase==='vision') { const dv=rivalDeviceAt(cr,cc); if(dv) { showRivalDeviceInfo(dv); return; } }
 
   if(phase==='movement') {
+    const prevOffer=UNDO_OFFER; if(UNDO_OFFER) { UNDO_OFFER=null; placeUndoChip(); }
     // Hypothesis marker placement takes priority when selecting
     if(LOCAL_MARKER_SELECTING !== null) {
       if(!isCentralCell(cr,cc)) { placeMarkerOnBoard(cr,cc); return; }
@@ -7449,6 +7600,7 @@ function onGameClick(e) {
       if(decoy) {
         const valid=getDroneValidMoves(decoy);
         if(valid.find(m=>m.r===cr&&m.c===cc)) {
+          undoRecord('iarramendi_decoy', { dev:true, row:decoy.row, col:decoy.col, arr:decoy.arr||0 });
           decoy.row=cr; decoy.col=cc; decoy.arr=(G.arrSeq=(G.arrSeq||0)+1);
           G.movedUnits.add('iarramendi_decoy');
           G.selectedUnit=null;
@@ -7463,6 +7615,7 @@ function onGameClick(e) {
       if(drone) {
         const valid=getDroneValidMoves(drone);
         if(valid.find(m=>m.r===cr&&m.c===cc)) {
+          undoRecord('esteban_drone', { dev:true, row:drone.row, col:drone.col, arr:drone.arr||0 });
           drone.row=cr; drone.col=cc;
           G.movedUnits.add('esteban_drone');
           G.selectedUnit=null;
@@ -7484,21 +7637,31 @@ function onGameClick(e) {
         return;
       }
     }
-    // Varias fichas tuyas en la casilla: elige cuál mueves
+    // Varias fichas tuyas en la casilla: elige cuál mueves (o cuál devuelves)
     {
       const mine = typeof coopInGame==='function' && coopInGame() ? (k => coopMine(k)) : (() => true);
-      const opts = [];
+      const opts = [], undos = [];
+      G.units.filter(u=>u.alive&&u.side===side&&u.row===cr&&u.col===cc&&undoAvailable(u.id)&&mine(u.id)).forEach(u=>undos.push({key:u.id, arr:u.arr||0, label:u.name}));
+      if(side==='def') G.devices.filter(d=>d.type==='esteban'&&d.alive&&d.row===cr&&d.col===cc&&undoAvailable('esteban_drone')&&mine('esteban')).forEach(d=>undos.push({key:'esteban_drone', arr:d.arr||0, label:'Dron de Esteban'}));
+      if(side==='atk') G.devices.filter(d=>d.type==='iarramendi'&&d.alive&&d.row===cr&&d.col===cc&&undoAvailable('iarramendi_decoy')&&mine('iarramendi')).forEach(d=>undos.push({key:'iarramendi_decoy', arr:d.arr||0, label:'Clon de Iarramendi'}));
       G.units.filter(u=>u.alive&&u.side===side&&u.row===cr&&u.col===cc&&!G.movedUnits.has(u.id)&&mine(u.id))
         .forEach(u=>opts.push({key:u.id, arr:u.arr||0, label:u.name}));
       if(side==='def') G.devices.filter(d=>d.type==='esteban'&&d.alive&&d.row===cr&&d.col===cc&&!G.movedUnits.has('esteban_drone')&&mine('esteban'))
         .forEach(d=>opts.push({key:'esteban_drone', arr:d.arr||0, label:'Dron de Esteban'}));
       if(side==='atk') G.devices.filter(d=>d.type==='iarramendi'&&d.alive&&d.row===cr&&d.col===cc&&!G.movedUnits.has('iarramendi_decoy')&&mine('iarramendi'))
         .forEach(d=>opts.push({key:'iarramendi_decoy', arr:d.arr||0, label:'Clon de Iarramendi'}));
-      if(opts.length>1) {
-        opts.sort((a,b)=>a.arr-b.arr);
-        showModal('¿QUÉ FICHA MUEVES?', `Hay ${opts.length} fichas tuyas en la casilla (${cc+1},${cr+1}). Elige cuál quieres mover.`,
-          opts.map(o=>({label:o.label.toUpperCase(), action:()=>{ G.selectedUnit=o.key; renderGame(); }})).concat([{label:'CANCELAR'}]));
+      if(opts.length+undos.length>1) {
+        opts.sort((a,b)=>a.arr-b.arr); undos.sort((a,b)=>a.arr-b.arr);
+        showModal('¿QUÉ FICHA?', `Hay ${opts.length+undos.length} fichas tuyas en la casilla (${cc+1},${cr+1}). Elige cuál quieres mover${undos.length?' o devolver a su casilla anterior':''}.`,
+          opts.map(o=>({label:o.label.toUpperCase(), action:()=>{ G.selectedUnit=o.key; renderGame(); }}))
+            .concat(undos.map(o=>({label:'↶ DESHACER '+o.label.toUpperCase(), action:()=>undoMove(o.key)})))
+            .concat([{label:'CANCELAR'}]));
         return;
+      }
+      if(undos.length===1 && !opts.length) {   // ficha ya movida: cartel de deshacer encima (otro toque lo quita)
+        G.selectedUnit=null;
+        UNDO_OFFER = prevOffer===undos[0].key ? null : undos[0].key;
+        renderGame(); placeUndoChip(); return;
       }
     }
     // Click on Esteban drone (defender side only)
@@ -12985,7 +13148,7 @@ function coopPersonalCells(uid, side) {
   const catalina = side === 'def' && G.catalinaVisionRound === G.round && G.units.find(u => u.id === 'catalina' && u.alive);
   const limitDev = side === 'atk' ? G.devices.find(d => d.type === 'facundo' && d.alive) : G.devices.find(d => d.type === 'zorro' && d.alive);
   own.filter(u => u.alive).forEach(u => {
-    const c = new Set(); coopRadiusCells(u.row, u.col, (inBombZone(u.row, u.col) && !allInBomb) ? 1 : 2, c, !!catalina);
+    const c = new Set(); coopRadiusCells(u.row, u.col, (inBombZone(u.row, u.col) && !allInBomb) ? 1 : 2, c, !!catalina && u.id === 'catalina');
     if (limitDev && c.has(limitDev.row + '_' + limitDev.col)) { c.clear(); c.add(u.row + '_' + u.col); c.add(limitDev.row + '_' + limitDev.col); }
     c.forEach(k => cells.add(k));
   });
@@ -13103,8 +13266,15 @@ function coopApplyAction(act, uid, side) {
     const d = G.devices.find(x => x.type === type && x.alive);
     if (!d || coopOwner(type) !== uid || G.movedUnits.has(act.key)) return false;
     if (!getDroneValidMoves(d).find(m => m.r === act.r && m.c === act.c)) return false;
+    undoRecord(act.key, { dev: true, row: d.row, col: d.col, arr: d.arr || 0 });
     d.row = act.r; d.col = act.c; if (type === 'iarramendi') d.arr = (G.arrSeq = (G.arrSeq || 0) + 1);
     G.movedUnits.add(act.key); return true;
+  }
+  if (act.t === 'undo') {
+    if (G.gamePhase !== 'movement') return false;
+    const owner = act.key === 'esteban_drone' ? 'esteban' : act.key === 'iarramendi_decoy' ? 'iarramendi' : act.key;
+    if (coopOwner(owner) !== uid || undoCheck(act.key)) return false;
+    return undoApply(act.key);
   }
   if (act.t === 'shoot') {
     if (G.gamePhase !== 'shoot') return false;
