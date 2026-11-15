@@ -3354,25 +3354,35 @@ const PICK3D = (function () {
     const d = Math.max(3.9, 2.6 / Math.min(1, camera.aspect) / Math.tan(camera.fov * Math.PI / 360) * 0.5 + 1);
     camera.position.set(0, 1.7, d); camera.lookAt(0, 1.2, 0);
   }
+  // Las figuras ya creadas se guardan y solo se ocultan: destruir sus materiales obligaba a la tarjeta
+  // gráfica a recompilar los shaders en cada cambio de personaje (congelones en tabletas y móviles).
+  const made = new Map();
   function clear() {
     if (!soldier) return;
-    scene.remove(soldier);
-    soldier.userData.mats.forEach(m => m.dispose());
+    soldier.visible = false;
     soldier = null;
+  }
+  function build(id, side) {
+    const k = side + ':' + id;
+    let g = made.get(k);
+    if (g) return g;
+    g = helper.makeSoldier('', side, id);
+    g.scale.setScalar(2.3);
+    g.userData.lab.visible = false; g.userData.mats[5].visible = false;
+    g.userData.ring.visible = false;
+    g.visible = false; scene.add(g);
+    made.set(k, g);
+    return g;
   }
   function show(icon, side) {
     if (!init()) return;
     const k = side + ':' + icon;   // icon = id del personaje enfocado
     if (k === key) return;
     key = k; clear();
-    const g = helper.makeSoldier('', side, icon);
-    const S = 2.3;
-    g.scale.setScalar(S);
-    const lab = g.userData.lab;
-    lab.visible = false; g.userData.mats[5].visible = false;
-    g.userData.ring.visible = false;
+    const g = build(icon, side);
     g.userData.pv.rotation.y = spin;
-    soldier = g; scene.add(g);
+    g.visible = true;
+    soldier = g;
   }
   function loop() {
     requestAnimationFrame(loop);
@@ -3403,7 +3413,7 @@ const PICK3D = (function () {
       if (!scr || !scr.classList.contains('active')) return;
       if (busy() || !init()) { setTimeout(step, 250); return; }
       const id = list.shift();
-      try { if (!(Board3D.sgCache && Board3D.sgCache['H:' + id])) helper.soldierParts(id); } catch (e) {}
+      try { build(id, pickSide); } catch (e) {}
       setTimeout(step, 140);
     };
     setTimeout(step, 700);
